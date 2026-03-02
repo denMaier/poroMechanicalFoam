@@ -10,9 +10,9 @@ then
     echo "Please source the OpenFOAM/FOAM bashrc first!"
     exit 1
 else
-    allowed_ver=("4.1" "9" "v2012" "v2106" "v2112" "v2206" "v2212" "v2306" "v2312")
-    if ! [[ " ${allowed_ver[*]} " == *" $WM_PROJECT_VERSION "* ]]; then
-        echo "Unsupported OpenFOAM version sourced!"
+    if [[ "$WM_PROJECT_VERSION" != "v2412" ]]; then
+        echo "Unsupported OpenFOAM version sourced! poroMechanicalFoam now only supports OpenFOAM v2412."
+        exit 1
     fi
 fi
 
@@ -33,6 +33,9 @@ fi
 
 # Compile poroHydraulicModel
 (cd materialModels/poroHydraulicModel/ && wmake libso $* 2>&1 | tee log.Allwmake)
+
+# Compile the pinned solids4Foam minimal subset library
+(cd solids4FoamModelsMinimal && ./Allwmake $* 2>&1 | tee log.Allwmake)
 
 # Compile poroMechanicalFoam Library
 (wmake libso $* 2>&1 | tee log.Allwmake)

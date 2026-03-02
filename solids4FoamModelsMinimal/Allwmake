@@ -1,0 +1,34 @@
+#!/bin/bash
+set -e
+cd "${0%/*}" || exit 1
+REPO_ROOT=$(cd .. && pwd)
+
+# Parse arguments for library compilation
+if [ -f "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments ]
+then
+    . "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments
+fi
+
+S4F_ROOT="${S4F_ROOT:-$REPO_ROOT/external/solids4foam}"
+case "$S4F_ROOT" in
+    /*) ;;
+    *) S4F_ROOT="$REPO_ROOT/$S4F_ROOT" ;;
+esac
+S4F_MODELS_DIR="$S4F_ROOT/src/solids4FoamModels"
+
+if [ ! -d "$S4F_MODELS_DIR" ]
+then
+    echo "Missing solids4Foam sources at $S4F_MODELS_DIR"
+    echo "Set S4F_ROOT to an existing solids4Foam source or initialize the submodule."
+    exit 1
+fi
+
+# Keep this target minimal by linking only required source trees from submodule.
+for d in physicsModel solidModels materialModels numerics higherOrderHelpers
+do
+    ln -sfn "$S4F_MODELS_DIR/$d" "$d"
+done
+
+(cd Make && ln -sf files.openfoam files)
+
+wmake $targetType libso

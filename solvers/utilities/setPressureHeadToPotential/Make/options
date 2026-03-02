@@ -1,3 +1,6 @@
+S4F_ROOT ?= $(WM_PROJECT_DIR)/../poroMechanicalFoam/external/solids4foam
+S4F_SRC ?= $(S4F_ROOT)/src
+
 ifeq ($(WM_PROJECT), foam)
     VERSION_SPECIFIC_LIBS = \
         -lincompressibleTurbulenceModel -lincompressibleRASModels \
@@ -43,15 +46,13 @@ else
 endif
 
 EXE_INC = \
-    -I$(s4fPath)/src/solids4FoamModels/lnInclude \
-    -I$(s4fPath)/src/blockCoupledSolids4FoamTools/lnInclude \
+    -I$(S4F_SRC)/solids4FoamModels/lnInclude \
     -I../../lnInclude \
     -I../../materialModels/poroHydraulicModel/lnInclude \
     -I../../richardsSolvers/lnInclude \
     -std=c++11 \
     $(DISABLE_WARNING_FLAGS) \
     $(VERSION_SPECIFIC_INC) \
-    -I$(s4fPath)/ThirdParty/eigen3 \
     -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(LIB_SRC)/meshTools/lnInclude \
     -I$(LIB_SRC)/finiteArea/lnInclude \
@@ -81,8 +82,7 @@ EXE_INC = \
 EXE_LIBS = \
     -L$(FOAM_USER_LIBBIN) \
     $(VERSION_SPECIFIC_LIBS) \
-    -lblockCoupledSolids4FoamTools \
-    -lsolids4FoamModels \
+    -lsolids4FoamModelsMinimal \
     -lporoHydraulicModels \
     -lrichardsSolvers \
     -lporoModels  \
