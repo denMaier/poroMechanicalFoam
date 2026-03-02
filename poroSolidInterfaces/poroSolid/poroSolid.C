@@ -173,8 +173,14 @@ namespace Foam
                     // This is returned as "tmp" so we need to safe the data here otherwise it runs out of scope
                     const volScalarField impK(solid().mechanical().impK()); 
                     //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
-                    nDot_.reset(nDot(b(),solid().U()).ptr());
-                    fixedStressStabil_.reset(fixedStressStabil(b(),impK).ptr());
+                    {
+                        const tmp<volScalarField> tnDot(nDot(b(), solid().U()));
+                        nDot_.reset(new volScalarField(tnDot()));
+                    }
+                    {
+                        const tmp<volScalarField> tStabil(fixedStressStabil(b(), impK));
+                        fixedStressStabil_.reset(new volScalarField(tStabil()));
+                    }
                     // TODO: Find solution to get this term working again
                     //q_relAcc_.reset(q_relAcc(poroFluid().poroHydraulic().kf()(),solid().U()).ptr());
                     // If we implicitly update the porosity, this is done now. 
@@ -197,8 +203,14 @@ namespace Foam
                     tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));
 
                     //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
-                    nDot_.reset(nDot(b(),UFluidMesh()).ptr());
-                    fixedStressStabil_.reset(fixedStressStabil(b(),tmpImpK()).ptr());
+                    {
+                        const tmp<volScalarField> tnDot(nDot(b(), UFluidMesh()));
+                        nDot_.reset(new volScalarField(tnDot()));
+                    }
+                    {
+                        const tmp<volScalarField> tStabil(fixedStressStabil(b(), tmpImpK()));
+                        fixedStressStabil_.reset(new volScalarField(tStabil()));
+                    }
                     // TODO: Find solution to get this term working again
                     //q_relAcc_.reset(q_relAcc(poroFluid().poroHydraulic().kf()(),UFluidMesh()).ptr());
 

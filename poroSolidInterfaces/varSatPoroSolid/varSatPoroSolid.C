@@ -222,8 +222,14 @@ namespace Foam
                     // and biot parameter (effect of compressible solid consituents)
                     tmp<volScalarField> bishopBiot(SFluidMesh*b());
                     //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
-                    nDot_.reset(nDot(bishopBiot(),solid().U()).ptr());
-                    fixedStressStabil_.reset(fixedStressStabil(b(),impK).ptr());
+                    {
+                        const tmp<volScalarField> tnDot(nDot(bishopBiot(), solid().U()));
+                        nDot_.reset(new volScalarField(tnDot()));
+                    }
+                    {
+                        const tmp<volScalarField> tStabil(fixedStressStabil(b(), impK));
+                        fixedStressStabil_.reset(new volScalarField(tStabil()));
+                    }
                     // TODO: Find solution to get this term working again
                     //q_relAcc_.reset(q_relAcc(poroHydraulic().kEfff()(),solid().U()).ptr());
                     // If we implicitly update the porosity, this is done now. 
@@ -249,8 +255,14 @@ namespace Foam
                     tmp<volScalarField> bishopBiot(SFluidMesh*b());
 
                     //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
-                    nDot_.reset(nDot(bishopBiot(),UFluidMesh()).ptr());
-                    fixedStressStabil_.reset(fixedStressStabil(b(),tmpImpK).ptr());
+                    {
+                        const tmp<volScalarField> tnDot(nDot(bishopBiot(), UFluidMesh()));
+                        nDot_.reset(new volScalarField(tnDot()));
+                    }
+                    {
+                        const tmp<volScalarField> tStabil(fixedStressStabil(b(), tmpImpK));
+                        fixedStressStabil_.reset(new volScalarField(tStabil()));
+                    }
                     // TODO: Find solution to get this term working again
                     //q_relAcc_.reset(q_relAcc(poroHydraulic().kEfff()(),UFluidMesh()).ptr());
                     

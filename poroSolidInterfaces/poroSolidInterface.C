@@ -165,11 +165,12 @@ void Foam::poroSolidInterface::makeBiotCoeff()
     bs.clear();
     if (sharedMesh_)
     {
-       b_.reset(tb.ptr());
+       b_.reset(new volScalarField(tb()));
     }
     else
     {
-        b_.reset(solidToPoroFluid().mapTgtToSrc(tb()).ptr());
+        const tmp<volScalarField> tbMapped(solidToPoroFluid().mapTgtToSrc(tb()));
+        b_.reset(new volScalarField(tbMapped()));
     }
 }
 
@@ -386,7 +387,7 @@ void Foam::poroSolidInterface::writeFields(const Time &runTime)
         const volTensorField& gradDD =
             solidMesh().lookupObject<volTensorField>("grad(DD)");
 
-        DEpsilon.reset(symm(gradDD).ptr());
+        DEpsilon.reset(new volSymmTensorField(symm(gradDD)));
     }
     else
     {
@@ -394,7 +395,7 @@ void Foam::poroSolidInterface::writeFields(const Time &runTime)
         const volTensorField& gradD =
             solidMesh().lookupObject<volTensorField>("grad(D)");
 
-        DEpsilon.reset((symm(gradD)-symm(gradD.oldTime())).ptr());
+        DEpsilon.reset(new volSymmTensorField(symm(gradD)-symm(gradD.oldTime())));
     }
 
     intWork_.ref() =

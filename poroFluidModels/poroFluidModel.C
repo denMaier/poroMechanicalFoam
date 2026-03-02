@@ -371,7 +371,8 @@ const volScalarField& Foam::poroFluidModel::n()
     //- If not yet happend, initialize n with n0
     if(!nPtr_.valid())
     {
-        nPtr_.reset(n0().ptr());
+        const tmp<volScalarField> tn0(n0());
+        nPtr_.reset(new volScalarField(tn0()));
     }
     //Otherwise we return the field
     return nPtr_();

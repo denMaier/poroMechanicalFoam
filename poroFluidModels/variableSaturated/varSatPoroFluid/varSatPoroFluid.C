@@ -115,7 +115,10 @@ namespace Foam
             p() = p_rgh() + poroHydraulic().p_Hyd();
 
             // Now that p is initalized we can initalize these object:
-            SPtr_.reset(poroHydraulic().S(p()).ptr());
+            {
+                const tmp<volScalarField> tS(poroHydraulic().S(p()));
+                SPtr_.reset(new volScalarField(tS()));
+            }
 
             // Initialize iteration control
             iterCtrl();

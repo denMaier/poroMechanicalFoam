@@ -35,8 +35,8 @@ ln -sfn "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools/newLeastSquaresVolPoint
     newLeastSquaresVolPointInterpolation
 
 # Required so internal solids4Foam headers resolve via lnInclude in both trees.
-wmakeLnIncludeAll "$S4F_MODELS_DIR"
-wmakeLnIncludeAll "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools"
+wmakeLnInclude "$S4F_MODELS_DIR"
+wmakeLnInclude "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools"
 
 (cd Make && ln -sf files.openfoam files)
 
