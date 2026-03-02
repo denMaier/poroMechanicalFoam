@@ -14,6 +14,7 @@ case "$S4F_ROOT" in
     /*) ;;
     *) S4F_ROOT="$REPO_ROOT/$S4F_ROOT" ;;
 esac
+export S4F_ROOT
 S4F_MODELS_DIR="$S4F_ROOT/src/solids4FoamModels"
 
 if [ ! -d "$S4F_MODELS_DIR" ]
@@ -28,6 +29,14 @@ for d in physicsModel solidModels materialModels numerics higherOrderHelpers
 do
     ln -sfn "$S4F_MODELS_DIR/$d" "$d"
 done
+ln -sfn "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools/enhancedVolPointInterpolation" \
+    enhancedVolPointInterpolation
+ln -sfn "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools/newLeastSquaresVolPointInterpolation" \
+    newLeastSquaresVolPointInterpolation
+
+# Required so internal solids4Foam headers resolve via lnInclude in both trees.
+wmakeLnIncludeAll "$S4F_MODELS_DIR"
+wmakeLnIncludeAll "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools"
 
 (cd Make && ln -sf files.openfoam files)
 

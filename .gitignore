@@ -60,6 +60,15 @@ SiCortex*Gcc*/
 solaris*Gcc*/
 SunOS*Gcc*/
 
+# generated symlinks for minimal solids4Foam target
+solids4FoamModelsMinimal/physicsModel
+solids4FoamModelsMinimal/solidModels
+solids4FoamModelsMinimal/materialModels
+solids4FoamModelsMinimal/numerics
+solids4FoamModelsMinimal/higherOrderHelpers
+solids4FoamModelsMinimal/enhancedVolPointInterpolation
+solids4FoamModelsMinimal/newLeastSquaresVolPointInterpolation
+
 # debian/ derived files
 build-stamp
 debian/files

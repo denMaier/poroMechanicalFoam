@@ -1,5 +1,6 @@
 #!/bin/bash
 cd ${0%/*} || exit 1    # run from this directory
+REPO_ROOT=$(pwd)
 
 # Stop at first error
 set -e
@@ -20,6 +21,14 @@ fi
 if [ -f "$WM_PROJECT"/wmake/scripts/AllwmakeParseArguments ]
 then  . "$WM_PROJECT"/wmake/scripts/AllwmakeParseArguments
 fi
+
+# Use local submodule by default, unless caller provides an existing solids4Foam path.
+S4F_ROOT="${S4F_ROOT:-$REPO_ROOT/external/solids4foam}"
+case "$S4F_ROOT" in
+    /*) ;;
+    *) S4F_ROOT="$REPO_ROOT/$S4F_ROOT" ;;
+esac
+export S4F_ROOT
 
 # Check to see if Umats should be compiled
 if [[ ! -z "${S4F_USE_GFORTRAN+x}" ]]

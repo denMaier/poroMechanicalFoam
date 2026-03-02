@@ -1,3 +1,6 @@
+enhancedVolPointInterpolation/enhancedVolPointInterpolation.C
+newLeastSquaresVolPointInterpolation/newLeastSquaresVolPointInterpolation.C
+
 physicsModel/physicsModel.C
 
 solidModels/solidModel/solidModel.C
