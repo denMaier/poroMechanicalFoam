@@ -11,7 +11,9 @@ dedicated minimal library (`libsolids4FoamModelsMinimal`).
 ## Setup
 
 ```bash
-./scripts/setup_solids4foam_submodule.sh
+git submodule add https://github.com/solids4foam/solids4foam.git external/solids4foam
+git -C external/solids4foam fetch --tags
+git -C external/solids4foam checkout v2.3
 ```
 
 Or point to an existing solids4Foam source tree:

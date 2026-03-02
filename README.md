@@ -14,7 +14,9 @@ poroMechanicalFoam is an extension to OpenFOAM and solids4Foam, designed to mode
 2. Source OpenFOAM.
 3. Add and pin the solids4Foam submodule:
 ```
-./scripts/setup_solids4foam_submodule.sh
+git submodule add https://github.com/solids4foam/solids4foam.git external/solids4foam
+git -C external/solids4foam fetch --tags
+git -C external/solids4foam checkout v2.3
 ```
    Or use an existing solids4Foam source tree:
 ```

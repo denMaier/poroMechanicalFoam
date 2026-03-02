@@ -1,8 +1,0 @@
-#!/bin/bash
-set -e
-cd "${0%/*}" || exit 1
-
-python3 ../scripts/generate_solids4foam_pmf_files.py
-
-wmakeLnIncludeAll ../external/solids4foam/src
-wmake libso
