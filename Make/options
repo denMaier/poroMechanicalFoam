@@ -1,6 +1,6 @@
-S4F_ROOT ?= $(WM_PROJECT_DIR)/../poroMechanicalFoam/external/solids4foam
+S4F_ROOT ?= $(abspath $(CURDIR)/external/solids4foam)
 S4F_SRC ?= $(S4F_ROOT)/src
-FORCE_CXX_STANDARD = -std=c++17
+FOAM_EXTRA_CXXFLAGS += -std=c++17
 
 VERSION_SPECIFIC_INC = \
     -DOPENFOAM_NOT_EXTEND \
@@ -28,8 +28,7 @@ EXE_INC = \
     -I$(LIB_SRC)/ODE/lnInclude \
     -I$(LIB_SRC)/fvOptions/lnInclude \
     -ImaterialModels/poroHydraulicModel/lnInclude \
-    -I$(S4F_SRC)/solids4FoamModels/lnInclude \
-    $(FORCE_CXX_STANDARD)
+    -I$(S4F_SRC)/solids4FoamModels/lnInclude
 
 LIB_LIBS = \
     -L$(FOAM_USER_LIBBIN) \
