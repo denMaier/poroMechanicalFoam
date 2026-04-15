@@ -115,7 +115,7 @@ public:
 
     // Member Functions
 
-        using poroMechanicalLaw2::correct;
+        using mechanicalLaw::correct;
 
         //- Return bulk modulus
         virtual tmp<volScalarField> bulkModulus() const;
