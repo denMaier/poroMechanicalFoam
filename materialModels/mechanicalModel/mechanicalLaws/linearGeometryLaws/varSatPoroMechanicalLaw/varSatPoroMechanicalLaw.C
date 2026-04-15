@@ -243,12 +243,15 @@ void Foam::varSatPoroMechanicalLaw::correct(surfaceSymmTensorField& sigma)
                                 : lookupFluidField(pName_);
 
     // Interpolate pressure to the faces
-    const surfaceScalarField pf(fvc::interpolate(pRef));
+    const tmp<surfaceScalarField> tPf(fvc::interpolate(pRef));
+    const surfaceScalarField& pf = tPf();
 
     // Interpolate pressure to the faces
-    const surfaceScalarField Sf(fvc::interpolate(SRef));
+    const tmp<surfaceScalarField> tSf(fvc::interpolate(SRef));
+    const surfaceScalarField& Sf = tSf();
 
-    const surfaceScalarField chif = fvc::interpolate(effectiveStressModelPtr_->chi(nRef,SRef,pRef));
+    const tmp<surfaceScalarField> tChif(fvc::interpolate(effectiveStressModelPtr_->chi(nRef,SRef,pRef)));
+    const surfaceScalarField& chif = tChif();
 
     // check if sigmaEff has been initialized (should be done only once per calculation)
     checkSigmaEffReady(sigma,pf,chif);

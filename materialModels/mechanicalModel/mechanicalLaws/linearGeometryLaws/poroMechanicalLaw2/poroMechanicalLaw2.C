@@ -204,7 +204,8 @@ void Foam::poroMechanicalLaw2::correct(surfaceSymmTensorField& sigma)
                                 : lookupFluidField(pName_);
 
     // Interpolate pressure to the faces
-    const surfaceScalarField pf(fvc::interpolate(pRef()));
+    const tmp<surfaceScalarField> tPf(fvc::interpolate(pRef()));
+    const surfaceScalarField& pf = tPf();
 
     // check if sigmaEff has been initialized (should be done only once per calculation)
     checkSigmaEffReady(sigma,pf);

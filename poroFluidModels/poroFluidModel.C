@@ -417,7 +417,7 @@ const volScalarField& Foam::poroFluidModel::n()
     return nPtr_();
 }
 
-void Foam::poroFluidModel::update_porosity(const volScalarField Dn, const bool incremental)
+void Foam::poroFluidModel::update_porosity(const volScalarField& Dn, const bool incremental)
 {
     // porosity is changing, and we dont have a field for the changing porosity yet
     // we initalize with n0 (the porosity inside poroHydraulicModel)

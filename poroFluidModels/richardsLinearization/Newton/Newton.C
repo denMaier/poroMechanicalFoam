@@ -88,8 +88,13 @@ namespace Foam
 
         tmp<fvScalarMatrix> Newton::ddpk(const surfaceScalarField &kField, volScalarField &pField)
         {
-            surfaceScalarField pGrad = fvc::snGrad(pField);
-            surfaceScalarField kDash = fvc::interpolate(poroHydraulic().dkbydp(),"interpolate(kr)")*kField*pGrad * mesh().magSf();
+            const tmp<surfaceScalarField> tPGrad(fvc::snGrad(pField));
+            const surfaceScalarField& pGrad = tPGrad();
+            const tmp<surfaceScalarField> tKDash
+            (
+                fvc::interpolate(poroHydraulic().dkbydp(), "interpolate(kr)")*kField*pGrad*mesh().magSf()
+            );
+            const surfaceScalarField& kDash = tKDash();
 
             tmp<fvScalarMatrix> tkMatrix(
                 new fvScalarMatrix(
