@@ -189,7 +189,7 @@ namespace Foam
             do
             {
             	// Clear previous outer iterations convergence data
-		        const_cast<dictionary&>(mesh().solverPerformanceDict()).clear();
+		        mesh().data().solverPerformanceDict().clear();
 
                 // Store prev fields for relaxation
                 pHead_.storePrevIter();
@@ -248,7 +248,7 @@ namespace Foam
                 hydraulicGradient() = fvc::grad(pHead_) + fvc::grad(poroHydraulic().z());   
 
 //////////////////- Output first and latest linear solver performance  ////////////////////////////////////////////////////////////////////////////////////////////////
-                autoPtr<List<SolverPerformance<scalar>>> sp(new List<SolverPerformance<scalar>>(mesh().solverPerformanceDict().findEntry("pHead")->stream()));
+                autoPtr<List<SolverPerformance<scalar>>> sp(new List<SolverPerformance<scalar>>(mesh().data().solverPerformanceDict().findEntry("pHead")->stream()));
                 if(sp().size()==1)
                 {
                     sp().last().print(Info.masterStream(mesh().comm()));

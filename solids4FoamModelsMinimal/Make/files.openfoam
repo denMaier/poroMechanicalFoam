@@ -25,6 +25,7 @@ solidModels/unsNonLinGeomTotalLagSolid/unsNonLinGeomTotalLagSolid.C
 solidModels/vertexCentredLinGeomSolid/vertexCentredLinGeomSolid.C
 solidModels/vertexCentredNonLinGeomTotalLagSolid/vertexCentredNonLinGeomTotalLagSolid.C
 solidModels/weakThermalLinGeomSolid/weakThermalLinGeomSolid.C
+seismicLinGeomSolid/seismicLinGeomSolid.C
 
 
 
@@ -67,6 +68,12 @@ materialModels/thermalModel/thermalModel.C
 thermalLaws = materialModels/thermalModel/thermalLaws
 $(thermalLaws)/thermalLaw/thermalLaw.C
 $(thermalLaws)/constantThermal/constantThermal.C
+
+fluidModels/fvPatchFields/robin/robinFvPatchFields.C
+
+fluidModels/fvPatchFields/thermalRobin/thermalRobinFvPatchScalarField.C
+
+functionObjects/sphericalCavityAnalyticalSolution/sphericalCavityStressDisplacement.C
 
 solidFvPatchFields = solidModels/fvPatchFields
 $(solidFvPatchFields)/analyticalPlateHoleTraction/analyticalPlateHoleTractionFvPatchVectorField.C

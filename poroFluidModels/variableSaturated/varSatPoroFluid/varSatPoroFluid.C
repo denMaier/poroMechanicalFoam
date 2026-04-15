@@ -183,7 +183,7 @@ namespace Foam
             {
 
                 // Clear previous outer iterations convergence data
-                const_cast<dictionary &>(mesh().solverPerformanceDict()).clear();
+                mesh().data().solverPerformanceDict().clear();
 
                 // Store prev fields for relaxation
                 p_rgh().storePrevIter();
@@ -254,7 +254,7 @@ namespace Foam
                 hydraulicGradient() = fvc::grad(p_rgh()) / poroHydraulic().magGamma();
 
                 //////////////////- Output first and latest linear solver performance  ////////////////////////////////////////////////////////////////////////////////////////////////
-                autoPtr<List<SolverPerformance<scalar>>> sp(new List<SolverPerformance<scalar>>(mesh().solverPerformanceDict().findEntry("p_rgh")->stream()));
+                autoPtr<List<SolverPerformance<scalar>>> sp(new List<SolverPerformance<scalar>>(mesh().data().solverPerformanceDict().findEntry("p_rgh")->stream()));
                 if (sp().size() == 1)
                 {
                     sp().last().print(Info.masterStream(mesh().comm()));

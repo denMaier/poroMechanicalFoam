@@ -1,0 +1,5 @@
+seismicLinGeomSolid/seismicLinGeomSolid.C
+tabulatedForcingSource/tabulatedForcingSource.C
+/*seismicVelocitySolid/linGeomVelocitySolid.C*/
+
+LIB = $(FOAM_USER_LIBBIN)/libseismicSolids4FoamModels

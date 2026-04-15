@@ -69,9 +69,11 @@ bool Foam::poroIncrements::writeData()
         const volScalarField &p =
             fMesh_().lookupObject<volScalarField>("p_rgh");
 
-        const volScalarField Dp =
-            ("Dp",
-             p - p.oldTime());
+        const volScalarField Dp
+        (
+            "Dp",
+            p - p.oldTime()
+        );
 
         Dp.write();
     }

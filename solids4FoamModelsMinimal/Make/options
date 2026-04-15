@@ -20,6 +20,7 @@ EXE_INC = \
     $(VERSION_SPECIFIC_INC) \
     -I$(S4F_SRC)/solids4FoamModels/lnInclude \
     -I$(S4F_SRC)/blockCoupledSolids4FoamTools/lnInclude \
+    -I$(LIB_SRC)/fvOptions/lnInclude \
     -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(LIB_SRC)/meshTools/lnInclude \
     -I$(LIB_SRC)/finiteArea/lnInclude \

@@ -8,12 +8,13 @@ else
 endif
 
 VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
     -DOPENFOAMESIORFOUNDATION \
     -DOPENFOAMESI \
     -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
 
 EXE_INC = \
-    -std=c++11 \
     $(DISABLE_WARNING_FLAGS) \
     $(VERSION_SPECIFIC_INC) \
     -I$(S4F_SRC)/solids4FoamModels/lnInclude \

@@ -2,9 +2,17 @@ S4F_ROOT ?= $(WM_PROJECT_DIR)/../poroMechanicalFoam/external/solids4foam
 S4F_SRC ?= $(S4F_ROOT)/src
 
 VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
     -DOPENFOAMESIORFOUNDATION \
     -DOPENFOAMESI \
     -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
+
+ifeq (Gcc,$(findstring Gcc,$(WM_COMPILER)))
+    DISABLE_WARNING_FLAGS = -Wno-old-style-cast -Wno-deprecated-declarations
+else
+    DISABLE_WARNING_FLAGS =
+endif
 
 ifdef S4F_USE_GFORTRAN
     GFORTRAN_LIBS = \
@@ -15,6 +23,7 @@ endif
 
 EXE_INC = \
     -I$(S4F_SRC)/solids4FoamModels/lnInclude \
+    $(DISABLE_WARNING_FLAGS) \
     -I../../lnInclude \
     -I../../materialModels/poroHydraulicModel/lnInclude \
     $(VERSION_SPECIFIC_INC) \
@@ -33,7 +42,7 @@ EXE_INC = \
     -I../../../lnInclude
 
 EXE_LIBS = \
-    -L$(FOAM_MODULE_LIBBIN) \
+    -L$(FOAM_USER_LIBBIN) \
     -lsolids4FoamModelsMinimal \
     -lporoHydraulicModels \
     -lporoModels  \

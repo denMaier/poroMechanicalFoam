@@ -8,7 +8,9 @@ library focused on:
 - `materialModels`
 
 The source list is derived from `src/solids4FoamModels/Make/files.openfoam` and
-excludes fluid, fluid-solid interface, and function object implementations.
+excludes fluid, fluid-solid interface, and function object implementations,
+except for two compatibility sources required by retained thermal and
+analytical traction patch-field code.
 
 Additional minimal-target changes:
 

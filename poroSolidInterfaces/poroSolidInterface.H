@@ -139,6 +139,19 @@ namespace Foam
 
     protected:
 
+        //- porosity change per unit time coupling term
+        tmp<volScalarField> nDot(const volScalarField& b, const volVectorField& U) const;
+
+        //- fixed stress stabilization coupling term
+        tmp<volScalarField> fixedStressStabil(const volScalarField& b, const volScalarField& impK) const;
+
+        //- map fluid pressure fields to the solid mesh fields
+        void mapPressuresToSolidMesh
+        (
+            autoPtr<volScalarField>& pSolidMeshField,
+            autoPtr<volScalarField>& pRghSolidMeshField
+        );
+
         const Switch &porosityConstantExplicit() const
         {
             return porosityConstantExplicit_;
@@ -220,7 +233,7 @@ namespace Foam
         }
 
         //- Return poroFluid model
-        const poroFluidModel &poroFluid()
+        const poroFluidModel &poroFluid() const
         {
             return poroFluid_();
         }
@@ -232,19 +245,32 @@ namespace Foam
         }
 
         //- Return solid model
-        const solidModel &solid()
+        const solidModel &solid() const
         {
             return solid_();
         }
 
         //- Returns Biot-Willis coeff on poroFluid mesh
-        const volScalarField b()
+        const volScalarField& b()
         {
             if(!b_.valid())
             {
                 makeBiotCoeff();
             }
+
+            if(!b_.valid())
+            {
+                FatalErrorInFunction
+                    << "Biot coefficient field is not initialized"
+                    << exit(FatalError);
+            }
+
             return b_();
+        }
+
+        const volScalarField& b() const
+        {
+            return const_cast<poroSolidInterface&>(*this).b();
         }
 
         //- Return const access to the additional mesh correction switch
@@ -270,6 +296,13 @@ namespace Foam
 
         //- return reference to meshtoMesh interpolator
         const meshToMesh &solidToPoroFluid() const {
+            if(!solidToPoroFluid_.valid())
+            {
+                FatalErrorInFunction
+                    << "solidToPoroFluid mapper is not available. "
+                    << "Set sharedMesh false and provide mapping settings."
+                    << exit(FatalError);
+            }
             return solidToPoroFluid_();
         }
 

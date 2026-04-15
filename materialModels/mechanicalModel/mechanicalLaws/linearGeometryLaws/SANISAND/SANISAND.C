@@ -132,7 +132,6 @@ void Foam::SANISAND::calculateStress(
 
             symmTensor n_ = (sNew - PNew * alphaParam) / mag(sNew - PNew * alphaParam);
 
-            symmTensor alpha_c = Foam::sqrt(2.0 / 3.0) * (gc * Mc_.value() - mParam) * n_;
             symmTensor alpha_b = Foam::sqrt(2.0 / 3.0) * (gc * Mc_.value() + gb * k_cb_.value() * (psiParam <= 0 ? (-psiParam) : 0) - mParam) * n_;
             symmTensor alpha_d = Foam::sqrt(2.0 / 3.0) * (gc * Mc_.value() + gd * k_cd_.value() * psiParam - mParam) * n_;
 
@@ -177,36 +176,36 @@ Foam::SANISAND::SANISAND(
     const dictionary &dict,
     const nonLinearGeometry::nonLinearType &nonLinGeom)
     : mechanicalLaw(name, mesh, dict, nonLinGeom),
-      rho_(dict.lookup("rho")),
-      e0_(dict.lookup("e0")),
+      rho_(dict.get<dimensionedScalar>("rho")),
+      e0_(dict.get<dimensionedScalar>("e0")),
       // Hypoelasticity
-      K0_(dict.lookup("K0")),
-      G0_(dict.lookup("G0")),
+      K0_(dict.get<dimensionedScalar>("K0")),
+      G0_(dict.get<dimensionedScalar>("G0")),
       lambda0_(K0_ - 2 / 3 * G0_),
-      e_cref_(dict.lookup("e_cref")),
-      Pref_(dict.lookup("Pref")),
-      a_(dict.lookup("a")),
+      e_cref_(dict.get<dimensionedScalar>("e_cref")),
+      Pref_(dict.get<dimensionedScalar>("Pref")),
+      a_(dict.get<dimensionedScalar>("a")),
       // Critical state line
-      Mc_(dict.lookup("Mc")),
-      Me_(dict.lookup("Me")),
-      LAMBDA_(dict.lookup("lambda")),
+      Mc_(dict.get<dimensionedScalar>("Mc")),
+      Me_(dict.get<dimensionedScalar>("Me")),
+      LAMBDA_(dict.get<dimensionedScalar>("lambda")),
       // hardening
-      A0_(dict.lookup("A0")),
-      Cf_(dict.lookup("Cf")),
-      Fmax_(dict.lookup("Fmax")),
-      h0_(dict.lookup("h0")),
-      m0_(dict.lookup("m0")),
-      cm_(dict.lookup("cm")),
-      k_cb_(dict.lookup("k_cb")),
-      k_eb_(dict.lookup("k_eb")),
-      k_cd_(dict.lookup("k_cd")),
-      k_ed_(dict.lookup("k_ed")),
+      A0_(dict.get<dimensionedScalar>("A0")),
+      Cf_(dict.get<dimensionedScalar>("Cf")),
+      Fmax_(dict.get<dimensionedScalar>("Fmax")),
+      h0_(dict.get<dimensionedScalar>("h0")),
+      m0_(dict.get<dimensionedScalar>("m0")),
+      cm_(dict.get<dimensionedScalar>("cm")),
+      k_cb_(dict.get<dimensionedScalar>("k_cb")),
+      k_eb_(dict.get<dimensionedScalar>("k_eb")),
+      k_cd_(dict.get<dimensionedScalar>("k_cd")),
+      k_ed_(dict.get<dimensionedScalar>("k_ed")),
       c_("c", dimless, (Me_ / Mc_).value()),
       c_b_("c_b", dimless, (k_eb_ / k_cb_).value()),
       c_d_("c_d", dimless, (k_ed_ / k_cd_).value()),
-      tol_f_(readScalar(dict.lookup("toleranceYield"))),
-      plast_relax_(readScalar(dict.lookup("relaxationPlasticity"))),
-      nCorr_(readScalar(dict.lookup("nCorr"))),
+      tol_f_(dict.get<scalar>("toleranceYield")),
+      plast_relax_(dict.get<scalar>("relaxationPlasticity")),
+      nCorr_(dict.get<scalar>("nCorr")),
 #include "createFields.H"
       activeYield_(
           IOobject(

@@ -1,0 +1,4 @@
+[submodule "external/solids4foam"]
+	path = external/solids4foam
+	url = https://github.com/solids4foam/solids4foam.git
+	sparseCheckout = true

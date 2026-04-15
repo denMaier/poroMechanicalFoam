@@ -27,6 +27,7 @@ License
 #include "poroSolidInterface.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvOption.H"
+#include "fvc.H"
 #include "poroMechanicalLaw2.H"
 
 namespace Foam
@@ -40,7 +41,7 @@ namespace Foam
 
 void Foam::poroSolidInterface::makeIterCtrl()
     {
-        iterCtrl_.reset(new iterationControl(const_cast<Time&>(runTime()),interactionProperties_,"Pressure-Displacement"));
+        iterCtrl_.reset(new iterationControl(runTime_,interactionProperties_,"Pressure-Displacement"));
     }
 
 void Foam::poroSolidInterface::makePoroFluidCouplingSource()
@@ -51,20 +52,99 @@ void Foam::poroSolidInterface::makePoroFluidCouplingSource()
         poroFluidRef().fvOptions().PtrList<fv::option>::append(fv::option::New("poroSolidToFluidCouplingSource",poroSolidSourceDict,poroFluidMesh()));
     }
 
+Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::nDot
+(
+    const volScalarField& b,
+    const volVectorField& U
+) const
+{
+    const tmp<volScalarField> tDivU(fvc::div(U));
+
+    tmp<volScalarField> tnDot
+    (
+        new volScalarField
+        (
+            IOobject
+            (
+                "nDot",
+                U.mesh().time().timeName(),
+                U.mesh(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE,
+                true
+            ),
+            b*tDivU()
+        )
+    );
+
+    return tnDot;
+}
+
+Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::fixedStressStabil
+(
+    const volScalarField& b,
+    const volScalarField& impK
+) const
+{
+    tmp<volScalarField> tStabil
+    (
+        new volScalarField
+        (
+            "fixedStressSplitCoeff",
+            min
+            (
+                pow(b,2)
+                /
+                max
+                (
+                    impK,
+                    dimensionedScalar("0", impK.dimensions(), VGREAT)
+                ),
+                dimensionedScalar("0", dimless/impK.dimensions(), VSMALL)
+            )
+        )
+    );
+
+    return tStabil;
+}
+
+void Foam::poroSolidInterface::mapPressuresToSolidMesh
+(
+    autoPtr<volScalarField>& pSolidMeshField,
+    autoPtr<volScalarField>& pRghSolidMeshField
+)
+{
+    if(sharedMesh())
+    {
+        FatalErrorInFunction
+            << "Pressure mapping requested although meshes are shared"
+            << exit(FatalError);
+    }
+
+    if(!pSolidMeshField.valid() || !pRghSolidMeshField.valid())
+    {
+        FatalErrorInFunction
+            << "Pressure fields on solid mesh are not initialized for non-shared mesh coupling"
+            << exit(FatalError);
+    }
+
+    pRghSolidMeshField.ref() = solidToPoroFluid().mapSrcToTgt(poroFluid().p_rgh())();
+    pSolidMeshField.ref() = solidToPoroFluid().mapSrcToTgt(poroFluid().p());
+}
+
 bool Foam::poroSolidInterface::checkMechanicalLawUpdateBiotCoeff(const mechanicalLaw& law, const label lawI, PtrList<volScalarField> &bs)
     {
         bool isCoupled = false;
         //Info << law.type() << " " << law.name()  << endl;
 
-        if (law.type()=="poroMechanicalLaw2" || law.type()=="varSatPoroMechanicalLaw")
+        const poroMechanicalLaw2* pmlPtr = dynamic_cast<const poroMechanicalLaw2*>(&law);
+
+        if (pmlPtr)
         {
-
-            const poroMechanicalLaw2 &pmlPtr = dynamic_cast<const poroMechanicalLaw2&>(law);
-
             bs.set
             (
                 lawI,
-                new volScalarField(pmlPtr.biotCoeff())
+                new volScalarField(pmlPtr->biotCoeff())
             );
 
             isCoupled = true;
@@ -133,7 +213,14 @@ void Foam::poroSolidInterface::makeBiotCoeff()
             dimensionedScalar("",dimless,1.0)
         )
     );
-    const PtrList<mechanicalLaw>& laws = dynamic_cast<const PtrList<mechanicalLaw>&>(solid().mechanical());
+    const PtrList<mechanicalLaw>* lawsPtr = dynamic_cast<const PtrList<mechanicalLaw>*>(&solid().mechanical());
+    if (!lawsPtr)
+    {
+        FatalErrorInFunction
+            << "Could not access mechanicalLaw list from solid mechanical model"
+            << exit(FatalError);
+    }
+    const PtrList<mechanicalLaw>& laws = *lawsPtr;
     // Accumulated subMesh fields and then map to the base mesh
     PtrList<volScalarField> bs(laws.size());
 
@@ -141,7 +228,7 @@ void Foam::poroSolidInterface::makeBiotCoeff()
 
     forAll(laws, lawI)
     {
-        foundPMLaw = checkMechanicalLawUpdateBiotCoeff(laws[lawI],lawI,bs);
+        foundPMLaw = checkMechanicalLawUpdateBiotCoeff(laws[lawI],lawI,bs) || foundPMLaw;
     }
     if(!foundPMLaw)
     {
@@ -169,6 +256,12 @@ void Foam::poroSolidInterface::makeBiotCoeff()
     }
     else
     {
+        if(!solidToPoroFluid_.valid())
+        {
+            FatalErrorInFunction
+                << "Cannot map Biot coefficient: solidToPoroFluid mapper is not initialized"
+                << exit(FatalError);
+        }
         const tmp<volScalarField> tbMapped(solidToPoroFluid().mapTgtToSrc(tb()));
         b_.reset(new volScalarField(tbMapped()));
     }

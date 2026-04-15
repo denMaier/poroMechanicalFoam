@@ -47,42 +47,6 @@ namespace Foam
         addToRunTimeSelectionTable(poroSolidInterface, varSatPoroSolid, dictionary);
 
         // * * * * * * * * * * *  Private Member Functions * * * * * * * * * * * * * //
-        //- porosity change per unit time
-        tmp<volScalarField> varSatPoroSolid::nDot(const volScalarField& b, const volVectorField& U)
-        {
-            tmp<volScalarField> tnDot
-            (
-                new volScalarField
-                (
-                    "nDot",
-                    b*fvc::div(U)
-                )
-            );
-            return tnDot;
-        }
-
-        //- fixed stress stablization term
-        tmp<volScalarField> varSatPoroSolid::fixedStressStabil(const volScalarField& b, const volScalarField& impK)
-        {
-            tmp<volScalarField> tStabil
-            (
-                new volScalarField
-                (
-                    "fixedStressSplitCoeff",
-                    min
-                    ( 
-                        pow(b,2) 
-                        / 
-                        max(
-                            impK,dimensionedScalar("0",impK.dimensions(),VGREAT)
-                        ),
-                        dimensionedScalar("0",dimless/impK.dimensions(),VSMALL)
-                    )
-                )
-            );
-            return tStabil;
-        }
-
         //- fluxes arising from differencial acceleration (usually not significant)
         tmp<surfaceVectorField> varSatPoroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& U)
         {
@@ -222,9 +186,25 @@ namespace Foam
                     // and biot parameter (effect of compressible solid consituents)
                     tmp<volScalarField> bishopBiot(SFluidMesh*b());
                     //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
+                    if(!nDot_.valid())
                     {
-                        const tmp<volScalarField> tnDot(nDot(bishopBiot(), solid().U()));
-                        nDot_.reset(new volScalarField(tnDot()));
+                        tmp<volScalarField> tnDot(nDot(bishopBiot(), solid().U()));
+                        nDot_.reset(tnDot.ptr());
+
+                        if
+                        (
+                            !nDot_().mesh().objectRegistry::foundObject<volScalarField>
+                            (
+                                nDot_().name()
+                            )
+                        )
+                        {
+                            nDot_().mesh().objectRegistry::checkIn(nDot_());
+                        }
+                    }
+                    else
+                    {
+                        nDot_.ref() = nDot(bishopBiot(), solid().U());
                     }
                     {
                         const tmp<volScalarField> tStabil(fixedStressStabil(b(), impK));
@@ -255,9 +235,25 @@ namespace Foam
                     tmp<volScalarField> bishopBiot(SFluidMesh*b());
 
                     //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
+                    if(!nDot_.valid())
                     {
-                        const tmp<volScalarField> tnDot(nDot(bishopBiot(), UFluidMesh()));
-                        nDot_.reset(new volScalarField(tnDot()));
+                        tmp<volScalarField> tnDot(nDot(bishopBiot(), UFluidMesh()));
+                        nDot_.reset(tnDot.ptr());
+
+                        if
+                        (
+                            !nDot_().mesh().objectRegistry::foundObject<volScalarField>
+                            (
+                                nDot_().name()
+                            )
+                        )
+                        {
+                            nDot_().mesh().objectRegistry::checkIn(nDot_());
+                        }
+                    }
+                    else
+                    {
+                        nDot_.ref() = nDot(bishopBiot(), UFluidMesh());
                     }
                     {
                         const tmp<volScalarField> tStabil(fixedStressStabil(b(), tmpImpK));
@@ -290,8 +286,6 @@ namespace Foam
                 poroFluidRef().evolve();
 
                 // Delete mechanic to hydraulic coupling terms to safe memory
-                nDot_.clear();
-                fixedStressStabil_.clear();
                 q_relAcc_.clear();
 
                 //- Preparing the hydraulic to mechanic source terms for coupling
@@ -300,10 +294,15 @@ namespace Foam
                 // on different meshes, we first need to map the pressure fields from poroFluid to solid mesh
                 if (!sharedMesh())
                 {
+                    if(!SSolidMesh_.valid())
+                    {
+                        FatalErrorInFunction
+                            << "Saturation field on solid mesh is not initialized for non-shared mesh coupling"
+                            << exit(FatalError);
+                    }
                     // Get reference to saturation
                     const volScalarField& S = poroFluid().lookupObject<volScalarField>("S");
-                    pRghSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(poroFluid().p_rgh())();
-                    pSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(poroFluid().p());
+                    mapPressuresToSolidMesh(pSolidMesh_, pRghSolidMesh_);
                     SSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(S);
                 }
 
@@ -319,6 +318,9 @@ namespace Foam
                 solidRef().evolve();
 
             } while (couplingControl().loop());
+
+            nDot_.clear();
+            fixedStressStabil_.clear();
 
             // If we wont to write out iteration metrics, this function will do it
             couplingControl().write();
@@ -337,6 +339,12 @@ namespace Foam
                 }
                 else
                 {
+                    if(!nSolidMesh_.valid())
+                    {
+                        FatalErrorInFunction
+                            << "Porosity field on solid mesh is not initialized for non-shared mesh coupling"
+                            << exit(FatalError);
+                    }
                     tmp<volVectorField> DFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().D());
                     //Calculating n = n_start+div(D)
                     poroFluidRef().update_porosity(fvc::div(DFluidMesh),false); 
@@ -351,6 +359,12 @@ namespace Foam
         //- explicit coupling terms to pressure equation
         const tmp<volScalarField> varSatPoroSolid::explicitCouplingDtoP() const
         {
+            if(!nDot_.valid())
+            {
+                FatalErrorInFunction
+                    << "Explicit coupling term nDot is not initialized"
+                    << exit(FatalError);
+            }
             tmp<volScalarField> tSu(
                 new volScalarField(
                     nDot_() //- fvc::div(poroFluidMesh().Sf() & q_relAcc_())
@@ -361,6 +375,12 @@ namespace Foam
         //- implicit coupling terms to pressure equation (get multiplied with pField)
         const tmp<volScalarField>  varSatPoroSolid::implicitCouplingDtoP() const
         {
+            if(!fixedStressStabil_.valid())
+            {
+                FatalErrorInFunction
+                    << "Implicit coupling term fixedStressStabil is not initialized"
+                    << exit(FatalError);
+            }
             tmp<volScalarField> tSp(
                 new volScalarField(fixedStressStabil_())
                 );

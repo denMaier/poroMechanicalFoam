@@ -25,6 +25,7 @@ functionObjects/poroPatchFlux/poroPatchFlux.C
 functionObjects/secondOrderWork/secondOrderWork.C
 functionObjects/poroIncrements/poroIncrements.C
 functionObjects/stressInvariants/solidInvariants.C
+functionObjects/tabulatedForcingSource/tabulatedForcingSource.C
 
 materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/ohdeElastic/ohdeElastic.C
 materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/linearElasticMohrCoulombPlasticDilationCutoff/linearElasticMohrCoulombPlasticDilationCutoff.C

@@ -60,20 +60,28 @@ Foam::residualOperations::RMS::~RMS()
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 Foam::scalar Foam::residualOperations::RMS::operation(const scalarField& x) const
 {
-	scalar rsize = pow(1/x.size(),0.5);
-    return rsize * pow(x.size()*gSum(pow(x,2)),0.5);
+    if (!x.size())
+    {
+        return 0.0;
+    }
+
+    return Foam::sqrt(gSum(pow(x, 2))/x.size());
 }
 
 Foam::scalar Foam::residualOperations::RMS::operation(const List<scalar>& x) const
 {
-    scalar returnValue;
+    if (!x.size())
+    {
+        return 0.0;
+    }
+
+    scalar returnValue = 0.0;
     forAll(x, ix)
     {
-        returnValue += pow(x[ix],2);
+        returnValue += pow(x[ix], 2);
     }
-    scalar rsize = pow(1/x.size(),0.5);
-    returnValue = pow(returnValue,0.5);
-    return returnValue;
+
+    return Foam::sqrt(returnValue/x.size());
 }
 
 // ************************************************************************* //

@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 
     // Write all registered fields if we added the command line argument
     // So that we know whats in memory.
-    if (args.optionFound("listAllRegistered"))
+    if (args.found("listAllRegistered"))
     {
         // Get a list of all the names in of all registered fields
         wordList regs(runTime.sortedNames());

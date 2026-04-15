@@ -4,26 +4,12 @@ else
     DISABLE_WARNING_FLAGS =
 endif
 
-ifeq ($(WM_PROJECT), foam)
-    VER := $(shell expr `echo $(WM_PROJECT_VERSION)` \>= 4.1)
-    ifeq ($(VER), 1)
-        VERSION_SPECIFIC_INC = -DFOAMEXTEND=41
-    else
-        VERSION_SPECIFIC_INC = -DFOAMEXTEND=40
-    endif
-else
-    VERSION_SPECIFIC_INC = \
-        -DOPENFOAMESIORFOUNDATION -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
-    ifneq (,$(findstring v,$(WM_PROJECT_VERSION)))
-        ifeq (v1812,$(findstring v1812,$(WM_PROJECT_VERSION)))
-            VERSION_SPECIFIC_INC += -DOPENFOAMESI=1812
-        else
-            VERSION_SPECIFIC_INC += -DOPENFOAMESI=1912
-        endif
-    else
-        VERSION_SPECIFIC_INC += -DOPENFOAMFOUNDATION
-    endif
-endif
+VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
+    -DOPENFOAMESIORFOUNDATION \
+    -DOPENFOAMESI \
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
 
 EXE_INC = \
    -std=c++17 \

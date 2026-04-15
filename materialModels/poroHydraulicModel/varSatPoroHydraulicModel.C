@@ -150,7 +150,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::kr(const volScalarField &p)
         {
             label cellI = faceCells[faceI];
             saturationLaw& SModel = saturationLawPtr_[cellZones.whichZone(cellI)];
-            krPatch[faceI] = SModel.S(pPatch[faceI],patchI,faceI);
+            krPatch[faceI] = SModel.kr(pPatch[faceI],patchI,faceI);
         }
     }
     

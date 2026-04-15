@@ -83,7 +83,28 @@ void Foam::deltaVf::firstLookup()
         "word&, "
         "ITstream&) ")
         << "Unknown iterationResidual type "
-        << variableName_ << endl
+        << variableName_ << nl
+        << "Searched fvMesh object registries:" << nl;
+
+        forAllConstIters(meshes, meshIter)
+        {
+            const fvMesh& regionMesh = *(meshIter.val());
+
+            FatalError
+                << "  - " << regionMesh.name()
+                << " (scalar="
+                << regionMesh.objectRegistry::foundObject<volScalarField>(variableName_)
+                << ", vector="
+                << regionMesh.objectRegistry::foundObject<volVectorField>(variableName_)
+                << ", symmTensor="
+                << regionMesh.objectRegistry::foundObject<volSymmTensorField>(variableName_)
+                << ", tensor="
+                << regionMesh.objectRegistry::foundObject<volTensorField>(variableName_)
+                << ")"
+                << nl;
+        }
+
+        FatalError
         << endl
         << "Valid iterationResiduals are : " << endl
         << "any names of output fields"
@@ -93,21 +114,95 @@ void Foam::deltaVf::firstLookup()
 
 void Foam::deltaVf::lookupAndMakeScalar()
 {
+    if (!db_.valid())
+    {
+        firstLookup();
+    }
+
+    if (!vf_.valid())
+    {
+        makeVfScalar();
+    }
+
     if(type_ == "scalar")
     {
-        vf() = db_().objectRegistry::lookupObject<volScalarField>(variableName_);
+        const volScalarField& src = db_().objectRegistry::lookupObject<volScalarField>(variableName_);
+
+        if (vf().dimensions() != src.dimensions())
+        {
+            WarningInFunction
+                << "Reinitializing residual field tracker for '" << variableName_
+                << "' on mesh '" << db_().name() << "' due to dimension change "
+                << vf().dimensions() << " -> " << src.dimensions() << endl;
+
+            dimensions_.reset(src.dimensions());
+            vf_.clear();
+            makeVfScalar();
+            prevIterStored_ = false;
+        }
+
+        vf() = src;
+        dimensions_.reset(vf().dimensions());
     }
     else if (type_ == "vector")
     {
-        vf() = mag(db_().objectRegistry::lookupObject<volVectorField>(variableName_));
+        const volVectorField& src = db_().objectRegistry::lookupObject<volVectorField>(variableName_);
+
+        if (vf().dimensions() != src.dimensions())
+        {
+            WarningInFunction
+                << "Reinitializing residual field tracker for '" << variableName_
+                << "' on mesh '" << db_().name() << "' due to dimension change "
+                << vf().dimensions() << " -> " << src.dimensions() << endl;
+
+            dimensions_.reset(src.dimensions());
+            vf_.clear();
+            makeVfScalar();
+            prevIterStored_ = false;
+        }
+
+        vf() = mag(src);
+        dimensions_.reset(vf().dimensions());
     }
     else if (type_ == "symmTensor")
     {
-        vf() = sqrt32_*sqrt(magSqr(dev(db_().objectRegistry::lookupObject<volSymmTensorField>(variableName_))));
+        const volSymmTensorField& src = db_().objectRegistry::lookupObject<volSymmTensorField>(variableName_);
+
+        if (vf().dimensions() != src.dimensions())
+        {
+            WarningInFunction
+                << "Reinitializing residual field tracker for '" << variableName_
+                << "' on mesh '" << db_().name() << "' due to dimension change "
+                << vf().dimensions() << " -> " << src.dimensions() << endl;
+
+            dimensions_.reset(src.dimensions());
+            vf_.clear();
+            makeVfScalar();
+            prevIterStored_ = false;
+        }
+
+        vf() = sqrt32_*sqrt(magSqr(dev(src)));
+        dimensions_.reset(vf().dimensions());
     }
     else if (type_ == "tensor")
     {
-        vf() = sqrt32_*sqrt(magSqr(dev(db_().objectRegistry::lookupObject<volTensorField>(variableName_))));
+        const volTensorField& src = db_().objectRegistry::lookupObject<volTensorField>(variableName_);
+
+        if (vf().dimensions() != src.dimensions())
+        {
+            WarningInFunction
+                << "Reinitializing residual field tracker for '" << variableName_
+                << "' on mesh '" << db_().name() << "' due to dimension change "
+                << vf().dimensions() << " -> " << src.dimensions() << endl;
+
+            dimensions_.reset(src.dimensions());
+            vf_.clear();
+            makeVfScalar();
+            prevIterStored_ = false;
+        }
+
+        vf() = sqrt32_*sqrt(magSqr(dev(src)));
+        dimensions_.reset(vf().dimensions());
     }
 }
 
@@ -179,7 +274,8 @@ Foam::deltaVf::deltaVf
     dimensions_(),
     type_("non"),
     vf_(),
-    deltaVf_()
+    deltaVf_(),
+    prevIterStored_(false)
 {}
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
@@ -199,6 +295,23 @@ Foam::scalar Foam::deltaVf::calcResidual()
     {
         makeDeltaVf();
     }
+    else
+    {
+        const dimensionSet expectedDims(relative_ ? dimless : vf().dimensions());
+
+        if (deltaVf_().dimensions() != expectedDims)
+        {
+            deltaVf_.clear();
+            makeDeltaVf();
+            prevIterStored_ = false;
+        }
+    }
+
+    if(!prevIterStored_)
+    {
+        const_cast<volScalarField&>(vf()).storePrevIter();
+        prevIterStored_ = true;
+    }
 
     if(relative_)
     {
@@ -213,6 +326,7 @@ Foam::scalar Foam::deltaVf::calcResidual()
 
     residual_ = operation(deltaVf_().primitiveField());
     const_cast<volScalarField&>(vf()).storePrevIter();
+    prevIterStored_ = true;
 
     if(!writeField_)
     {
@@ -224,7 +338,26 @@ Foam::scalar Foam::deltaVf::calcResidual()
 
 void Foam::deltaVf::reset()
     {
-        const_cast<volScalarField&>(vf()).storePrevIter();
+        if
+        (
+            db_.valid()
+         &&
+            (
+                (type_ == "scalar" && db_().objectRegistry::foundObject<volScalarField>(variableName_))
+             || (type_ == "vector" && db_().objectRegistry::foundObject<volVectorField>(variableName_))
+             || (type_ == "symmTensor" && db_().objectRegistry::foundObject<volSymmTensorField>(variableName_))
+             || (type_ == "tensor" && db_().objectRegistry::foundObject<volTensorField>(variableName_))
+            )
+        )
+        {
+            const_cast<volScalarField&>(vf()).storePrevIter();
+            prevIterStored_ = true;
+        }
+        else
+        {
+            prevIterStored_ = false;
+        }
+
         residual_ = GREAT;
     }
 // * * * * * * * * * * * * * * Ostream operation  * * * * * * * * * * * * * * //

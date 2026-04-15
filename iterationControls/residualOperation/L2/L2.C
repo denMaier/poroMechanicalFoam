@@ -65,13 +65,13 @@ Foam::scalar Foam::residualOperations::L2::operation(const scalarField& x) const
 
 Foam::scalar Foam::residualOperations::L2::operation(const List<scalar>& x) const
 {
-    scalar returnValue;
+    scalar returnValue = 0.0;
     forAll(x, ix)
     {
-        returnValue += pow(x[ix],2);
+        returnValue += pow(x[ix], 2);
     }
-    returnValue = pow(returnValue,0.5);
-    return returnValue;
+
+    return Foam::sqrt(returnValue);
 }
 
 // ************************************************************************* //

@@ -54,8 +54,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef poroSolid_H
-#define poroSolid_H
+#ifndef varSatPoroSolid_H
+#define varSatPoroSolid_H
 
 #include "poroSolidInterface.H"
 #include "varSatPoroHydraulicModel.H"
@@ -96,13 +96,6 @@ namespace Foam
             //- water specific weight (used when head based poroFluid
             //  to convert from and two pressure)
             dimensionedScalar magGammaW_;
-
-            //- Pressure Eqn coupling terms
-            //- porosity change per unit time
-            tmp<volScalarField> nDot(const volScalarField& b, const volVectorField& U);
-
-            //- fixed stress stablization term
-            tmp<volScalarField> fixedStressStabil(const volScalarField& b, const volScalarField& impK);
 
             //- fluxes arising from differencial acceleration (usually not significant)
             tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& U);

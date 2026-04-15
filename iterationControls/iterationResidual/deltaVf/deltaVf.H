@@ -65,6 +65,7 @@ class deltaVf
         word type_;
         autoPtr<volScalarField> vf_;
         autoPtr<volScalarField> deltaVf_;
+        bool prevIterStored_;
 
         volScalarField& vf()
         {

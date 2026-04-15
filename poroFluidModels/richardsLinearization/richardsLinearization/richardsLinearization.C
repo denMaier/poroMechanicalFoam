@@ -119,7 +119,7 @@ namespace Foam
         (volMassChange_ + miscStorage - fluxBoundary);
 
     // Detailed Info too expensive for now, deactivated (infoFreqency might be a solution)
-    /*Info << "| "
+    // Info << "| "
          << "Water Volume Change" << tab << tab << "| " << volMassChange_ << tab << "m³/s" << endl
          << "| "
          << "Miscellaneous Storage" << tab << tab << "| " << miscStorage << tab << "m³/s" << endl
@@ -128,8 +128,8 @@ namespace Foam
          << "| "
          << "rel. Mass Balance Error" << tab << tab << "| " << massBalanceError << tab << "%" << endl
          << "-------------------------------------------------------------------" << endl;
-    */
-  /*  return massBalanceError;
+    //
+      return massBalanceError;
   }
 
   tmp<scalarField> richardsLinearization::volMassChange(const volScalarField &theta) const

@@ -60,40 +60,79 @@ void poroFluidModel::makeIterCtrl()
 
 void poroFluidModel::addDefaultCellZone()
 {
+        if (cellZones().size() > 0)
+        {
+            return;
+        }
+
         Info<< "No cellZones found. Creating new cellZone containing all cells." << endl;
-        
-        // Empty lists for point and face zones (we don't modify these)
-        List<pointZone*> pointZones(0);
-        List<faceZone*> faceZones(0);
-        
-        // Create list of cell zones
-        List<cellZone*> cellZones(1);
-        
-        // Create addressing for all cells
+
+        // Copy existing point zones
+        List<pointZone*> pointZonesCopy(pointZones().size());
+        forAll(pointZonesCopy, zoneI)
+        {
+            pointZonesCopy[zoneI] =
+                new pointZone
+                (
+                    pointZones()[zoneI],
+                    pointZones()[zoneI],
+                    zoneI,
+                    pointZones()
+                );
+        }
+
+        // Copy existing face zones
+        List<faceZone*> faceZonesCopy(faceZones().size());
+        forAll(faceZonesCopy, zoneI)
+        {
+            faceZonesCopy[zoneI] =
+                new faceZone
+                (
+                    faceZones()[zoneI],
+                    faceZones()[zoneI],
+                    faceZones()[zoneI].flipMap(),
+                    zoneI,
+                    faceZones()
+                );
+        }
+
+        // Copy existing cell zones and append the default zone
+        List<cellZone*> cellZonesCopy(cellZones().size() + 1);
+        forAll(cellZones(), zoneI)
+        {
+            cellZonesCopy[zoneI] =
+                new cellZone
+                (
+                    cellZones()[zoneI],
+                    cellZones()[zoneI],
+                    zoneI,
+                    cellZones()
+                );
+        }
+
         labelList zoneAddressing(mesh().nCells());
         forAll(zoneAddressing, cellI)
         {
             zoneAddressing[cellI] = cellI;
         }
-        
-        // Create the new zone
-        cellZones[0] = new cellZone
-        (
-            "defaultZone",          // name
-            zoneAddressing,      // addressing
-            0,                   // index
-            mesh().cellZones()     // cell zone mesh
-        );
 
-        // Add all zones to mesh
-        mesh().addZones
-        (
-            pointZones,  // empty point zones
-            faceZones,  // empty face zones
-            cellZones   // our new cell zone
-        );
-        
-        Info<< "Created cellZone 'defaultZone' containing " 
+        cellZonesCopy[cellZonesCopy.size() - 1] =
+            new cellZone
+            (
+                "defaultZone",
+                zoneAddressing,
+                cellZonesCopy.size() - 1,
+                cellZones()
+            );
+
+        // addZones expects empty zone meshes, so clear and restore them
+        pointZones().clear();
+        faceZones().clear();
+        cellZones().clear();
+
+        addZones(pointZonesCopy, faceZonesCopy, cellZonesCopy);
+
+        Info<< "Created cellZone 'defaultZone' containing "
             << mesh().nCells() << " cells" << endl;
 }
 

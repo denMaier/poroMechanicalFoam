@@ -65,7 +65,7 @@ Foam::scalar Foam::LinearSolverRes::calcResidual()
     forAllConstIters(meshes, meshIter)
     {
         const fvMesh& regionMesh = *(meshIter.val());
-            forAllConstIters(regionMesh.solverPerformanceDict(), entryIter)
+            forAllConstIters(regionMesh.data().solverPerformanceDict(), entryIter)
             {
             List<Foam::SolverPerformance<double>> sp(entryIter->stream());
             linSolvResiduals.append(sp.first().initialResidual());

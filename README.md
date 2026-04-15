@@ -12,13 +12,8 @@ poroMechanicalFoam is an extension to OpenFOAM and solids4Foam, designed to mode
 ## Installation
 1. Ensure you have the prerequisites installed.
 2. Source OpenFOAM.
-3. Add and pin the solids4Foam submodule:
-```
-git submodule add https://github.com/solids4foam/solids4foam.git external/solids4foam
-git -C external/solids4foam fetch --tags
-git -C external/solids4foam checkout v2.3
-```
-   Or use an existing solids4Foam source tree:
+3. Clone this repository (the solids4Foam submodule is initialised automatically on first build).
+   Or point to an existing solids4Foam source tree instead:
 ```
 export S4F_ROOT=/path/to/solids4foam
 ```
@@ -27,6 +22,8 @@ export S4F_ROOT=/path/to/solids4foam
 ```
 ./Allwmake
 ```
+   On first run, `Allwmake` fetches only the required subset of solids4Foam
+   (`src/solids4FoamModels`) via a sparse checkout of tag v2.3.
 
 See `docs/solids4FoamModelsMinimal.md` for details on the minimal solids4Foam subset build.
 ## Usage

@@ -10,28 +10,35 @@ dedicated minimal library (`libsolids4FoamModelsMinimal`).
 
 ## Setup
 
+`Allwmake` handles submodule initialisation automatically on first build using
+sparse checkout (cone mode), fetching only `src/solids4FoamModels` from tag v2.3:
+
 ```bash
-git submodule add https://github.com/solids4foam/solids4foam.git external/solids4foam
-git -C external/solids4foam fetch --tags
-git -C external/solids4foam checkout v2.3
+./Allwmake
 ```
 
-Or point to an existing solids4Foam source tree:
+To use an existing solids4Foam source tree instead:
 
 ```bash
 export S4F_ROOT=/path/to/solids4foam
 ./Allwmake
 ```
 
+To set up the submodule manually (e.g. without running the build):
+
+```bash
+git submodule update --init --no-checkout external/solids4foam
+git -C external/solids4foam sparse-checkout init --cone
+git -C external/solids4foam sparse-checkout set src/solids4FoamModels
+git -C external/solids4foam checkout v2.3
+```
+
 ## Submodule scope
 
-Git submodules point to a repository commit, not a single subdirectory path.
-So the submodule itself is still `external/solids4foam` (full repo identity).
-
-If you want a smaller working tree, you can use sparse-checkout inside the
-submodule after init/update and keep only the paths needed here:
-
-- `src/solids4FoamModels`
+`.gitmodules` sets `sparseCheckout = true` for `external/solids4foam`.
+The sparse-checkout cone (`src/solids4FoamModels`) is configured by `Allwmake`
+on first run and stored in `.git/modules/external/solids4foam/info/sparse-checkout`
+(not tracked, but reproducibly recreated by the build script).
 
 ## What is built into `libsolids4FoamModelsMinimal`
 

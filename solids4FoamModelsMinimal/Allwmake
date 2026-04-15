@@ -2,6 +2,7 @@
 set -e
 cd "${0%/*}" || exit 1
 REPO_ROOT=$(cd .. && pwd)
+DEFAULT_S4F_ROOT="$REPO_ROOT/external/solids4foam"
 
 # Parse arguments for library compilation
 if [ -f "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments ]
@@ -9,11 +10,18 @@ then
     . "$WM_PROJECT_DIR"/wmake/scripts/AllwmakeParseArguments
 fi
 
-S4F_ROOT="${S4F_ROOT:-$REPO_ROOT/external/solids4foam}"
+S4F_ROOT="${S4F_ROOT:-$DEFAULT_S4F_ROOT}"
 case "$S4F_ROOT" in
     /*) ;;
     *) S4F_ROOT="$REPO_ROOT/$S4F_ROOT" ;;
 esac
+
+if [ ! -d "$S4F_ROOT/src/solids4FoamModels" ] && [ -d "$DEFAULT_S4F_ROOT/src/solids4FoamModels" ]
+then
+    echo "Warning: S4F_ROOT '$S4F_ROOT' is invalid; falling back to '$DEFAULT_S4F_ROOT'"
+    S4F_ROOT="$DEFAULT_S4F_ROOT"
+fi
+
 export S4F_ROOT
 S4F_MODELS_DIR="$S4F_ROOT/src/solids4FoamModels"
 
@@ -25,7 +33,7 @@ then
 fi
 
 # Keep this target minimal by linking only required source trees from submodule.
-for d in physicsModel solidModels materialModels numerics higherOrderHelpers
+for d in physicsModel solidModels materialModels numerics higherOrderHelpers fluidModels functionObjects
 do
     ln -sfn "$S4F_MODELS_DIR/$d" "$d"
 done

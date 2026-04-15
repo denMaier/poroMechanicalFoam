@@ -60,9 +60,9 @@ namespace Foam
       const word &name,
       const fvMesh &mesh)
       : name_(name),
-        effectiveStressModelDict_(effectiveStressModelDict),
+        mesh_(mesh),
         chi_(),
-        mesh_(mesh)
+        effectiveStressModelDict_(effectiveStressModelDict)
   {
   }
 

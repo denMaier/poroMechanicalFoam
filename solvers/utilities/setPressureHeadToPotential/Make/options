@@ -23,34 +23,18 @@ else
     DISABLE_WARNING_FLAGS =
 endif
 
-ifeq ($(WM_PROJECT), foam)
-    c++WARN = \
-        -Wno-deprecated -Wall -Wextra -Wno-unused-parameter -Wnon-virtual-dtor \
-        -Wno-error -Wredundant-decls -Wcast-align \
-        -Wmissing-declarations  -Wswitch-enum -Winvalid-pch -Wredundant-decls \
-        -Wformat=2 -Wmissing-format-attribute -Wformat-nonliteral
-    VER := $(shell expr `echo $(WM_PROJECT_VERSION)` \>= 4.1)
-    ifeq ($(VER), 1)
-        VERSION_SPECIFIC_INC = -DFOAMEXTEND=41
-    else
-        VERSION_SPECIFIC_INC = -DFOAMEXTEND=40
-    endif
-else
-    VERSION_SPECIFIC_INC = \
-        -DOPENFOAMESIORFOUNDATION -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
-    ifneq (,$(findstring v,$(WM_PROJECT_VERSION)))
-        VERSION_SPECIFIC_INC += -DOPENFOAMESI
-    else
-        VERSION_SPECIFIC_INC += -DOPENFOAMFOUNDATION
-    endif
-endif
+VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
+    -DOPENFOAMESIORFOUNDATION \
+    -DOPENFOAMESI \
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
 
 EXE_INC = \
     -I$(S4F_SRC)/solids4FoamModels/lnInclude \
     -I../../lnInclude \
     -I../../materialModels/poroHydraulicModel/lnInclude \
     -I../../richardsSolvers/lnInclude \
-    -std=c++11 \
     $(DISABLE_WARNING_FLAGS) \
     $(VERSION_SPECIFIC_INC) \
     -I$(LIB_SRC)/finiteVolume/lnInclude \

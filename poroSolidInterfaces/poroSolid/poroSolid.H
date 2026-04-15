@@ -91,13 +91,6 @@ namespace Foam
 
             // Private Member Functions
 
-            //- Pressure Eqn coupling terms
-            //- porosity change per unit time
-            tmp<volScalarField> nDot(const volScalarField& b, const volVectorField& U);
-
-            //- fixed stress stablization term
-            tmp<volScalarField> fixedStressStabil(const volScalarField& b, const volScalarField& impK);
-
             //- fluxes arising from differencial acceleration (usually not significant)
             tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& U);
 

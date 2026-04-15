@@ -173,13 +173,13 @@ Foam::ohdeElastic::ohdeElastic
     p0_ = dict.get<dimensionedScalar>("p0");
 
     // Read bulk modulus
-    n_ = dimensionedScalar(dict.lookup("n"));
+    n_ = dict.get<dimensionedScalar>("n");
 
     // Read the initial stress
     if (dict.found("sigma0"))
     {
         Info<< "Reading sigma0 from the dict" << endl;
-        sigma0() = dimensionedSymmTensor(dict.lookup("sigma0"));
+        sigma0() = dict.get<dimensionedSymmTensor>("sigma0");
     }
     else if (gMax(mag(sigma0())()) > SMALL)
     {
