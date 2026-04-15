@@ -240,7 +240,8 @@ namespace Foam
 
         scalar omega = 2 * acos(-1.0) / T_;
 
-        scalarField effPressure = -(pressureBase_ + pressureAmp_ * sin(omega * t + shift_)) - chi_ * p_ * mag(gamma_w_.value());
+        const scalarField effPressure(
+            -(pressureBase_ + pressureAmp_ * sin(omega * t + shift_)) - chi_ * p_ * mag(gamma_w_.value()));
         vectorField traction_ = tractionBase_ + tractionAmp_ * sin(omega * t + shift_);
 
         // Lookup the solidModel object

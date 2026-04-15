@@ -1,11 +1,14 @@
 .vscode/
 **.out
 **.log
+*.err
+**/log.rebuild
 **/log.Allwmake
 # git-ls-files --others --exclude-from=.git/info/exclude
 # Lines that start with '#' are comments.
 
 notes.txt
+WORK_RESUME.md
 
 # ignore eigen and ltensor libraries
 ThirdParty/eigen3
@@ -51,23 +54,17 @@ lnInclude
 # build folders - anywhere
 linux*Gcc*/
 linux*Icc*/
+**/Make/linux*/
 darwin*Gcc*/
 darwin*Intel*/
 darwin*Arm*/
+**/Make/darwin*/
 darwin*Clang*/
 linuxming*/
 SiCortex*Gcc*/
 solaris*Gcc*/
 SunOS*Gcc*/
-
-# generated symlinks for minimal solids4Foam target
-solids4FoamModelsMinimal/physicsModel
-solids4FoamModelsMinimal/solidModels
-solids4FoamModelsMinimal/materialModels
-solids4FoamModelsMinimal/numerics
-solids4FoamModelsMinimal/higherOrderHelpers
-solids4FoamModelsMinimal/enhancedVolPointInterpolation
-solids4FoamModelsMinimal/newLeastSquaresVolPointInterpolation
+**/Make/SunOS*/
 
 # debian/ derived files
 build-stamp

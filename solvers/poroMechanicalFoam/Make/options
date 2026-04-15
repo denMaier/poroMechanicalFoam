@@ -36,6 +36,7 @@ EXE_INC = \
 
 EXE_LIBS = \
     -L$(FOAM_USER_LIBBIN) \
+    -lfiniteVolume \
     -lsolids4FoamModelsMinimal \
     -lporoHydraulicModels \
     -lporoModels  \

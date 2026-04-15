@@ -7,7 +7,7 @@ poroMechanicalFoam is an extension to OpenFOAM and solids4Foam, designed to mode
 - Flexibility for adjusting to specific needs
 - Close alignment with OpenFOAM's solid mechanics developments
 ## Prerequisites
-- OpenFOAM v2412
+- OpenFOAM v2412 or v2512
 - solids4Foam v2.3 (git submodule in `external/solids4foam`)
 ## Installation
 1. Ensure you have the prerequisites installed.
@@ -23,11 +23,16 @@ export S4F_ROOT=/path/to/solids4foam
 ./Allwmake
 ```
    On first run, `Allwmake` fetches only the required subset of solids4Foam
-   (`src/solids4FoamModels`) via a sparse checkout of tag v2.3.
+   (`src/solids4FoamModels` and `src/blockCoupledSolids4FoamTools`) via a
+   sparse checkout of tag v2.3. If the shipped Git is too old for
+   `git sparse-checkout`, the script falls back to manual sparse-checkout
+   configuration.
 
 See `docs/solids4FoamModelsMinimal.md` for details on the minimal solids4Foam subset build.
 ## Usage
-[https://www.baw.de/content/files/forschung_entwicklung/documents/B3952.00.04.70001.pdf#[{%22num%22%3A31%2C%22gen%22%3A0}%2C{%22name%22%3A%22XYZ%22}%2C-233%2C842%2C0]]
+See the solver setup in the repository case files and the
+[BAW report](https://www.baw.de/content/files/forschung_entwicklung/documents/B3952.00.04.70001.pdf)
+for background and example workflows.
 ## Contributing
 We welcome contributions to poroMechanicalFoam! If you'd like to contribute, please follow these steps:
 1. Fork the repository

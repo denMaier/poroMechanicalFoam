@@ -122,7 +122,10 @@ if(isHead_)
             this->db().time().subRegistry(HMCoupled).lookupObject<surfaceScalarField>("kEfff")
             );
     const UniformDimensionedField<vector> &gamma = this->db().time().subRegistry(HMCoupled).lookupObject<UniformDimensionedField<vector>>("gamma_water");
-    scalarField n_ = patch().nf() & vector(gamma.value()).normalise();
+    const tmp<scalarField> nTmp(
+        patch().nf() & vector(gamma.value()).normalise()
+    );
+    const scalarField& n_ = nTmp();
     gradient() = (flux_) / max(k_eff_,SMALL) + n_;
 }
 else

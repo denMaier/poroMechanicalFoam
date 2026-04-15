@@ -28,7 +28,7 @@ Group
     grpFvOptionsSources
 
 Description
-    Solid-body 6-DoF acceleration source
+    Tabulated body-force source for the momentum equation
 
 Usage
     Example usage:
@@ -47,8 +47,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef tabulatedAccelerationSource_H
-#define tabulatedAccelerationSource_H
+#ifndef tabulatedForcingSource_H
+#define tabulatedForcingSource_H
 
 #include "cellSetOption.H"
 //#include "tabulated6DoFAcceleration.H"

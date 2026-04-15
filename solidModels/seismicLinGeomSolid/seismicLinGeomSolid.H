@@ -1,53 +1,46 @@
 /*---------------------------------------------------------------------------*\
-  =========                 |
-  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
-   \\    /   O peration     |
-    \\  /    A nd           | Copyright held by original author
-     \\/     M anipulation  |
--------------------------------------------------------------------------------
 License
-    This file is part of OpenFOAM.
+    This file is part of solids4foam.
 
-    OpenFOAM is free software; you can redistribute it and/or modify it
+    solids4foam is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
-    Free Software Foundation; either version 2 of the License, or (at your
+    Free Software Foundation, either version 3 of the License, or (at your
     option) any later version.
 
-    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
-    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-    for more details.
+    solids4foam is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with OpenFOAM; if not, write to the Free Software Foundation,
-    Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+    along with solids4foam.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    linGeomVelocitySolid
+    seismicLinGeomSolid
 
 Description
     Mathematical model where linear geometry is assumed i.e. small strains and
-    small rotations are assumed, and the total displacement is the primary
-    unknown.
+    small rotations are assumed, where the increment of displacement is the
+    primary unknown.
 
     The stress is calculated by the run-time selectable mechanical law.
 
+    Derived from the solids4foam `seismicLinGeomSolid` implementation.
+    Local poroMechanicalFoam changes are limited to integration and
+    function-object support.
+
 Author
-    Philip Cardiff, UCD.  All rights reserved.
+    Original solids4foam implementation by Philip Cardiff, UCD.
 
 SourceFiles
-    linGeomVelocitySolid.C
+    seismicLinGeomSolid.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef linGeomVelocitySolid_H
-#define linGeomVelocitySolid_H
+#ifndef seismicLinGeomSolid_H
+#define seismicLinGeomSolid_H
 
 #include "solidModel.H"
-#include "volFields.H"
-#include "surfaceFields.H"
-#include "pointFields.H"
-#include "uniformDimensionedFields.H"
 #include "fvOptions.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -61,10 +54,10 @@ namespace solidModels
 {
 
 /*---------------------------------------------------------------------------*\
-                        Class linGeomVelocitySolid Declaration
+                        Class seismicLinGeomSolid Declaration
 \*---------------------------------------------------------------------------*/
 
-class linGeomVelocitySolid
+class seismicLinGeomSolid
 :
     public solidModel
 {
@@ -80,7 +73,7 @@ class linGeomVelocitySolid
 
         //- Reciprocal of impK
         //  We divide by impK every time tractionBoundarySnGrad is called so we
-        //  will store the reciprocal for effficiency
+        //  will store the reciprocal for efficiency
         const volScalarField rImpK_;
 
         //- Predict new time-step fields using the velocity field
@@ -95,11 +88,14 @@ class linGeomVelocitySolid
         //  previous time-steps
         void predict();
 
+
+    // Private Member Functions
+
         //- Disallow default bitwise copy construct
-        linGeomVelocitySolid(const linGeomVelocitySolid&);
+        seismicLinGeomSolid(const seismicLinGeomSolid&);
 
         //- Disallow default bitwise assignment
-        void operator=(const linGeomVelocitySolid&);
+        void operator=(const seismicLinGeomSolid&);
 
 
 protected:
@@ -116,20 +112,21 @@ protected:
 public:
 
     //- Runtime type information
-    TypeName("seismicLinearGeometryVelocity");
+    TypeName("seismicLinearGeometry");
 
     // Constructors
 
         //- Construct from components
-        linGeomVelocitySolid
+        seismicLinGeomSolid
         (
             Time& runTime,
             const word& region = dynamicFvMesh::defaultRegion
         );
 
+
     // Destructor
 
-        virtual ~linGeomVelocitySolid()
+        virtual ~seismicLinGeomSolid()
         {}
 
 
@@ -141,8 +138,14 @@ public:
             //  solution variable
             virtual volVectorField& solutionD()
             {
-                // This model solves for D
-                return U();
+                // This model solves for DD
+                return DD();
+            }
+
+            //- This solid model solves for DD instead of D
+            virtual bool incremental() const
+            {
+                return true;
             }
 
         // Edit
@@ -162,7 +165,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace solidModel
+} // End namespace solidModels
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

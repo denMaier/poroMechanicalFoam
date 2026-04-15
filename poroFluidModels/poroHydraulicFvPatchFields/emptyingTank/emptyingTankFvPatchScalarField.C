@@ -177,8 +177,14 @@ void Foam::emptyingTankFvPatchScalarField::updateCoeffs()
     const fvsPatchField<scalar> &flux =
         this->patch().patchField<surfaceScalarField, scalar>(pFM.phi());
     
-        scalarField n_ = patch().nf() & vector(pFM.poroHydraulic().gamma().value()).normalise();
-        scalarField z_ = patch().Cf() & vector(pFM.poroHydraulic().gamma().value()).normalise();
+        const tmp<scalarField> nTmp(
+            patch().nf() & vector(pFM.poroHydraulic().gamma().value()).normalise()
+        );
+        const scalarField& n_ = nTmp();
+        const tmp<scalarField> zTmp(
+            patch().Cf() & vector(pFM.poroHydraulic().gamma().value()).normalise()
+        );
+        const scalarField& z_ = zTmp();
 
     scalarField tmpValFrac(this->size(), 1.0);
     dh_ = gSum(flux) / (crossSection_ * gSum(patch().magSf())) * patch().boundaryMesh().mesh().time().deltaT().value();

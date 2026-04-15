@@ -162,13 +162,27 @@ Foam::tmp<Foam::volScalarField> Foam::varSatPoroMechanicalLaw::rho() const
 
 
     //- Check if saturation should be read from file (this would be higherst priority if true)
-    const volScalarField SRef = readFromDisk_
-                                ? saturationReader().field()
-                                : lookupFluidField("S");
+    tmp<volScalarField> tSRef;
+    if (readFromDisk_)
+    {
+        tSRef = saturationReader().field();
+    }
+    else
+    {
+        tSRef = lookupFluidField("S");
+    }
+    const volScalarField& SRef = tSRef();
 
-    const volScalarField nRef = readFromDisk_
-                                ? n()
-                                : lookupFluidField("n");
+    tmp<volScalarField> tnRef;
+    if (readFromDisk_)
+    {
+        tnRef = n();
+    }
+    else
+    {
+        tnRef = lookupFluidField("n");
+    }
+    const volScalarField& nRef = tnRef();
 
     tmp<volScalarField> rho_total(
         new volScalarField
@@ -193,24 +207,43 @@ void Foam::varSatPoroMechanicalLaw::correct(volSymmTensorField& sigma)
 {
 
     //- Check if saturation should be read from file (this would be higherst priority if true)
-    tmp<volScalarField> SRef = readFromDisk_
-                                ? saturationReader().field()
-                                : lookupFluidField("S");
+    tmp<volScalarField> tSRef;
+    if (readFromDisk_)
+    {
+        tSRef = saturationReader().field();
+    }
+    else
+    {
+        tSRef = lookupFluidField("S");
+    }
+    const volScalarField& SRef = tSRef();
 
+    tmp<volScalarField> tnRef;
+    if (readFromDisk_)
+    {
+        tnRef = n();
+    }
+    else
+    {
+        tnRef = lookupFluidField("n");
+    }
+    const volScalarField& nRef = tnRef();
 
-    tmp<volScalarField> nRef = readFromDisk_
-                                ? n()
-                                : lookupFluidField("n");
+    tmp<volScalarField> tpRef;
+    if (readFromDisk_)
+    {
+        tpRef = pReader().field();
+    }
+    else
+    {
+        tpRef = lookupFluidField(pName_);
+    }
+    const volScalarField& pRef = tpRef();
 
-    // Lookup the pressure field
-    tmp<volScalarField> pRef = readFromDisk_
-                                ? pReader().field()
-                                : lookupFluidField(pName_);
-
-    tmp<volScalarField> chiRef(effectiveStressModelPtr_->chi(nRef(),SRef(),pRef()));
+    tmp<volScalarField> chiRef(effectiveStressModelPtr_->chi(nRef, SRef, pRef));
 
     // check if sigmaEff has been initialized (should be done only once per calculation)
-    this->checkSigmaEffReady(sigma,pRef(),chiRef());
+    this->checkSigmaEffReady(sigma, pRef, chiRef());
 
     // Calculate effective stress
     //-- Note that we could just pass "sigma" here but we use a separate field
@@ -221,34 +254,56 @@ void Foam::varSatPoroMechanicalLaw::correct(volSymmTensorField& sigma)
     // Calculate the total stress as the sum of the effective stress and the
     // pore-pressure
 
-    sigma = sigmaEff_() - b_*chiRef()*(pRef())*symmTensor(I);
+    sigma = sigmaEff_() - b_*chiRef()*pRef*symmTensor(I);
 }
 
 
 void Foam::varSatPoroMechanicalLaw::correct(surfaceSymmTensorField& sigma)
 {
     //- Check if saturation should be read from file (this would be higherst priority if true)
-    tmp<volScalarField> SRef = readFromDisk_
-                                ? saturationReader().field()
-                                : lookupFluidField("S");
+    tmp<volScalarField> tSRef;
+    if (readFromDisk_)
+    {
+        tSRef = saturationReader().field();
+    }
+    else
+    {
+        tSRef = lookupFluidField("S");
+    }
+    const volScalarField& SRef = tSRef();
 
+    tmp<volScalarField> tnRef;
+    if (readFromDisk_)
+    {
+        tnRef = n();
+    }
+    else
+    {
+        tnRef = lookupFluidField("n");
+    }
+    const volScalarField& nRef = tnRef();
 
-    tmp<volScalarField> nRef = readFromDisk_
-                                ? n()
-                                : lookupFluidField("n");
-
-    // Lookup the pressure field
-    tmp<volScalarField> pRef = readFromDisk_
-                                ? pReader().field()
-                                : lookupFluidField(pName_);
+    tmp<volScalarField> tpRef;
+    if (readFromDisk_)
+    {
+        tpRef = pReader().field();
+    }
+    else
+    {
+        tpRef = lookupFluidField(pName_);
+    }
+    const volScalarField& pRef = tpRef();
 
     // Interpolate pressure to the faces
-    const surfaceScalarField pf(fvc::interpolate(pRef));
+    const tmp<surfaceScalarField> tPf(fvc::interpolate(pRef));
+    const surfaceScalarField& pf = tPf();
 
     // Interpolate pressure to the faces
-    const surfaceScalarField Sf(fvc::interpolate(SRef));
+    const tmp<surfaceScalarField> tSf(fvc::interpolate(SRef));
+    const surfaceScalarField& Sf = tSf();
 
-    const surfaceScalarField chif = fvc::interpolate(effectiveStressModelPtr_->chi(nRef,SRef,pRef));
+    const tmp<surfaceScalarField> tChif(fvc::interpolate(effectiveStressModelPtr_->chi(nRef, SRef, pRef)));
+    const surfaceScalarField& chif = tChif();
 
     // check if sigmaEff has been initialized (should be done only once per calculation)
     checkSigmaEffReady(sigma,pf,chif);

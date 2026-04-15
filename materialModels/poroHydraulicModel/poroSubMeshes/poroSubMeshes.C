@@ -744,11 +744,13 @@ void Foam::poroSubMeshes::makeInterfaceBaseFaces() const
              == processorFvPatch::typeName
             )
             {
-                const scalarField ownMat =
-                    materials.boundaryField()[patchI].patchInternalField();
+            const tmp<scalarField> ownMatTmp =
+                materials.boundaryField()[patchI].patchInternalField();
+            const scalarField& ownMat = ownMatTmp();
 
-                const scalarField ngbMat =
-                    materials.boundaryField()[patchI].patchNeighbourField();
+            const tmp<scalarField> ngbMatTmp =
+                materials.boundaryField()[patchI].patchNeighbourField();
+            const scalarField& ngbMat = ngbMatTmp();
 
                 forAll(ownMat, faceI)
                 {
@@ -1995,7 +1997,7 @@ void Foam::poroSubMeshes::correctBoundarySnGrad
                 const vectorField& patchC = ppatch.faceCentres();
                 const vector& centreN = wedgePatch.centreNormal();
                 const vectorField Cn = subMesh.boundary()[patchI].Cn();
-                const scalarField d = ((Cn - patchC) & centreN)/(n & centreN);
+                const scalarField d(((Cn - patchC) & centreN)/(n & centreN));
                 const vectorField projC = d*n + patchC;
 
                 // Calculate correction vector which connects actual cell
@@ -2073,7 +2075,7 @@ void Foam::poroSubMeshes::correctBoundarySnGradf
                 const vectorField& patchC = ppatch.faceCentres();
                 const vector& centreN = wedgePatch.centreNormal();
                 const vectorField Cn = subMesh.boundary()[patchI].Cn();
-                const scalarField d = ((Cn - patchC) & centreN)/(n & centreN);
+                const scalarField d(((Cn - patchC) & centreN)/(n & centreN));
                 const vectorField projC = d*n + patchC;
 
                 // Calculate correction vector which connects actual cell

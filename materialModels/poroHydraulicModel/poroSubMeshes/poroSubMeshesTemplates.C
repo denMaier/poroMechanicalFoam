@@ -387,11 +387,13 @@ void Foam::poroSubMeshes::mapSubMeshPointFields
                             baseMesh().boundaryMesh()[patchI]
                         );
 
-                    vectorField pif =
+                    const tmp<vectorField> pifTmp(
                         procPatchDispl.patchInternalField
                         (
                             baseMeshField.internalField()
-                        );
+                        )
+                    );
+                    const vectorField& pif = pifTmp();
 
                     OPstream::write
                     (

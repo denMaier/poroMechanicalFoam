@@ -337,7 +337,7 @@ void Foam::SANISAND::correct(volSymmTensorField &sigma)
             mesh().lookupObject<volTensorField>("grad(D)");
 
         // Calculate gradient of displacement increment
-        const volTensorField gradDD = gradD - gradD.oldTime();
+        const volTensorField gradDD((gradD - gradD.oldTime())());
 
         DEpsilon_ = symm(gradDD);
     }

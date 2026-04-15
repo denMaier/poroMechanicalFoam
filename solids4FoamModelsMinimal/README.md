@@ -7,22 +7,23 @@ library focused on:
 - `solidModels` (excluding `coupled*` solvers)
 - `materialModels`
 
-The source list is derived from `src/solids4FoamModels/Make/files.openfoam` and
-excludes fluid, fluid-solid interface, and function object implementations,
-except for two compatibility sources required by retained thermal and
-analytical traction patch-field code.
+The source list is derived from `src/solids4FoamModels/Make/files.openfoam`,
+rewritten to point directly at `$(S4F_ROOT)/src/...`, and excludes fluid,
+fluid-solid interface, and function object implementations except for the
+small compatibility subset needed by retained thermal and analytical traction
+patch-field code.
 
 Additional minimal-target changes:
 
-- OpenFOAM-only build target (`files.openfoam` only; no foam-extend target).
+- OpenFOAM-only build target with direct upstream source paths (no local source-tree symlinks).
 - PETSc helper sources are removed from the minimal source list.
 - PETSc and Eigen integrations are explicitly disabled with
   `-DS4F_NO_USE_PETSC -DS4F_NO_USE_EIGEN`.
 - `Make/options` is reduced to the core include paths/libraries required by the
   selected solids/material/numerics/high-order sources.
-- Dependencies on `RBFMeshMotionSolver` and `blockCoupledSolids4FoamTools`
-  were removed for this OpenFOAM-only target; the retained sources do not
-  require these libraries in the OpenFOAM code path.
+- Dependencies on `RBFMeshMotionSolver` and the `blockCoupledSolids4FoamTools`
+  library were removed for this OpenFOAM-only target, although two helper
+  sources are still compiled directly from `src/blockCoupledSolids4FoamTools`.
 
 Build with:
 

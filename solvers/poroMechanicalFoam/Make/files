@@ -1,1 +1,4 @@
-files.openfoam
+/*processor/processorFvPatchVectorField.C*/
+poroMechanicalFoam.C
+
+EXE = $(FOAM_USER_APPBIN)/poroMechanicalFoam

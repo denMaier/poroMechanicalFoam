@@ -17,6 +17,8 @@ poroSolidInterfaces/poroSolidInterface.C
 poroSolidInterfaces/poroSolid/poroSolid.C
 poroSolidInterfaces/varSatPoroSolid/varSatPoroSolid.C
 
+solidModels/seismicLinGeomSolid/seismicLinGeomSolid.C
+
 poroSolidInterfaces/poroSolidFvPatchFields/poroTraction/poroTractionFvPatchVectorField.C
 poroSolidInterfaces/poroSolidFvPatchFields/varSatPoroTraction/varSatPoroTractionFvPatchVectorField.C
 

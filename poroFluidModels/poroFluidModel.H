@@ -241,7 +241,7 @@ namespace Foam
             virtual const volScalarField& n(); 
 
             //- Update porosity
-            virtual void update_porosity(const volScalarField Dn, const bool incremental);
+            virtual void update_porosity(const volScalarField& Dn, const bool incremental);
 
             //- Return the main field (Might be any of p, pHead, p_rgh depending on solver)
             virtual volScalarField &pField() = 0;

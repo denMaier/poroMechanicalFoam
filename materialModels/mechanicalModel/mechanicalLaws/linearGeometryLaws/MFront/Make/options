@@ -11,12 +11,14 @@ VERSION_SPECIFIC_INC = \
     -DOPENFOAMESI \
     -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
 
+MFRONT_GENERIC_INTERFACE_SUPPORT ?= $(WM_PROJECT_DIR)/../MFrontGenericInterfaceSupport
+
 EXE_INC = \
    -std=c++17 \
     $(DISABLE_WARNING_FLAGS) \
     $(VERSION_SPECIFIC_INC) \
     -I$(s4fPath)/src/solids4FoamModels/lnInclude \
-    -I/home/maier/foam/maier-4.1/lib/poroMechanicalFoam/ThirdParty/MFrontGenericInterfaceSupport/include/ \
+    -I$(MFRONT_GENERIC_INTERFACE_SUPPORT)/include \
     -I$(LIB_SRC)/finiteVolume/lnInclude \
     -I$(LIB_SRC)/meshTools/lnInclude \
     -I$(LIB_SRC)/finiteArea/lnInclude \
