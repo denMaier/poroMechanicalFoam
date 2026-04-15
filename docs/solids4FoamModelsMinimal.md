@@ -1,11 +1,11 @@
-# solids4FoamModelsMinimal integration (OpenFOAM v2412)
+# solids4FoamModelsMinimal integration (OpenFOAM v2412/v2512)
 
 This repository uses a pinned solids4Foam dependency via submodule and builds a
 dedicated minimal library (`libsolids4FoamModelsMinimal`).
 
 ## Supported platform
 
-- OpenFOAM: **v2412 only**
+- OpenFOAM: **v2412 and v2512**
 - solids4Foam: **tag v2.3** (submodule at `external/solids4foam`)
 
 ## Setup
@@ -83,7 +83,7 @@ Main poroMechanicalFoam library and solvers now link against `-lsolids4FoamModel
 
 `./Allwmake` now does:
 
-1. checks OpenFOAM is v2412
+1. checks OpenFOAM is v2412 or v2512
 2. builds `poroHydraulicModels`
 3. builds `solids4FoamModelsMinimal` (`solids4FoamModelsMinimal/Allwmake`)
 4. builds poroMechanicalFoam libs/solvers

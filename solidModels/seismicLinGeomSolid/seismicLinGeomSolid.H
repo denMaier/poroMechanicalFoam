@@ -25,8 +25,12 @@ Description
 
     The stress is calculated by the run-time selectable mechanical law.
 
+    Derived from the solids4foam `seismicLinGeomSolid` implementation.
+    Local poroMechanicalFoam changes are limited to integration and
+    function-object support.
+
 Author
-    Philip Cardiff, UCD.  All rights reserved.
+    Original solids4foam implementation by Philip Cardiff, UCD.
 
 SourceFiles
     seismicLinGeomSolid.C
@@ -69,7 +73,7 @@ class seismicLinGeomSolid
 
         //- Reciprocal of impK
         //  We divide by impK every time tractionBoundarySnGrad is called so we
-        //  will store the reciprocal for effficiency
+        //  will store the reciprocal for efficiency
         const volScalarField rImpK_;
 
         //- Predict new time-step fields using the velocity field
@@ -161,7 +165,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace solidModel
+} // End namespace solidModels
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

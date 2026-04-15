@@ -1,11 +1,14 @@
 .vscode/
 **.out
 **.log
+*.err
+**/log.rebuild
 **/log.Allwmake
 # git-ls-files --others --exclude-from=.git/info/exclude
 # Lines that start with '#' are comments.
 
 notes.txt
+WORK_RESUME.md
 
 # ignore eigen and ltensor libraries
 ThirdParty/eigen3

@@ -15,6 +15,10 @@ License
     You should have received a copy of the GNU General Public License
     along with solids4foam.  If not, see <http://www.gnu.org/licenses/>.
 
+    Derived from the solids4foam `seismicLinGeomSolid` implementation.
+    Local poroMechanicalFoam changes are limited to integration and
+    function-object support.
+
 \*---------------------------------------------------------------------------*/
 
 #include "seismicLinGeomSolid.H"
