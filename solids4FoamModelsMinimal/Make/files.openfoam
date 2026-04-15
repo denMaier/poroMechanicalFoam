@@ -1,4 +1,4 @@
-S4F_ROOT ?= $(WM_PROJECT_DIR)/../poroMechanicalFoam/external/solids4foam
+S4F_ROOT ?= $(abspath $(CURDIR)/../external/solids4foam)
 S4F_SRC ?= $(S4F_ROOT)/src
 
 S4F_MODELS = $(S4F_SRC)/solids4FoamModels

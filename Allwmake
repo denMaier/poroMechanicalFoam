@@ -23,6 +23,18 @@ if [ -f "$WM_PROJECT"/wmake/scripts/AllwmakeParseArguments ]
 then  . "$WM_PROJECT"/wmake/scripts/AllwmakeParseArguments
 fi
 
+check_build_log()
+{
+    log_file=$1
+
+    if grep -q "\ Error\ " "$log_file" || grep -q "\ Stop." "$log_file"
+    then
+        echo "** BUILD ERROR **"
+        echo "Build failed; examine $log_file for details."
+        exit 1
+    fi
+}
+
 # Use local submodule by default, unless caller provides an existing solids4Foam path.
 S4F_ROOT="${S4F_ROOT:-$DEFAULT_S4F_ROOT}"
 case "$S4F_ROOT" in
@@ -56,6 +68,7 @@ fi
     set -o pipefail
     cd materialModels/poroHydraulicModel/ && wmake libso "$@" 2>&1 | tee log.Allwmake
 )
+check_build_log "$REPO_ROOT/materialModels/poroHydraulicModel/log.Allwmake"
 
 # Set up solids4foam submodule with sparse checkout if needed
 if [ "$S4F_ROOT" = "$REPO_ROOT/external/solids4foam" ]; then
@@ -84,17 +97,28 @@ EOF
     fi
 fi
 
+# Prepare upstream solids4foam lnInclude trees before any dependent build.
+if [ -d "$S4F_ROOT/src/solids4FoamModels" ]; then
+    wmakeLnInclude "$S4F_ROOT/src/solids4FoamModels"
+fi
+
+if [ -d "$S4F_ROOT/src/blockCoupledSolids4FoamTools" ]; then
+    wmakeLnInclude "$S4F_ROOT/src/blockCoupledSolids4FoamTools"
+fi
+
 # Compile the pinned solids4Foam minimal subset library
 (
     set -o pipefail
     cd solids4FoamModelsMinimal && ./Allwmake "$@" 2>&1 | tee log.Allwmake
 )
+check_build_log "$REPO_ROOT/solids4FoamModelsMinimal/log.Allwmake"
 
 # Compile poroMechanicalFoam Library
 (
     set -o pipefail
     wmake libso "$@" 2>&1 | tee log.Allwmake
 )
+check_build_log "$REPO_ROOT/log.Allwmake"
 
 
 # Compile poroMechanicalFoam application
@@ -102,6 +126,7 @@ fi
     set -o pipefail
     cd solvers && ./Allwmake "$@" 2>&1 | tee log.Allwmake
 )
+check_build_log "$REPO_ROOT/solvers/log.Allwmake"
 
 ##(cd abaqusUMATs && ./Allwmake)
 

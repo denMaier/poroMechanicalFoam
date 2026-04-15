@@ -1,5 +1,6 @@
 S4F_ROOT ?= $(WM_PROJECT_DIR)/../poroMechanicalFoam/external/solids4foam
 S4F_SRC ?= $(S4F_ROOT)/src
+FORCE_CXX_STANDARD = -std=c++17
 
 ifneq (,$(findstring Gcc,$(WM_COMPILER)))
     DISABLE_WARNING_FLAGS = -Wno-old-style-cast -Wno-deprecated-declarations
@@ -37,7 +38,8 @@ EXE_INC = \
     -I$(LIB_SRC)/mesh/extrudeModel/lnInclude \
     -I$(FOAM_UTILITIES)/mesh/generation/extrudeMesh \
     -I$(FOAM_UTILITIES)/mesh/generation/extrudeMesh/extrudedMesh \
-    -I$(FOAM_UTILITIES)/preProcessing/mapFields
+    -I$(FOAM_UTILITIES)/preProcessing/mapFields \
+    $(FORCE_CXX_STANDARD)
 
 EXE_LIBS = \
     -lgfortran \

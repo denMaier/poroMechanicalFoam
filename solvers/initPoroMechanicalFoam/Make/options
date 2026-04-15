@@ -1,5 +1,6 @@
 S4F_ROOT ?= $(WM_PROJECT_DIR)/../poroMechanicalFoam/external/solids4foam
 S4F_SRC ?= $(S4F_ROOT)/src
+FORCE_CXX_STANDARD = -std=c++17
 
 VERSION_SPECIFIC_INC = \
     -DOPENFOAM_NOT_EXTEND \
@@ -39,7 +40,8 @@ EXE_INC = \
     -I$(LIB_SRC)/sampling/lnInclude \
     -I$(LIB_SRC)/postProcessing/foamCalcFunctions/lnInclude \
     -I$(LIB_SRC)/postProcessing/functionObjects/forces/lnInclude \
-    -I../../../lnInclude
+    -I../../../lnInclude \
+    $(FORCE_CXX_STANDARD)
 
 EXE_LIBS = \
     -L$(FOAM_USER_LIBBIN) \
