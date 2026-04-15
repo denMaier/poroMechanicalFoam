@@ -135,12 +135,12 @@ void Foam::timeDependentValveFvPatchScalarField::updateCoeffs()
     scalar valveState = valveStateSeries(this->db().time().timeOutputValue());
 
     const poroHydraulicModel *poroHydraulic_ = &this->db().time().lookupObject<poroHydraulicModel>("poroHydraulicModel");
-    scalarField n_ = patch().nf() & vector(poroHydraulic_->gamma().value()).normalise();
+    const scalarField n_(patch().nf() & vector(poroHydraulic_->gamma().value()).normalise());
 
     scalarField tmpp(outletValue_);
     scalarField tmpValFrac(this->size(), 0.0);
 
-    scalarField pInternal = patchInternalField();
+    const scalarField pInternal(patchInternalField());
 
     if (valveState < 1.0)
     {

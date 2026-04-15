@@ -147,7 +147,7 @@ namespace Foam
 
         const vectorField nf = patch().nf();
 
-        scalarField a = (D_ / max(SMALL, mag(D_))) & nf;
+        const scalarField a((D_ / max(SMALL, mag(D_))) & nf);
 
         Info << "min a is: " << min(a) << endl;
         forAll(valueFraction(), faceI)

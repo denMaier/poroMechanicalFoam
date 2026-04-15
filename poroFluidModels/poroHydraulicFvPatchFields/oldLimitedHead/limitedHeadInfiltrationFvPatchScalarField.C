@@ -204,7 +204,7 @@ void Foam::limitedHeadInfiltrationFvPatchScalarField::updateCoeffs()
     const fvPatchField<scalar> &pField =
         this->patch().patchField<volScalarField, scalar>(this->db().time().subRegistry(HMCoupled).lookupObject<volScalarField>("pHead"));
     const UniformDimensionedField<vector> &gamma = this->db().time().subRegistry(HMCoupled).lookupObject<UniformDimensionedField<vector>>("gamma_water");
-    scalarField n_ = patch().nf() & vector(gamma.value()).normalise();
+    const scalarField n_(patch().nf() & vector(gamma.value()).normalise());
     wantedGrad = ((flux_ / (kEff_)) + n_);
     tmpValFrac = pos(pField - pMax_);
     wantedVal = pMax_;
@@ -220,7 +220,7 @@ void Foam::limitedHeadInfiltrationFvPatchScalarField::updateCoeffs()
     wantedVal = pMax_ - pHyd;
     }
 
-    scalarField currentGrad = snGrad();
+    const scalarField currentGrad(snGrad());
     
     forAll(wantedGrad, iFace)
     {

@@ -303,7 +303,7 @@ void borePileFillingFvPatchVectorField::updateCoeffs()
             db().lookupObject<uniformDimensionedVectorField>("gamma_w");
 
     // Get current traction to be specified (defaults to zero)
-    scalarField effPressure = (h_c_-z_)*gamma_c_ - p_ * mag(gamma_w_.value());
+    const scalarField effPressure((h_c_-z_)*gamma_c_ - p_ * mag(gamma_w_.value()));
 
     Info << "max traction on boundary is: " << max(mag(effPressure)) << endl
          << "with effective stress: " << max(mag(nf * ((h_c_-z_)*gamma_c_))) << endl

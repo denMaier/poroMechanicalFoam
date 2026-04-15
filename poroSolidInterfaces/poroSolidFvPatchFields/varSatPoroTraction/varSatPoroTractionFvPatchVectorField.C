@@ -254,7 +254,7 @@ namespace Foam
 
         scalarField porosity(patch().size(),1.0);
 
-        scalarField chi = effectiveStressModelRef().chi(porosity,S,p);
+        const scalarField chi(effectiveStressModelRef().chi(porosity,S,p));
                 totalPressure = pressure_ + (chi) * p; //- chi_ * p_;
 
         Info << "The prescribed (max:min) effective pressure of: " << max(pressure_) << ":" << min(pressure_) << " corresponds to " << nl

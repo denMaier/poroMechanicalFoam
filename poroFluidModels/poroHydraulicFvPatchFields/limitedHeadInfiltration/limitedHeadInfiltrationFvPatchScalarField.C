@@ -199,13 +199,13 @@ void Foam::limitedHeadInfiltrationFvPatchScalarField::updateCoeffs()
 	    scalarField wantedGrad(this->size(), 0.0);
 	    scalarField wantedVal(this->size(), 0.0);
 
-	    if(isHead_)
-	    {
+    if(isHead_)
+    {
 		    const UniformDimensionedField<vector> &gamma = this->db().lookupObject<UniformDimensionedField<vector>>("gamma_water");
-		    scalarField n_ = patch().nf() & vector(gamma.value()).normalise();
+		    const scalarField n_(patch().nf() & vector(gamma.value()).normalise());
 		    wantedGrad = ((flux_ / (kEff_)) + n_);
 		    wantedVal = pMax_;
-	    }
+    }
 	    else
 	    {
 		    const fvPatchField<scalar> &pHyd =
