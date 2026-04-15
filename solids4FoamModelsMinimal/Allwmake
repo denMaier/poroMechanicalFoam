@@ -24,6 +24,7 @@ fi
 
 export S4F_ROOT
 S4F_MODELS_DIR="$S4F_ROOT/src/solids4FoamModels"
+S4F_BLOCK_TOOLS_DIR="$S4F_ROOT/src/blockCoupledSolids4FoamTools"
 
 if [ ! -d "$S4F_MODELS_DIR" ]
 then
@@ -32,20 +33,15 @@ then
     exit 1
 fi
 
-# Keep this target minimal by linking only required source trees from submodule.
-for d in physicsModel solidModels materialModels numerics higherOrderHelpers fluidModels functionObjects
-do
-    ln -sfn "$S4F_MODELS_DIR/$d" "$d"
-done
-ln -sfn "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools/enhancedVolPointInterpolation" \
-    enhancedVolPointInterpolation
-ln -sfn "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools/newLeastSquaresVolPointInterpolation" \
-    newLeastSquaresVolPointInterpolation
+if [ ! -d "$S4F_BLOCK_TOOLS_DIR" ]
+then
+    echo "Missing solids4Foam sources at $S4F_BLOCK_TOOLS_DIR"
+    echo "Set S4F_ROOT to an existing solids4Foam source or initialize the submodule."
+    exit 1
+fi
 
-# Required so internal solids4Foam headers resolve via lnInclude in both trees.
+# Directly compile the selected upstream sources; only header lnIncludes are prepared here.
 wmakeLnInclude "$S4F_MODELS_DIR"
-wmakeLnInclude "$S4F_MODELS_DIR/../blockCoupledSolids4FoamTools"
-
-(cd Make && ln -sf files.openfoam files)
+wmakeLnInclude "$S4F_BLOCK_TOOLS_DIR"
 
 wmake $targetType libso

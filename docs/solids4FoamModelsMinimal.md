@@ -11,7 +11,8 @@ dedicated minimal library (`libsolids4FoamModelsMinimal`).
 ## Setup
 
 `Allwmake` handles submodule initialisation automatically on first build using
-sparse checkout (cone mode), fetching only `src/solids4FoamModels` from tag v2.3:
+sparse checkout (cone mode), fetching `src/solids4FoamModels` and
+`src/blockCoupledSolids4FoamTools` from tag v2.3:
 
 ```bash
 ./Allwmake
@@ -27,33 +28,41 @@ export S4F_ROOT=/path/to/solids4foam
 To set up the submodule manually (e.g. without running the build):
 
 ```bash
-git submodule update --init --no-checkout external/solids4foam
+git submodule update --init external/solids4foam
 git -C external/solids4foam sparse-checkout init --cone
-git -C external/solids4foam sparse-checkout set src/solids4FoamModels
+git -C external/solids4foam sparse-checkout set src/solids4FoamModels src/blockCoupledSolids4FoamTools
 git -C external/solids4foam checkout v2.3
 ```
+
+If the shipped Git is too old for `git sparse-checkout`, `Allwmake` falls back
+to configuring `core.sparseCheckout` and `.git/info/sparse-checkout` manually.
 
 ## Submodule scope
 
 `.gitmodules` sets `sparseCheckout = true` for `external/solids4foam`.
-The sparse-checkout cone (`src/solids4FoamModels`) is configured by `Allwmake`
+The sparse-checkout cone (`src/solids4FoamModels` and
+`src/blockCoupledSolids4FoamTools`) is configured by `Allwmake`
 on first run and stored in `.git/modules/external/solids4foam/info/sparse-checkout`
 (not tracked, but reproducibly recreated by the build script).
 
 ## What is built into `libsolids4FoamModelsMinimal`
 
-The minimal target uses `solids4FoamModelsMinimal/Make/files.openfoam` as the source
+The minimal target uses `solids4FoamModelsMinimal/Make/files` as the source
 list and compiles a reduced solids4Foam models subset (physics/solid/material models
-plus required numerics helpers).
+plus required numerics helpers) directly from `$(S4F_ROOT)/src/...`.
 
-`solids4FoamModelsMinimal/Allwmake` keeps only build metadata in this repository and
-links the required source trees from:
+`solids4FoamModelsMinimal/Allwmake` keeps only build metadata in this repository,
+prepares upstream `lnInclude` trees with `wmakeLnInclude`, and compiles selected
+sources directly from:
 
 - `external/solids4foam/src/solids4FoamModels/physicsModel`
 - `external/solids4foam/src/solids4FoamModels/solidModels`
 - `external/solids4foam/src/solids4FoamModels/materialModels`
 - `external/solids4foam/src/solids4FoamModels/numerics`
 - `external/solids4foam/src/solids4FoamModels/higherOrderHelpers`
+- `external/solids4foam/src/solids4FoamModels/fluidModels/fvPatchFields`
+- `external/solids4foam/src/solids4FoamModels/functionObjects/sphericalCavityAnalyticalSolution`
+- `external/solids4foam/src/blockCoupledSolids4FoamTools`
 
 ## Include/link requirements
 

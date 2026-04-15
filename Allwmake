@@ -60,10 +60,25 @@ fi
 # Set up solids4foam submodule with sparse checkout if needed
 if [ "$S4F_ROOT" = "$REPO_ROOT/external/solids4foam" ]; then
     if [ ! -d "$S4F_ROOT/src/solids4FoamModels" ]; then
-        echo "Initialising solids4foam submodule (sparse checkout: src/solids4FoamModels)..."
-        git submodule update --init --no-checkout external/solids4foam
-        git -C external/solids4foam sparse-checkout init --cone
-        git -C external/solids4foam sparse-checkout set src/solids4FoamModels
+        echo "Initialising solids4foam submodule (sparse checkout: src/solids4FoamModels, src/blockCoupledSolids4FoamTools)..."
+
+        # Older Git versions do not support --no-checkout on submodule update.
+        git submodule update --init external/solids4foam
+
+        if git -C external/solids4foam sparse-checkout -h >/dev/null 2>&1; then
+            git -C external/solids4foam sparse-checkout init --cone
+            git -C external/solids4foam sparse-checkout set src/solids4FoamModels src/blockCoupledSolids4FoamTools
+        else
+            git -C external/solids4foam config core.sparseCheckout true
+            SPARSE_FILE=$(git -C external/solids4foam rev-parse --git-path info/sparse-checkout)
+            mkdir -p "$(dirname "$SPARSE_FILE")"
+            cat > "$SPARSE_FILE" <<'EOF'
+/src/solids4FoamModels/
+/src/blockCoupledSolids4FoamTools/
+EOF
+            git -C external/solids4foam read-tree -mu HEAD
+        fi
+
         git -C external/solids4foam checkout v2.3
         echo "solids4foam submodule ready."
     fi
