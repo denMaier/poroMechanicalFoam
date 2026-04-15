@@ -744,11 +744,13 @@ void Foam::poroSubMeshes::makeInterfaceBaseFaces() const
              == processorFvPatch::typeName
             )
             {
-                const scalarField ownMat =
-                    materials.boundaryField()[patchI].patchInternalField();
+            const tmp<scalarField> ownMatTmp =
+                materials.boundaryField()[patchI].patchInternalField();
+            const scalarField& ownMat = ownMatTmp();
 
-                const scalarField ngbMat =
-                    materials.boundaryField()[patchI].patchNeighbourField();
+            const tmp<scalarField> ngbMatTmp =
+                materials.boundaryField()[patchI].patchNeighbourField();
+            const scalarField& ngbMat = ngbMatTmp();
 
                 forAll(ownMat, faceI)
                 {

@@ -814,8 +814,11 @@ Foam::scalar Foam::linearElasticMohrCoulombPlasticDilationCutoff::residual()
     } */
     else
     {
-        scalarField x = (mag(Dsigma_.primitiveField() - Dsigma_.prevIter().primitiveField())) /
-                        (SMALL + (mag(sigma0().primitiveField())));
+        const tmp<scalarField> xTmp(
+            mag(Dsigma_.primitiveField() - Dsigma_.prevIter().primitiveField()) /
+            (SMALL + (mag(sigma0().primitiveField())))
+        );
+        const scalarField& x = xTmp();
         return pow(
             gSum(
                 pow(x,

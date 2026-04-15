@@ -246,7 +246,8 @@ void Foam::seepageOutletFvPatchScalarField::updateCoeffs()
             const fvPatchField<scalar> &pHydP_ =
                     this->patch().patchField<volScalarField, scalar>(poroHydraulic_->p_Hyd());
 
-            const scalarField pP(thisField + pHydP_);
+            const tmp<scalarField> pPTmp(thisField + pHydP_);
+            const scalarField& pP = pPTmp();
             // Set boundary pressure to 0 to calculate the ficticous gradient (p_rgh = 0 - pHyd)
             //this->refValue() = outletPressure_ - pHydP_;
             //const scalarField& pif(this->patchInternalField());
@@ -307,7 +308,10 @@ void Foam::seepageOutletFvPatchScalarField::updateCoeffs()
         this->valueFraction() = tmpValFrac;
         if(isHead_)
         {
-            const scalarField n_(patch().nf() & vector(poroHydraulic_->gamma().value()).normalise());
+            const tmp<scalarField> nTmp(
+                patch().nf() & vector(poroHydraulic_->gamma().value()).normalise()
+            );
+            const scalarField& n_ = nTmp();
             this->refGrad() = scalarField(this->size(), 0.0) - n_;
         }
         else

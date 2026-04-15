@@ -113,6 +113,7 @@ namespace Foam
   public:
     //- Runtime type information
     TypeName("poroHydraulicModel");
+    using regIOobject::write;
 
     // Constructors
     //- Construct from an fvMesh
