@@ -870,7 +870,7 @@ void Foam::linearElasticMohrCoulombPlasticDilationCutoff::updateTotalFields()
             mesh().lookupObject<volTensorField>("grad(D)");
 
         // Calculate gradient of displacement increment
-        const volTensorField gradDD = gradD - gradD.oldTime();
+        const volTensorField gradDD((gradD - gradD.oldTime())());
 
         DEpsilon = symm(gradDD);
     }
@@ -960,7 +960,7 @@ void Foam::linearElasticMohrCoulombPlasticDilationCutoff::updateTotalFields()
     //   - dev(sigma - Dsigma_.oldTime())/(2.0*mu_);
 
     // Calculate the increment of equivalent plastic strain
-    const volScalarField DEpsilonPEq = sqrt((2.0 / 3.0) * magSqr(dev(DEpsilonP_)));
+    const volScalarField DEpsilonPEq((sqrt((2.0 / 3.0) * magSqr(dev(DEpsilonP_))))());
 
     // Update the total plastic strain
     epsilonP_ = (epsilonP_.oldTime() + DEpsilonP_);

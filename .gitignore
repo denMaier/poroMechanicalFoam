@@ -51,14 +51,17 @@ lnInclude
 # build folders - anywhere
 linux*Gcc*/
 linux*Icc*/
+**/Make/linux*/
 darwin*Gcc*/
 darwin*Intel*/
 darwin*Arm*/
+**/Make/darwin*/
 darwin*Clang*/
 linuxming*/
 SiCortex*Gcc*/
 solaris*Gcc*/
 SunOS*Gcc*/
+**/Make/SunOS*/
 
 # generated symlinks for minimal solids4Foam target
 solids4FoamModelsMinimal/physicsModel

@@ -65,7 +65,7 @@ bool Foam::poroPatchFlux::writeData()
             mesh.Sf().boundaryField()[historyPatchID_];*/
 
         // Patch unit area vectors
-        const vectorField patchNf = mesh.boundary()[historyPatchID_].nf();
+        const vectorField patchNf((mesh.boundary()[historyPatchID_].nf())());
 
         // Calculate the flux as the intergal over the area
         scalar flux = 0.0;

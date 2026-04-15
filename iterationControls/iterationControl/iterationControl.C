@@ -26,7 +26,64 @@ License
 #include "iterationControl.H"
 #include "fvSolution.H"
 #include "solutionControl.H"
-#include <boost/format.hpp>
+#include <iomanip>
+#include <sstream>
+
+namespace
+{
+    static const int infoTagWidth = 4;
+    static const int infoPropertyWidth = 19;
+    static const int infoValueWidth = 15;
+    static const int infoLimitWidth = 15;
+    static const int infoInnerWidth = 3 + infoTagWidth + 1 + infoPropertyWidth + 2 + 3 + infoValueWidth + 2 + 3 + infoLimitWidth + 3;
+    static const int infoBorderWidth = infoInnerWidth + 2;
+
+    template<class Value>
+    std::string toInfoString(const Value& value)
+    {
+        std::ostringstream os;
+        os << value;
+        return os.str();
+    }
+
+    std::string formatFixedValue(const Foam::scalar value)
+    {
+        std::ostringstream os;
+        os << std::fixed << std::setprecision(6) << value;
+        return os.str();
+    }
+
+    std::string formatScientificValue(const Foam::scalar value)
+    {
+        std::ostringstream os;
+        os << std::scientific << std::setprecision(6) << value;
+        return os.str();
+    }
+
+    template<class Tag, class Property, class CurrentValue, class Limit>
+    std::string formatInfoRow
+    (
+        const Tag& tag,
+        const Property& property,
+        const CurrentValue& currentValue,
+        const Limit& limit
+    )
+    {
+        std::ostringstream row;
+
+        row << "|   "
+            << std::left << std::setw(infoTagWidth) << toInfoString(tag)
+            << " "
+            << std::left << std::setw(infoPropertyWidth) << toInfoString(property)
+            << "  |  "
+            << std::right << std::setw(infoValueWidth) << toInfoString(currentValue)
+            << "  |   "
+            << std::right << std::setw(infoLimitWidth) << toInfoString(limit)
+            << "   | \n";
+
+        return row.str();
+    }
+}
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -256,22 +313,47 @@ bool Foam::iterationControl::loop()
 void Foam::iterationControl::info() const
 {
     if (index() % infoFrequency_ == 0 || converged_)
-                {   cout << nl << name_ << nl
-                         << string(68,'=') << nl;
-                    boost::format bformatr("|   %-4s %-19s  |  %15g  |   %10g   | \n");
-                    cout << bformatr  %"" % "Property" % "current value" % "min/max";
-                    cout << "|" << string(66,'-') << "|" << nl;
-                    cout << bformatr %" " % "Time" % time_.timeOutputValue() % time_.endTime().value();
-                    cout << bformatr %"#" % "Iterations" % index() % nCycles();
-                    forAll(residuals_, iRes)
-                    {
-                        residuals_[iRes].tolerance()==-1
-                        ?cout << bformatr % residuals_[iRes].operationType() % residuals_[iRes].name() % residuals_[iRes].residual() % "-"
-                        :cout << bformatr % residuals_[iRes].operationType() % residuals_[iRes].name() % residuals_[iRes].residual() % residuals_[iRes].tolerance();
-                    }
-                    cout << string(68,'=') << nl << nl
-                    << endl;
-                }
+    {
+        cout << nl << name_ << nl
+             << string(infoBorderWidth, '=') << nl;
+        cout << formatInfoRow("", "Property", "current value", "min/max");
+        cout << "|" << string(infoInnerWidth, '-') << "|" << nl;
+        cout << formatInfoRow
+        (
+            " ",
+            "Time",
+            formatFixedValue(time_.timeOutputValue()),
+            formatFixedValue(time_.endTime().value())
+        );
+        cout << formatInfoRow("#", "Iterations", index(), nCycles());
+
+        forAll(residuals_, iRes)
+        {
+            if (residuals_[iRes].tolerance() == -1)
+            {
+                cout << formatInfoRow
+                (
+                    residuals_[iRes].operationType(),
+                    residuals_[iRes].name(),
+                    formatScientificValue(residuals_[iRes].residual()),
+                    "-"
+                );
+            }
+            else
+            {
+                cout << formatInfoRow
+                (
+                    residuals_[iRes].operationType(),
+                    residuals_[iRes].name(),
+                    formatScientificValue(residuals_[iRes].residual()),
+                    formatScientificValue(residuals_[iRes].tolerance())
+                );
+            }
+        }
+
+        cout << string(infoBorderWidth, '=') << nl << nl
+             << endl;
+    }
 }
 
 void Foam::iterationControl::write()

@@ -289,18 +289,18 @@ namespace Foam
             );
 
         // Face unit normals
-        const vectorField n = patch().nf();
+        const vectorField n((patch().nf())());
 
         // Delta vectors
-        const vectorField delta = patch().delta();
+        const vectorField delta((patch().delta())());
 
         // Non-orthogonal correction vectors
-        const vectorField k = ((I - sqr(n)) & delta);
+        const vectorField k((((I - sqr(n)) & delta))());
 
         if (secondOrder_)
         {
-            const vectorField dUP = (k & gradField.patchInternalField());
-            const vectorField nGradUP = (n & gradField.patchInternalField());
+            const vectorField dUP(((k & gradField.patchInternalField()))());
+            const vectorField nGradUP(((n & gradField.patchInternalField()))());
 
             Field<vector>::operator=(
                 patchInternalField() + dUP + 0.5 * (gradient() + nGradUP) / patch().deltaCoeffs());
