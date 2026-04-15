@@ -86,7 +86,7 @@ namespace Foam
                       IOobject::READ_IF_PRESENT,
                       IOobject::NO_WRITE),
                   pField.mesh(),
-                  dimensionedScalar(vanGenuchtenCoeffs_.lookup("n"))),
+                  vanGenuchtenCoeffs_.get<dimensionedScalar>("n")),
               m_(
                   IOobject(
                       "m_",
@@ -103,7 +103,7 @@ namespace Foam
                       IOobject::READ_IF_PRESENT,
                       IOobject::NO_WRITE),
                   pField.mesh(),
-                  dimensionedScalar(vanGenuchtenCoeffs_.lookup("S_r"))),
+                  vanGenuchtenCoeffs_.get<dimensionedScalar>("S_r")),
               S_0(
                   IOobject(
                       "S_0",
@@ -112,7 +112,7 @@ namespace Foam
                       IOobject::READ_IF_PRESENT,
                       IOobject::NO_WRITE),
                   pField.mesh(),
-                  dimensionedScalar(vanGenuchtenCoeffs_.lookup("S_0"))),
+                  vanGenuchtenCoeffs_.get<dimensionedScalar>("S_0")),
               alpha_(
                   IOobject(
                       "alpha",

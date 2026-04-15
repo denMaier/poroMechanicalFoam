@@ -50,7 +50,7 @@ namespace Foam
         dictionary &poroHydraulicProperties,
         const volScalarField &pField)
         : conductivityModel(name, poroHydraulicProperties, pField),
-          kScalar_(poroHydraulicProperties.lookup("k")),
+          kScalar_(poroHydraulicProperties.get<dimensionedScalar>("k")),
           k_()
     {
         IOobject kHeader(

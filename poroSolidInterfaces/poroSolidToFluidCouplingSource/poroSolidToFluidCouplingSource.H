@@ -97,6 +97,8 @@ public:
     //- Runtime type information
     TypeName("poroSolidToFluidCouplingSource");
 
+    using cellSetOption::addSup;
+
 
     // Constructors
 

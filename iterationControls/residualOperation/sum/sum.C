@@ -65,11 +65,6 @@ Foam::scalar Foam::residualOperations::sum::operation(const scalarField& x) cons
 
 Foam::scalar Foam::residualOperations::sum::operation(const List<scalar>& x) const
 {
-    scalar returnValue;
-    forAll(x, ix)
-    {
-        returnValue += x[ix];
-    }
     return gSum(x);
 }
 

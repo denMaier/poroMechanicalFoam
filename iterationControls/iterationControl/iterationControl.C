@@ -351,8 +351,7 @@ void Foam::iterationControl::info() const
             }
         }
 
-        cout << string(infoBorderWidth, '=') << nl << nl
-             << endl;
+        cout << string(infoBorderWidth, '=') << nl << nl;
     }
 }
 

@@ -85,8 +85,6 @@ namespace Foam
             int intCorr_;
             int totCorr_;
 
-            label storedTimeIndex_;
-
         public:
             //- runTime type information
             TypeName("Casulli");

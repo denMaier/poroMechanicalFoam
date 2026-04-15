@@ -70,7 +70,7 @@ namespace Foam
                       IOobject::READ_IF_PRESENT,
                       IOobject::NO_WRITE),
                   mesh(),
-                  dimensionedScalar(exponentialCoeffs_.lookup("exp"))),
+                  exponentialCoeffs_.get<dimensionedScalar>("exp")),
               coeffS_(
                   IOobject(
                       "coeff_S",
@@ -79,7 +79,7 @@ namespace Foam
                       IOobject::NO_READ,
                       IOobject::NO_WRITE),
                   mesh(),
-                  dimensionedScalar(exponentialCoeffs_.lookup("coeffS"))),
+                  exponentialCoeffs_.get<dimensionedScalar>("coeffS")),
               coeffk_(
                   IOobject(
                       "coeff_kr",
@@ -88,7 +88,7 @@ namespace Foam
                       IOobject::READ_IF_PRESENT,
                       IOobject::NO_WRITE),
                   mesh(),
-                  dimensionedScalar(exponentialCoeffs_.lookup("coeffk"))),
+                  exponentialCoeffs_.get<dimensionedScalar>("coeffk")),
               S_0(
                   IOobject(
                       "S_0",
@@ -97,7 +97,7 @@ namespace Foam
                       IOobject::READ_IF_PRESENT,
                       IOobject::NO_WRITE),
                   mesh(),
-                  dimensionedScalar(exponentialCoeffs_.lookup("S_0")))
+                  exponentialCoeffs_.get<dimensionedScalar>("S_0"))
 
         {
             if (debug)
