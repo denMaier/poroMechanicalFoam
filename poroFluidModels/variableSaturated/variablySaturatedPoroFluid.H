@@ -160,7 +160,12 @@ namespace Foam
 
             const volScalarField& S() const
             {
-                return S();
+                if (!SPtr_.valid())
+                {
+                    const_cast<variablySaturatedPoroFluid&>(*this).makeS();
+                }
+
+                return SPtr_();
             }
 
             virtual tmp<volScalarField> n0()
@@ -170,7 +175,12 @@ namespace Foam
 
             const varSatPoroHydraulicModel& poroHydraulic() const
             {
-                return poroHydraulic();
+                if (!poroHydPtr_.valid())
+                {
+                    const_cast<variablySaturatedPoroFluid&>(*this).makePoroHydraulic();
+                }
+
+                return poroHydPtr_();
             }
 
             // Edit

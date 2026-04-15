@@ -98,7 +98,7 @@ namespace Foam
                   IOobject::READ_IF_PRESENT,
                   IOobject::NO_WRITE),
               mesh(),
-              dimensionedScalar(brooksCoreyCoeffs_.lookup("n"))),
+              brooksCoreyCoeffs_.get<dimensionedScalar>("n")),
 
           S_r(
               IOobject(
@@ -108,7 +108,7 @@ namespace Foam
                   IOobject::READ_IF_PRESENT,
                   IOobject::NO_WRITE),
               mesh(),
-              dimensionedScalar(brooksCoreyCoeffs_.lookup("S_r"))),
+              brooksCoreyCoeffs_.get<dimensionedScalar>("S_r")),
           S_0(
               IOobject(
                   "S_pe",
@@ -117,7 +117,7 @@ namespace Foam
                   IOobject::READ_IF_PRESENT,
                   IOobject::NO_WRITE),
               mesh(),
-              dimensionedScalar(brooksCoreyCoeffs_.lookup("S_pe"))),
+              brooksCoreyCoeffs_.get<dimensionedScalar>("S_pe")),
           pD_(
               IOobject(
                   "p_e",
@@ -126,7 +126,7 @@ namespace Foam
                   IOobject::READ_IF_PRESENT,
                   IOobject::NO_WRITE),
               mesh(),
-              dimensionedScalar(brooksCoreyCoeffs_.lookup("p_e")))
+              brooksCoreyCoeffs_.get<dimensionedScalar>("p_e"))
 
     {
       if (pD_.dimensions()!=pField.dimensions())

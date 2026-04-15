@@ -111,11 +111,11 @@ public:
         //- Execute specified function names
         virtual scalar calcResidual();
 
-        virtual word name()
+        virtual word name() const
         {
-            word newName;
-            newName = relative_?"rel. " + iterationResidual::name():newName = iterationResidual::name();
-            return newName;
+            return relative_
+                ? "rel. " + iterationResidual::name()
+                : iterationResidual::name();
         }
 
         virtual void reset();

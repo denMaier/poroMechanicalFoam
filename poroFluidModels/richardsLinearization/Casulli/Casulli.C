@@ -98,8 +98,7 @@ namespace Foam
               pPrevExt_(),
               extCorr_(0),
               intCorr_(0),
-              totCorr_(0),
-              storedTimeIndex_(0)
+              totCorr_(0)
         {
             update_pStar(poroHydraulic.pStar());
         }

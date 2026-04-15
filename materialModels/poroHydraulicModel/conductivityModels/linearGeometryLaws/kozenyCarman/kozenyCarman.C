@@ -58,8 +58,8 @@ namespace Foam
         const volScalarField &pField)
         : conductivityModel(name, poroHydraulicProperties, pField),
           kozenyCarmanProperties(poroHydraulicProperties.subDict(typeName + "Coeffs")),
-          D50_(kozenyCarmanProperties.lookup("D50")),
-          mu_(kozenyCarmanProperties.lookup("viscosity"))
+          D50_(kozenyCarmanProperties.get<dimensionedScalar>("D50")),
+          mu_(kozenyCarmanProperties.get<dimensionedScalar>("viscosity"))
     {}
 
     // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //

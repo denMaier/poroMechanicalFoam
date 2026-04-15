@@ -62,8 +62,8 @@ namespace Foam
         const volScalarField &pField)
         : conductivityModel(name, poroHydraulicProperties, pField),
         liquefyingZonePermeabilityProperties(poroHydraulicProperties.subDict(typeName + "Coeffs")),
-        kappa_(liquefyingZonePermeabilityProperties.lookup("kappa")),
-        iCrit_(liquefyingZonePermeabilityProperties.lookup("critGradient")),
+        kappa_(liquefyingZonePermeabilityProperties.get<dimensionedScalar>("kappa")),
+        iCrit_(liquefyingZonePermeabilityProperties.get<dimensionedScalar>("critGradient")),
         i_(db().objectRegistry::lookupObject<volVectorField>("i")),
         gamma_(db().objectRegistry::lookupObject<uniformDimensionedVectorField>("gamma_water")),
         k0_

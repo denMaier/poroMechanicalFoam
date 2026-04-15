@@ -115,6 +115,8 @@ public:
 
     // Member Functions
 
+        using mechanicalLaw::correct;
+
         //- Return bulk modulus
         virtual tmp<volScalarField> bulkModulus() const;
 

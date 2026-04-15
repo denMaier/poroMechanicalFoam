@@ -299,9 +299,6 @@ void Foam::varSatPoroMechanicalLaw::correct(surfaceSymmTensorField& sigma)
     const surfaceScalarField& pf = tPf();
 
     // Interpolate pressure to the faces
-    const tmp<surfaceScalarField> tSf(fvc::interpolate(SRef));
-    const surfaceScalarField& Sf = tSf();
-
     const tmp<surfaceScalarField> tChif(fvc::interpolate(effectiveStressModelPtr_->chi(nRef, SRef, pRef)));
     const surfaceScalarField& chif = tChif();
 
