@@ -68,8 +68,15 @@ namespace Foam
     protected:
         // Protected data
 
+        //- Run-time-selected saturation-law type name.
         word name_;
 
+        //- Zone sub-dictionary is passed in through the factory and may be
+        //  mutated by derived-law constructors to record inserted defaults for
+        //  later `_withDefaultValues` output.
+        dictionary* poroHydraulicPropertiesPtr_;
+
+        //- Solver pressure field used as the thermodynamic state input.
         const volScalarField &pField_;
 
         // Private Member Functions
@@ -141,12 +148,16 @@ namespace Foam
             return pField_.db();
         }
 
+        //- Return the cell reference pressure used by the saturation law.
         virtual scalar pStar(const label cellI) const = 0;
 
+        //- Return dS/dp or the equivalent moisture-capacity term for one cell.
         virtual scalar C(const scalar p, const label cellI) = 0;
 
+        //- Return saturation for one cell.
         virtual scalar S(const scalar p, const label cellI) = 0;
 
+        //- Return saturation for one boundary face.
         virtual scalar S
         (
             const scalar p,
@@ -154,8 +165,10 @@ namespace Foam
             const label faceI
         ) = 0;
 
+        //- Return relative conductivity for one cell.
         virtual scalar kr(const scalar p, const label cellI) = 0;
 
+        //- Return relative conductivity for one boundary face.
         virtual scalar kr
         (
             const scalar p,

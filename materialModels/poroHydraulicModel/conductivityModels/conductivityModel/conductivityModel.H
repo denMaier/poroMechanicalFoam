@@ -69,13 +69,15 @@ namespace Foam
     {
 
 
-        // name of the storage law
+        //- Run-time-selected conductivity-model type name.
         word name_;
-        // poroHydraulicProperties dictionary
+        //- Zone sub-dictionary backing this conductivity-model instance.
+        //  Derived laws may write default entries into it so the final
+        //  `_withDefaultValues` output captures the effective configuration.
         dictionary &poroHydraulicProperties_;
-        // const Reference to fluid mesh
+        //- Reference to the fluid mesh on which conductivity is evaluated.
         const fvMesh &mesh_;
-        // const Reference to fluid database
+        //- Registry used by models that depend on auxiliary fields.
         const objectRegistry &db_;
 
         // Protected data
@@ -144,8 +146,10 @@ namespace Foam
             return name_;
         }
 
+        //- Return conductivity for an internal cell.
         virtual scalar k(const label cellI) = 0;
 
+        //- Return conductivity for a boundary face.
         virtual scalar k
         (
             const label patchI,

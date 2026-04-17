@@ -58,7 +58,7 @@ namespace Foam
 
        // const uniformDimensionedVectorField g_;
 
-    //- law describing saturation and pressure/suction relationship (SWCC)
+    //- Zone-wise saturation laws coupling pressure, saturation and kr.
     mutable PtrList<saturationLaw> saturationLawPtr_;
 
     //- Disallow default bitwise copy construct
@@ -86,16 +86,22 @@ namespace Foam
 
     // Access
 
+    //- Return the zone-wise air-entry or reference pressure used by the SWCCs.
     virtual tmp<volScalarField> pStar() const;
 
+    //- Return cell-effective conductivity k*kr(p).
     virtual const tmp<volScalarField> kEff(const volScalarField &p);
 
+    //- Return face-effective conductivity kf*interpolate(kr(p)).
     virtual const tmp<surfaceScalarField> kEfff(const volScalarField &p);
 
+    //- Return relative conductivity from the active saturation laws.
     virtual tmp<volScalarField> kr(const volScalarField &p);
 
+    //- Return saturation from the active saturation laws.
     virtual tmp<volScalarField> S(const volScalarField &p);
 
+    //- Return specific moisture capacity dS/dp from the active saturation laws.
     virtual tmp<volScalarField> C(const volScalarField &p);
 
     //- Write function must be defined for regIOobjects

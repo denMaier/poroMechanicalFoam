@@ -42,6 +42,7 @@ namespace Foam
       dictionary &poroHydraulicProperties,
       const volScalarField &pField)
       : name_(name),
+        poroHydraulicPropertiesPtr_(&poroHydraulicProperties),
         pField_(pField)
   {}
 

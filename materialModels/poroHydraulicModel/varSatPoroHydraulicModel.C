@@ -30,8 +30,52 @@ License
 namespace Foam{
 
     defineTypeNameAndDebug(varSatPoroHydraulicModel, 0);
+}
+
+namespace
+{
+    Foam::word lookupSaturationLawName
+    (
+        const Foam::dictionary& zoneSubDict,
+        const Foam::word& zoneName
+    )
+    {
+        if (zoneSubDict.found("saturationLaw"))
+        {
+            if (zoneSubDict.found("SWCC"))
+            {
+                Foam::WarningInFunction
+                    << "Zone '" << zoneName << "' defines both 'saturationLaw'"
+                    << " and legacy key 'SWCC'. Using 'saturationLaw'."
+                    << Foam::endl;
+            }
+
+            return zoneSubDict.get<Foam::word>("saturationLaw");
+        }
+
+        if (zoneSubDict.found("SWCC"))
+        {
+            Foam::WarningInFunction
+                << "Zone '" << zoneName << "' uses legacy key 'SWCC'."
+                << " Please rename it to 'saturationLaw' in poroHydraulicProperties."
+                << Foam::endl;
+
+            return zoneSubDict.get<Foam::word>("SWCC");
+        }
+
+        Foam::FatalIOErrorInFunction(zoneSubDict)
+            << "Zone '" << zoneName << "' does not define required selector key"
+            << " 'saturationLaw' (legacy alias 'SWCC' is also accepted)."
+            << Foam::exit(Foam::FatalIOError);
+
+        return Foam::word::null;
+    }
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+}
+
+namespace Foam
+{
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 varSatPoroHydraulicModel::varSatPoroHydraulicModel(
@@ -40,12 +84,15 @@ varSatPoroHydraulicModel::varSatPoroHydraulicModel(
     : poroHydraulicModel(pField,gravity),
       saturationLawPtr_(pField.mesh().cellZones().size())
 {
+    // Build one saturation law per cellZone so Richards-type quantities can
+    // vary by material region in the same way as storage and conductivity.
     forAll(pField.mesh().cellZones(),iZone)
     {
+        const word& zoneName = pField.mesh().cellZones().names()[iZone];
         const dictionary& zoneSubDict =
              poroHydraulicProperties().optionalSubDict
                       (
-                        pField.mesh().cellZones().names()[iZone]
+                        zoneName
                       );
 
         saturationLawPtr_.set
@@ -53,7 +100,9 @@ varSatPoroHydraulicModel::varSatPoroHydraulicModel(
             iZone,
             saturationLaw::New
             (
-                zoneSubDict.get<word>("SWCC"),
+                lookupSaturationLawName(zoneSubDict, zoneName),
+                // Saturation-law constructors may insert default entries so a
+                // later `_withDefaultValues` write-back reflects the effective setup.
                 const_cast<dictionary&>(zoneSubDict),
                 pField
             )
@@ -75,14 +124,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::pStar() const
     (
         new volScalarField
         (
-            IOobject
-            (
-                "pStar",
-                mesh().time().timeName(),
-                pField().db(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::AUTO_WRITE
-            ),
+            assembledScratchFieldIOobject("pStar"),
             mesh(),
             dimensionedScalar(pField().dimensions(), 0.0),
             "zeroGradient" // Boundaryfield not important for pStar
@@ -91,12 +133,15 @@ tmp<volScalarField> varSatPoroHydraulicModel::pStar() const
 
     volScalarField& pStar_ = tpStar.ref();
 
-    const cellZoneMesh& cellZones = mesh().cellZones();  
-    forAll(pStar_,cellI)
-    {
-        pStar_.internalFieldRef()[cellI] =
-            saturationLawPtr_[cellZones.whichZone(cellI)].pStar(cellI);
-    }
+    // pStar is assembled cell-wise because each zone may use a different SWCC.
+    assembleInternalScalarField
+    (
+        pStar_,
+        [&](const label zoneI, const label cellI)
+        {
+            return saturationLawPtr_[zoneI].pStar(cellI);
+        }
+    );
 
     pStar_.correctBoundaryConditions();
     
@@ -110,6 +155,8 @@ const tmp<volScalarField> varSatPoroHydraulicModel::kEff(const volScalarField &p
 
 const tmp<surfaceScalarField> varSatPoroHydraulicModel::kEfff(const volScalarField &p)
 {
+    // The variably saturated face mobility is the saturated face conductivity
+    // scaled by the interpolated relative conductivity.
     return kf()*fvc::interpolate(this->kr(p));
 }
 
@@ -119,14 +166,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::kr(const volScalarField &p)
     (
         new volScalarField
         (
-            IOobject
-            (
-                "kr",
-                mesh().time().timeName(),
-                pField().db(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::AUTO_WRITE
-            ),
+            assembledScratchFieldIOobject("kr"),
             mesh(),
             dimensionedScalar(dimless, 0.0)
         )
@@ -134,25 +174,30 @@ tmp<volScalarField> varSatPoroHydraulicModel::kr(const volScalarField &p)
 
     volScalarField& kr_ = tkr.ref();
 
-    const cellZoneMesh& cellZones = mesh().cellZones();  
-    forAll(p,cellI)
-    {
-        kr_.internalFieldRef()[cellI] =
-            saturationLawPtr_[cellZones.whichZone(cellI)].kr(p.internalField()[cellI],cellI);
-    }
-
-    forAll(kr_.boundaryField(),patchI)
-    {
-        scalarField& krPatch = kr_.boundaryFieldRef()[patchI];
-        const scalarField& pPatch = p.boundaryField()[patchI];
-        const labelUList& faceCells = mesh().boundaryMesh()[patchI].faceCells();
-        forAll(krPatch,faceI)
+    // kr is evaluated on cells and boundary faces because boundary conditions
+    // may depend on the local relative conductivity state at the boundary.
+    assembleInternalScalarField
+    (
+        kr_,
+        [&](const label zoneI, const label cellI)
         {
-            label cellI = faceCells[faceI];
-            saturationLaw& SModel = saturationLawPtr_[cellZones.whichZone(cellI)];
-            krPatch[faceI] = SModel.kr(pPatch[faceI],patchI,faceI);
+            return saturationLawPtr_[zoneI].kr(p.internalField()[cellI], cellI);
         }
-    }
+    );
+
+    assembleBoundaryScalarField
+    (
+        kr_,
+        [&](const label zoneI, const label patchI, const label faceI)
+        {
+            return saturationLawPtr_[zoneI].kr
+            (
+                p.boundaryField()[patchI][faceI],
+                patchI,
+                faceI
+            );
+        }
+    );
     
     return tkr;
 }
@@ -163,14 +208,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::S(const volScalarField &p)
     (
         new volScalarField
         (
-            IOobject
-            (
-                "S",
-                mesh().time().timeName(),
-                pField().db(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::AUTO_WRITE
-            ),
+            assembledScratchFieldIOobject("S"),
             mesh(),
             dimensionedScalar(dimless, 0.0)
         )
@@ -178,25 +216,30 @@ tmp<volScalarField> varSatPoroHydraulicModel::S(const volScalarField &p)
 
     volScalarField& S_ = tS.ref();
 
-    const cellZoneMesh& cellZones = mesh().cellZones();  
-    forAll(p,cellI)
-    {
-        S_.internalFieldRef()[cellI] =
-            saturationLawPtr_[cellZones.whichZone(cellI)].S(p.internalField()[cellI],cellI);
-    }
-
-    forAll(S_.boundaryField(),patchI)
-    {
-        scalarField& SPatch = S_.boundaryFieldRef()[patchI];
-        const scalarField& pPatch = p.boundaryField()[patchI];
-        const labelUList& faceCells = mesh().boundaryMesh()[patchI].faceCells();
-        forAll(SPatch,faceI)
+    // Saturation follows the same per-zone evaluation pattern as kr because
+    // boundary conditions may need the actual boundary saturation state.
+    assembleInternalScalarField
+    (
+        S_,
+        [&](const label zoneI, const label cellI)
         {
-            label cellI = faceCells[faceI];
-            saturationLaw& SModel = saturationLawPtr_[cellZones.whichZone(cellI)];
-            SPatch[faceI] = SModel.S(pPatch[faceI],patchI,faceI);
+            return saturationLawPtr_[zoneI].S(p.internalField()[cellI], cellI);
         }
-    }
+    );
+
+    assembleBoundaryScalarField
+    (
+        S_,
+        [&](const label zoneI, const label patchI, const label faceI)
+        {
+            return saturationLawPtr_[zoneI].S
+            (
+                p.boundaryField()[patchI][faceI],
+                patchI,
+                faceI
+            );
+        }
+    );
     
     return tS;
 }
@@ -207,28 +250,29 @@ tmp<volScalarField> varSatPoroHydraulicModel::C(const volScalarField &p)
     (
         new volScalarField
         (
-            IOobject
-            (
-                "C",
-                mesh().time().timeName(),
-                pField().db(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::AUTO_WRITE
-            ),
+            assembledScratchFieldIOobject("C"),
             mesh(),
             dimensionedScalar(dimless/pField().dimensions(), 0.0),
-            "zeroGradient" // Boundaryfield not important for C
+            // C is a volumetric dS/dp quantity used as cell-wise storage-like
+            // information. Boundary-face values are not treated as constitutive
+            // boundary state, so a derived zeroGradient patch field is enough.
+            "zeroGradient"
         )
     );
 
     volScalarField& C_ = tC.ref();
 
-    const cellZoneMesh& cellZones = mesh().cellZones();  
-    forAll(p,cellI)
-    {
-        C_.internalFieldRef()[cellI] =
-            saturationLawPtr_[cellZones.whichZone(cellI)].C(p.internalField()[cellI],cellI);
-    }
+    // C is only assembled on cells because it is interpreted per control
+    // volume; nothing in the hydraulic model consumes an explicitly evaluated
+    // boundary C state.
+    assembleInternalScalarField
+    (
+        C_,
+        [&](const label zoneI, const label cellI)
+        {
+            return saturationLawPtr_[zoneI].C(p.internalField()[cellI], cellI);
+        }
+    );
 
     C_.correctBoundaryConditions();
     

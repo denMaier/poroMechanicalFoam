@@ -38,6 +38,7 @@ namespace Foam
 
   void storageLaw::makeCs()
   {
+    // Cs is allocated lazily because only a subset of storage laws uses it.
     Cs_.reset(new volScalarField(
         IOobject(
           "Cs",

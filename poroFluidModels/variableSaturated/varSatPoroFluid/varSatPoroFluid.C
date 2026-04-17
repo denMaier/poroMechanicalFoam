@@ -132,7 +132,10 @@ namespace Foam
                      << endl;
                     
                 n().write();
-                poroHydraulic().k()().write();
+                const tmp<volScalarField> tk(poroHydraulic().k());
+                volScalarField kDiagnostic(tk());
+                kDiagnostic.writeOpt() = IOobject::AUTO_WRITE;
+                kDiagnostic.write();
                 Ss_.write();
                 S().write();
                 linearization().C().write();

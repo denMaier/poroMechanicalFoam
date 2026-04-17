@@ -69,10 +69,10 @@ namespace Foam
     //- Pressure field used by solver
     const volScalarField& pField_;
 
-    //- law describing pore pressure storage term (e.g. from compressibility)
+    //- Zone-wise storage laws used to assemble Ss from porosity and pressure.
     mutable PtrList<storageLaw> storageLawPtr_;
 
-    //- laws describing change of hydraulic conductivity changes (e.g. from porosity changes)
+    //- Zone-wise conductivity laws used to assemble intrinsic conductivity.
     mutable PtrList<conductivityModel> conductivityModelPtr_;
 
     //- Density of poreFluid
@@ -94,7 +94,9 @@ namespace Foam
     //  href_ height
     const volScalarField p_Hyd_;
 
+    //- True if any selected storage law depends on the evolving hydraulic state.
     bool updatesSs_;
+    //- True if any selected conductivity law depends on the evolving hydraulic state.
     bool updatesK_;
 
     //- Disallow default bitwise copy construct
@@ -108,6 +110,72 @@ namespace Foam
     dictionary &poroHydraulicProperties()
     {
       return poroHydraulicProperties_;
+    }
+
+    //- Return the cellZone list used for hydraulic material assignment.
+    const cellZoneMesh& hydraulicZones() const
+    {
+      return mesh().cellZones();
+    }
+
+    //- Return the hydraulic-material zone index for one cell.
+    label hydraulicZoneID(const label cellI) const
+    {
+      return hydraulicZones().whichZone(cellI);
+    }
+
+    //- Return the hydraulic-material zone index for one boundary face.
+    label hydraulicZoneID(const label patchI, const label faceI) const
+    {
+      return hydraulicZoneID(mesh().boundaryMesh()[patchI].faceCells()[faceI]);
+    }
+
+    //- Assemble a scalar field on cells by evaluating one value per cell zone.
+    template<class CellEvaluator>
+    void assembleInternalScalarField
+    (
+      volScalarField& field,
+      const CellEvaluator& eval
+    ) const
+    {
+      forAll(field, cellI)
+      {
+        field.internalFieldRef()[cellI] = eval(hydraulicZoneID(cellI), cellI);
+      }
+    }
+
+    //- Assemble a scalar field on boundary faces from owner-cell zone values.
+    template<class FaceEvaluator>
+    void assembleBoundaryScalarField
+    (
+      volScalarField& field,
+      const FaceEvaluator& eval
+    ) const
+    {
+      forAll(field.boundaryField(), patchI)
+      {
+        scalarField& patchField = field.boundaryFieldRef()[patchI];
+
+        forAll(patchField, faceI)
+        {
+          patchField[faceI] = eval(hydraulicZoneID(patchI, faceI), patchI, faceI);
+        }
+      }
+    }
+
+    //- IO policy for on-demand constitutive fields assembled repeatedly.
+    //  Keep the historic read/write behavior so user-provided fields and
+    //  diagnostic outputs remain compatible across existing cases.
+    IOobject assembledScratchFieldIOobject(const word& name) const
+    {
+      return IOobject
+      (
+        name,
+        mesh().time().timeName(),
+        pField().db(),
+        IOobject::READ_IF_PRESENT,
+        IOobject::AUTO_WRITE
+      );
     }
 
   public:
@@ -140,6 +208,7 @@ namespace Foam
       return pField_;
     }
 
+    //- Return the reference porosity field, either from disk or zone constants.
     tmp<volScalarField> n0() const;
 
     //- Return const access to the mesh
@@ -179,10 +248,13 @@ namespace Foam
       return p_Hyd_;
     }
 
+    //- Assemble specific storage on cells from the active zone-wise storage laws.
     virtual tmp<volScalarField> Ss(const volScalarField& n, const volScalarField &p);
 
+    //- Assemble intrinsic conductivity on cells from the active zone-wise laws.
     const tmp<volScalarField> k() const;
 
+    //- Interpolate the cell conductivity field to faces for Darcy-flux assembly.
     virtual const tmp<surfaceScalarField> kf() const;
 
     bool updatesSs()

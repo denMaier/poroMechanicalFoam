@@ -67,8 +67,11 @@ namespace Foam
     class storageLaw
     {
         // Protected data
-        // name of the storage law
+        //- Run-time-selected storage-law type name.
         word name_;
+        //- Zone sub-dictionary backing this storage-law instance.
+        //  Derived laws may write default entries into it so the final
+        //  `_withDefaultValues` output captures the effective configuration.
         dictionary &poroHydraulicProperties_;
 
     protected:
@@ -76,7 +79,7 @@ namespace Foam
         //- Pressure field used by solver
         const volScalarField &pField_;
 
-        //- solid compressibility
+        //- Optional solid-compressibility field used by some derived laws.
         autoPtr<volScalarField> Cs_;
 
         bool writeSs_;
@@ -147,6 +150,7 @@ namespace Foam
             return name_;
         }
 
+        //- Return the cell storage coefficient for the given porosity and pressure.
         virtual scalar Ss
         (
             const scalar n,

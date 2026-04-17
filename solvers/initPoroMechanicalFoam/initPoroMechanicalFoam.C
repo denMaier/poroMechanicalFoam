@@ -38,6 +38,7 @@ Author
 
 #include "fvCFD.H"
 #include "poroFluidModel.H"
+#include "varSatPoroHydraulicModel.H"
 #include "solidModel.H"
 #include "meshToMesh.H"
 
@@ -73,34 +74,34 @@ int main(int argc, char *argv[])
             + poroHydraulic.p_Hyd().boundaryField()[iPatch];
     }
 
-    // Get saturation
+    // Saturated models use S=1, variably saturated models evaluate the SWCC.
     tmp<volScalarField> saturationField;
-    if (fluid().mesh().objectRegistry::foundObject<volScalarField>("S"))
+    const varSatPoroHydraulicModel* varSatPoroHydraulic =
+        dynamic_cast<const varSatPoroHydraulicModel*>(&poroHydraulic);
+
+    if (varSatPoroHydraulic)
     {
-        // If S exists, create a tmp from a reference
-        const volScalarField& existingS =
-            fluid().mesh().lookupObject<volScalarField>("S");
-        saturationField = tmp<volScalarField>(new volScalarField(existingS));
+        saturationField = varSatPoroHydraulic->S(fluid().p());
     }
     else
     {
-        // Create a new field with default value of 1.0
-        saturationField = tmp<volScalarField>
-        (
-            new volScalarField
+        saturationField =
+            tmp<volScalarField>
             (
-                IOobject
+                new volScalarField
                 (
-                    "S",
-                    runTime.timeName(),
+                    IOobject
+                    (
+                        "S",
+                        runTime.timeName(),
+                        fluid().mesh(),
+                        IOobject::NO_READ,
+                        IOobject::NO_WRITE
+                    ),
                     fluid().mesh(),
-                    IOobject::NO_READ,
-                    IOobject::NO_WRITE
-                ),
-                fluid().mesh(),
-                dimensionedScalar("S", dimless, 1.0)
-            )
-        );
+                    dimensionedScalar("S", dimless, 1.0)
+                )
+            );
     }
 
     // Map fields from fluid mesh to solid mesh

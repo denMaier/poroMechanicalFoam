@@ -29,8 +29,57 @@ License
 
 namespace Foam{
     defineTypeNameAndDebug(poroHydraulicModel, 0);
+}
+
+namespace
+{
+    Foam::word lookupLawName
+    (
+        const Foam::dictionary& zoneSubDict,
+        const Foam::word& canonicalKey,
+        const Foam::word& legacyKey,
+        const Foam::word& zoneName
+    )
+    {
+        if (zoneSubDict.found(canonicalKey))
+        {
+            if (zoneSubDict.found(legacyKey))
+            {
+                Foam::WarningInFunction
+                    << "Zone '" << zoneName << "' defines both '" << canonicalKey
+                    << "' and legacy key '" << legacyKey << "'. Using '"
+                    << canonicalKey << "'."
+                    << Foam::endl;
+            }
+
+            return zoneSubDict.get<Foam::word>(canonicalKey);
+        }
+
+        if (zoneSubDict.found(legacyKey))
+        {
+            Foam::WarningInFunction
+                << "Zone '" << zoneName << "' uses legacy key '" << legacyKey
+                << "'. Please rename it to '" << canonicalKey
+                << "' in poroHydraulicProperties."
+                << Foam::endl;
+
+            return zoneSubDict.get<Foam::word>(legacyKey);
+        }
+
+        Foam::FatalIOErrorInFunction(zoneSubDict)
+            << "Zone '" << zoneName << "' does not define required selector key '"
+            << canonicalKey << "'"
+            << " (legacy alias '" << legacyKey << "' is also accepted)."
+            << Foam::exit(Foam::FatalIOError);
+
+        return Foam::word::null;
+    }
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+}
+
+namespace Foam
+{
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 poroHydraulicModel::poroHydraulicModel
@@ -124,12 +173,15 @@ poroHydraulicModel::poroHydraulicModel
          << "Water specific weight: " << magGamma() << nl
 	 << "Referential Watertable is at z = " << href_ << endl;
 
+    // Build one constitutive law pair per cellZone. The model assumes that
+    // every hydraulic region is represented by a cellZone with its own sub-dict.
     forAll(pField.mesh().cellZones(),zoneI)
     {
+        const word& zoneName = pField.mesh().cellZones().names()[zoneI];
         const dictionary& zoneSubDict =
              poroHydraulicProperties_.optionalSubDict 
                       (
-                        pField.mesh().cellZones().names()[zoneI]
+                        zoneName
                       );
 
         storageLawPtr_.set
@@ -137,7 +189,9 @@ poroHydraulicModel::poroHydraulicModel
             zoneI,
             storageLaw::New
             (
-                zoneSubDict.get<word>("StorageModel"),
+                lookupLawName(zoneSubDict, "storageLaw", "StorageModel", zoneName),
+                // Storage-law constructors may insert default entries so a
+                // later `_withDefaultValues` write-back reflects the effective setup.
                 const_cast<dictionary&>(zoneSubDict),
                 pField_
             )
@@ -150,7 +204,13 @@ poroHydraulicModel::poroHydraulicModel
             zoneI,
             conductivityModel::New
             (
-                zoneSubDict.getOrDefault<word>("conductivityModel","constant"),
+                zoneSubDict.found("conductivityLaw")
+              ? lookupLawName(zoneSubDict, "conductivityLaw", "conductivityModel", zoneName)
+              : zoneSubDict.found("conductivityModel")
+                    ? lookupLawName(zoneSubDict, "conductivityLaw", "conductivityModel", zoneName)
+                    : word("constant"),
+                // Conductivity-model constructors may insert default entries so
+                // a later `_withDefaultValues` write-back reflects the effective setup.
                 const_cast<dictionary&>(zoneSubDict),
                 pField
             )
@@ -181,6 +241,7 @@ tmp<volScalarField> poroHydraulicModel::n0() const
         IOobject::AUTO_WRITE
     );
 
+    // Prefer a fully specified porosity field from disk when available.
     if (nHeader.typeHeaderOk<volScalarField>(true))
     {
         tmp<volScalarField> tn0
@@ -196,6 +257,8 @@ tmp<volScalarField> poroHydraulicModel::n0() const
     }
     else
     {
+        // Otherwise build a piecewise-constant porosity field from the
+        // per-cellZone `n` entries in poroHydraulicProperties.
         tmp<volScalarField> tn0
         (
             new volScalarField
@@ -215,14 +278,8 @@ tmp<volScalarField> poroHydraulicModel::n0() const
 
         volScalarField& n = tn0.ref();
         
-        const cellZoneMesh& cellZones = mesh().cellZones();
-        PtrList<dimensionedScalar> nList(cellZones.size());  
-
-	if(cellZones.size()==0)
-	{
-		FatalError << "No cellZones detected, please add a cellZone to your case!"
-			   << endl;
-	}
+        const cellZoneMesh& cellZones = hydraulicZones();
+        PtrList<dimensionedScalar> nList(cellZones.size());
 
         forAll(cellZones,iZone)
         {
@@ -238,21 +295,23 @@ tmp<volScalarField> poroHydraulicModel::n0() const
             );
         }
 
-        forAll(n,cellI)
-        {
-            n.internalFieldRef()[cellI] = nList[cellZones.whichZone(cellI)].value();
-        }
-
-        forAll(n.boundaryField(),patchI)
-        {
-            scalarField& nPatch = n.boundaryFieldRef()[patchI];
-            const labelUList& faceCells = mesh().boundaryMesh()[patchI].faceCells();
-            forAll(nPatch,faceI)
+        assembleInternalScalarField
+        (
+            n,
+            [&](const label zoneI, const label)
             {
-                label cellI = faceCells[faceI];
-                nPatch[faceI] = nList[cellZones.whichZone(cellI)].value();
+                return nList[zoneI].value();
             }
-        }
+        );
+
+        assembleBoundaryScalarField
+        (
+            n,
+            [&](const label zoneI, const label, const label)
+            {
+                return nList[zoneI].value();
+            }
+        );
 
         return tn0;
     }
@@ -264,33 +323,34 @@ tmp<volScalarField> poroHydraulicModel::Ss(const volScalarField& n, const volSca
     (
         new volScalarField
         (
-            IOobject
-            (
-                "Ss",
-                mesh().time().timeName(),
-                pField().db(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::AUTO_WRITE
-            ),
+            assembledScratchFieldIOobject("Ss"),
             mesh(),
             dimensionedScalar(dimless / pField().dimensions() , 0.0),
-            "zeroGradient" // Boundaryfield not important for Ss
+            // Ss is a volumetric storage quantity. Boundary-face values are not
+            // used as constitutive state, so a derived zeroGradient patch field
+            // is sufficient here.
+            "zeroGradient"
         )
     );
 
     volScalarField& Ss_ = tSs.ref();
 
-    const cellZoneMesh& cellZones = mesh().cellZones();  
-    forAll(p,cellI)
-    {
-        Ss_.internalFieldRef()[cellI] =
-            storageLawPtr_[cellZones.whichZone(cellI)].Ss
-                (
-                    n.internalField()[cellI],
-                    p.internalField()[cellI],
-                    cellI
-                );
-    }
+    // Storage is evaluated cell-wise because Ss is only physically interpreted
+    // as a per-volume quantity. Boundary values are not used to drive boundary
+    // constitutive state, so we only assemble the internal field explicitly.
+    assembleInternalScalarField
+    (
+        Ss_,
+        [&](const label zoneI, const label cellI)
+        {
+            return storageLawPtr_[zoneI].Ss
+            (
+                n.internalField()[cellI],
+                p.internalField()[cellI],
+                cellI
+            );
+        }
+    );
 
     Ss_.correctBoundaryConditions();
 
@@ -303,14 +363,7 @@ const tmp<volScalarField> poroHydraulicModel::k() const
     (
         new volScalarField
         (
-            IOobject
-            (
-                "k",
-                mesh().time().timeName(),
-                pField().db(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::AUTO_WRITE
-            ),
+            assembledScratchFieldIOobject("k"),
             mesh(),
             dimensionedScalar(dimLength / dimTime, 0.0)
         )
@@ -318,24 +371,25 @@ const tmp<volScalarField> poroHydraulicModel::k() const
 
     volScalarField& k_ = tk.ref();
 
-    const cellZoneMesh& cellZones = mesh().cellZones();  
-    forAll(k_,cellI)
-    {
-        conductivityModel& cModel = conductivityModelPtr_[cellZones.whichZone(cellI)];
-        k_.internalFieldRef()[cellI] = cModel.k(cellI);
-    }
-
-    forAll(k_.boundaryField(),patchI)
-    {
-        scalarField& kPatch = k_.boundaryFieldRef()[patchI];
-        const labelUList& faceCells = mesh().boundaryMesh()[patchI].faceCells();
-        forAll(kPatch,faceI)
+    // Conductivity is evaluated per cell and then copied to boundary faces
+    // from the owner-cell zone to keep zone-wise material behavior consistent.
+    assembleInternalScalarField
+    (
+        k_,
+        [&](const label zoneI, const label cellI)
         {
-            label cellI = faceCells[faceI];
-            conductivityModel& cModel = conductivityModelPtr_[cellZones.whichZone(cellI)];
-            kPatch[faceI] = cModel.k(patchI,faceI);
+            return conductivityModelPtr_[zoneI].k(cellI);
         }
-    }
+    );
+
+    assembleBoundaryScalarField
+    (
+        k_,
+        [&](const label zoneI, const label patchI, const label faceI)
+        {
+            return conductivityModelPtr_[zoneI].k(patchI, faceI);
+        }
+    );
     
     return tk;
 }
