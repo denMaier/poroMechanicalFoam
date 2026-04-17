@@ -39,11 +39,12 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef delta_H
-#define delta_H
+#ifndef LinearSolverRes_H
+#define LinearSolverRes_H
 
 #include "iterationResidual.H"
 #include "scalar.H"
+#include "fvMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -59,12 +60,17 @@ class LinearSolverRes
     public iterationResidual
 {
     // Private Member Functions
+        word fieldName_;
+        const fvMesh* meshPtr_;
+
+        void findMesh();
+
         //- No copy construct
         LinearSolverRes(const LinearSolverRes&) = delete;
 
 public:
     //- runTime type information
-        TypeName("LinearSolver");
+        TypeName("linearSolver");
 
     // Constructors
         LinearSolverRes

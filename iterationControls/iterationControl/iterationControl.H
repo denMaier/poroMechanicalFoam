@@ -179,6 +179,10 @@ protected:
         //- Switch to write the residual field
         Switch writeResidualField_;
 
+        //- True when the configured convergence checks require a
+        //  MassBalanceResidual field to be provided by the solver.
+        bool requiresMassBalanceResidual_;
+
 public:
 
     // Constructors
@@ -245,6 +249,11 @@ public:
                 WarningInFunction << "No residuals are selected!" << endl;
             }
             return residuals_;
+        }
+
+        bool requiresMassBalanceResidual() const
+        {
+            return requiresMassBalanceResidual_;
         }
 
         //- Return true if looping is active

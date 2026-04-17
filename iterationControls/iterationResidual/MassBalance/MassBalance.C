@@ -42,15 +42,28 @@ void Foam::MassBalance::makeMassBalanceRef()
 {
     HashTable<const poroFluidModel*> models = runTime().lookupClass<poroFluidModel>();
     bool found = false;
-        forAllConstIters(models, modelIter)
+    forAllConstIters(models, modelIter)
+    {
+        const fvMesh& regionMesh = modelIter.val()->mesh();
+
+        if
+        (
+            regionMesh.objectRegistry::foundObject<volScalarField>
+            (
+                "MassBalanceResidual"
+            )
+        )
         {
-            const fvMesh& regionMesh = *(modelIter.val().mesh());
-            if(regionMesh.objectRegistry::foundObject<volScalarField>("MassBalanceResidual"))
-            {
-                found = true;
-                MassBalance_.reset(regionMesh.objectRegistry::lookupObject<volScalarField>("MassBalanceResidual"));
-            }
+            found = true;
+            MassBalance_ =
+                &regionMesh.objectRegistry::lookupObject<volScalarField>
+                (
+                    "MassBalanceResidual"
+                );
+            break;
         }
+    }
+
     if(!found)
     {
         FatalErrorInFunction << "MassBalance field not found!" << endl;
@@ -68,9 +81,7 @@ Foam::MassBalance::MassBalance
 )
 :
     iterationResidual(runTime, name, stream, writeField),
-    writeField_(writeField),
-    MassBalance_(),
-    HashTable<const poroFluidModel*> models = runTime().lookupClass<poroFluidModel>()
+    MassBalance_(nullptr)
 {
 }
 
@@ -84,34 +95,34 @@ Foam::MassBalance::~MassBalance()
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 Foam::scalar Foam::MassBalance::calcResidual()
 {
-    if(!MassBalance_.valid())
+    if(!MassBalance_)
     {
         makeMassBalanceRef();
     }
 
-    scalarField MassBalanceInternal = mag(MassBalance_().primitiveField());
+    scalarField MassBalanceInternal = mag(MassBalance_->primitiveField());
     if(relative_)
     {
-        dimensionedScalar dimensionedSmall("",MassBalance_().dimensions(),SMALL);
-        MassBalanceInternal =  mag(MassBalanceInternal)/max(MassBalance_().oldTime(),dimensionedSmall)().primitiveField();
+        dimensionedScalar dimensionedSmall("", MassBalance_->dimensions(), SMALL);
+        MassBalanceInternal =
+            mag(MassBalanceInternal)
+          / max(MassBalance_->oldTime(), dimensionedSmall)().primitiveField();
     }
-    else
-    {
 
-    }
     residual_ = operation(MassBalanceInternal);
     return residual_;
 }
 
 void Foam::MassBalance::reset()
+{
+    if(!MassBalance_)
     {
-        if(!MassBalance_.valid())
-        {
-            makeMassBalanceRef();
-        }
-        const_cast<volScalarField&>(MassBalance_()).storeOldTime();
-        residual_ = GREAT;
+        makeMassBalanceRef();
     }
+
+    const_cast<volScalarField&>(*MassBalance_).storeOldTime();
+    residual_ = GREAT;
+}
 
 // * * * * * * * * * * * * * * Ostream operation  * * * * * * * * * * * * * * //
 

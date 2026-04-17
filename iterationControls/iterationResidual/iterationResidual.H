@@ -58,6 +58,7 @@ class iterationResidual
         const Time& runTime_;
         const word name_;
         const scalar tolerance_;
+        const word operationName_;
         mutable autoPtr<residualOperation> operation_;
 
         //- No copy construct
@@ -111,6 +112,15 @@ public:
             const ITstream stream,
             const bool writeField);
 
+        iterationResidual
+        (
+            const Time& runTime,
+            const word name,
+            const scalar tolerance,
+            const word& operationName,
+            const bool relative
+        );
+
 
     //- Destructor
     virtual ~iterationResidual(){
@@ -139,17 +149,31 @@ public:
 
     scalar operation(const scalarField& x) const
     {
+        if (!operation_.valid())
+        {
+            FatalErrorInFunction
+                << "Residual " << name_
+                << " does not support a residualOperation reduction."
+                << exit(FatalError);
+        }
         return operation_->operation(x);
     }
 
     scalar operation(const List<scalar>& x) const
     {
+        if (!operation_.valid())
+        {
+            FatalErrorInFunction
+                << "Residual " << name_
+                << " does not support a residualOperation reduction."
+                << exit(FatalError);
+        }
         return operation_->operation(x);
     }
 
     word operationType() const
     {
-        return operation_->name();
+        return operationName_;
     }
 
     inline virtual void reset()

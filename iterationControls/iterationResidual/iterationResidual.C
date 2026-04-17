@@ -25,6 +25,67 @@ License
 
 #include "iterationResidual.H"
 #include "deltaVf.H"
+#include "LinearSolverRes.H"
+
+namespace
+{
+    Foam::scalar parseTolerance
+    (
+        const Foam::word& name,
+        const Foam::ITstream& stream
+    )
+    {
+        if (!stream.size())
+        {
+            return -1.0;
+        }
+
+        if (stream.last().isNumber())
+        {
+            return stream.last().number();
+        }
+
+        if (stream.last().isWord() && stream.last().wordToken() == "show")
+        {
+            return -1.0;
+        }
+
+        Foam::FatalErrorInFunction
+            << "last entry for residual " << name
+            << " must be either a number or the word show"
+            << ::Foam::abort(Foam::FatalError);
+
+        return -1.0;
+    }
+
+    bool parseRelativeFlag(const Foam::ITstream& stream)
+    {
+        return stream.size() && stream.found(Foam::token(Foam::word("rel")));
+    }
+
+    Foam::word parseOperationName
+    (
+        const Foam::word& name,
+        const Foam::ITstream& stream
+    )
+    {
+        if (!stream.size())
+        {
+            return "max";
+        }
+
+        if (stream.size() < 2)
+        {
+            Foam::FatalErrorInFunction
+                << "Residual " << name
+                << " requires '<operation> <tolerance|show>'." << Foam::nl
+                << "For example: " << name << " max 1e-6"
+                << ::Foam::abort(Foam::FatalError);
+        }
+
+        return stream.first().wordToken();
+    }
+}
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 namespace Foam
 {
@@ -42,35 +103,41 @@ Foam::iterationResidual::iterationResidual
 )
 :       runTime_(runTime),
         name_(name),
-        // Tolerance can either be a number or the word "show"
-        // in the last case the tolerance will be initiated as -1
-        // which will always trigger convergence for this residual
-        tolerance_(
-            stream.last().isNumber()
-            ? stream.last().number()
-            : -1.0
-        ),
+        tolerance_(parseTolerance(name, stream)),
+        operationName_(parseOperationName(name, stream)),
         operation_(),
         residual_(GREAT),
-        // bool if relative or total residual should be calculated
-        relative_(stream.found(token(word("rel"))))
+        relative_(parseRelativeFlag(stream))
 {
     relative_
          ? Info << "rel. "
          : Info << " ";
     Info  << name_
           << " Tol.: " <<  tolerance_ << endl;
-    if (!stream.last().isNumber())
-    {
-        if(!(stream.last().wordToken() == "show"))
-        {
-            FatalErrorInFunction << "last entry for residual "
-            << name_
-            << "must be either a number or the word show"
-            << ::Foam::abort(FatalError);
-        }
-    }
-    operation_.reset(residualOperation::New(stream.first().wordToken()));
+    operation_.reset(residualOperation::New(operationName_));
+}
+
+Foam::iterationResidual::iterationResidual
+(
+    const Time& runTime,
+    const word name,
+    const scalar tolerance,
+    const word& operationName,
+    const bool relative
+)
+:   runTime_(runTime),
+    name_(name),
+    tolerance_(tolerance),
+    operationName_(operationName),
+    operation_(),
+    residual_(GREAT),
+    relative_(relative)
+{
+    relative_
+         ? Info << "rel. "
+         : Info << " ";
+    Info  << name_
+          << " Tol.: " <<  tolerance_ << endl;
 
 }
 
@@ -85,26 +152,74 @@ Foam::autoPtr<Foam::iterationResidual> Foam::iterationResidual::New(
 #if (OPENFOAM >= 2112)
     auto* ctorPtr = dictionaryConstructorTable(name);
 
-    if (!ctorPtr)
-    {
-        return (autoPtr<Foam::iterationResidual>(new Foam::deltaVf(runTime, name, stream, writeField)));
-    }
-
 #else
     dictionaryConstructorTable::iterator cstrIter =
             dictionaryConstructorTablePtr_->find(name);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
-    {
-        return (autoPtr<Foam::iterationResidual>(new Foam::deltaVf(runTime, name, stream, writeField)));
-    }
-
-    auto* ctorPtr = cstrIter();
+    auto* ctorPtr =
+        cstrIter == dictionaryConstructorTablePtr_->end()
+      ? nullptr
+      : cstrIter();
 #endif
 
-    return autoPtr<Foam::iterationResidual>(ctorPtr(runTime, name, stream, writeField));
+    if (ctorPtr)
+    {
+        return autoPtr<Foam::iterationResidual>
+        (
+            ctorPtr(runTime, name, stream, writeField)
+        );
+    }
 
-    // If not found try to make a iterational difference out of it
+    if
+    (
+        name == "LinearSolver"
+     || name == "linearSolver"
+     || (stream.size() && stream.first().isWord() && stream.first().wordToken() == "linearSolver")
+    )
+    {
+        return autoPtr<Foam::iterationResidual>
+        (
+            new Foam::LinearSolverRes
+            (
+                runTime,
+                name,
+                stream,
+                writeField
+            )
+        );
+    }
+
+    if (Foam::deltaVf::fieldExists(runTime, name))
+    {
+        if (stream.size() < 2)
+        {
+            FatalErrorInFunction
+                << "Field-based convergence entry '" << name << "' requires "
+                << "'<operation> <tolerance|show>'." << nl
+                << "For example: \"" << name << "\" L2 1e-3"
+                << exit(FatalError);
+        }
+
+        return autoPtr<Foam::iterationResidual>
+        (
+            new Foam::deltaVf(runTime, name, stream, writeField)
+        );
+    }
+
+    FatalErrorInFunction
+        << "Unknown convergence entry '" << name << "'." << nl
+        << "Expected either a registered residual type or an existing field "
+        << "name." << nl
+        << "Registered residual types include: linearSolver, MassBalance" << nl
+        << "Trackable registered fields currently visible in the mesh registries:" << nl
+        << Foam::deltaVf::candidateFieldNames(runTime) << nl << nl
+        << "Only registered vol/surface scalar/vector/tensor fields can be used "
+        << "for delta-based convergence checks." << nl
+        << "They must also persist across the outer-iteration loop so prevIter() "
+        << "state is meaningful."
+        << exit(FatalError);
+
+    return autoPtr<Foam::iterationResidual>(nullptr);
 
 }
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //

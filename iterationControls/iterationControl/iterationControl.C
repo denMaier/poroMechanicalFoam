@@ -91,6 +91,11 @@ void Foam::iterationControl::clear()
 {
     total_ = 0;
     interval_ = 0;
+    abortCalc_ = false;
+    infoFrequency_ = 1;
+    writeResidualFile_ = false;
+    writeResidualField_ = false;
+    requiresMassBalanceResidual_ = false;
 
     onLoop_.clear();
     onConverged_.clear();
@@ -154,17 +159,34 @@ void Foam::iterationControl::read(dictionary& dict)
     onConverged_ = dict.lookupOrAddDefault("onConverged", onConverged_);
     onEnd_ = dict.lookupOrAddDefault("onEnd", onEnd_);
     writeResidualFile_ = dict.lookupOrAddDefault("performanceLog", writeResidualFile_);
-    Switch writeResidualField(false);
-    writeResidualField = dict.lookupOrAddDefault("writeResidualField", writeResidualField);
+    writeResidualField_ = dict.lookupOrAddDefault("writeResidualField", writeResidualField_);
 
     for (const entry& dataDictEntry : dict.subOrEmptyDict("convergence"))
     {
-        residuals_.append(iterationResidual::New(time_, dataDictEntry.keyword(), dataDictEntry.stream(), writeResidualField));
+        requiresMassBalanceResidual_ =
+            requiresMassBalanceResidual_
+         || dataDictEntry.keyword() == "MassBalance";
+
+        residuals_.append
+        (
+            iterationResidual::New
+            (
+                time_,
+                dataDictEntry.keyword(),
+                dataDictEntry.stream(),
+                writeResidualField_
+            )
+        );
     }
 }
 
 bool Foam::iterationControl::checkConverged()
 {
+    if (residuals_.empty())
+    {
+        return false;
+    }
+
     bool achieved = true;
     forAll(residuals_, iRes)
     {
@@ -224,7 +246,9 @@ Foam::iterationControl::iterationControl
     converged_(false),
     residuals_(),
     residualFilePtr_(),
-    writeResidualFile_(false)
+    writeResidualFile_(false),
+    writeResidualField_(false),
+    requiresMassBalanceResidual_(false)
 {}
 
 

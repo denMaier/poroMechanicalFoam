@@ -35,10 +35,11 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef delta_H
-#define delta_H
+#ifndef MassBalance_H
+#define MassBalance_H
 
 #include "iterationResidual.H"
+#include "poroFluidModel.H"
 #include "scalar.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -55,9 +56,7 @@ class MassBalance
     public iterationResidual
 {
     // Private Member Functions
-        bool writeField_;
-        tmp<volScalarField> MassBalance_;
-        HashTable<const poroFluidModel*> models
+        const volScalarField* MassBalance_;
 
         void makeMassBalanceRef();
 

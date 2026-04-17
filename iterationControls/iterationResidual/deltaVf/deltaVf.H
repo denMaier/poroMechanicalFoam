@@ -43,6 +43,8 @@ SourceFiles
 
 #include "iterationResidual.H"
 #include "scalar.H"
+#include "surfaceFields.H"
+#include "wordList.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -65,7 +67,14 @@ class deltaVf
         word type_;
         autoPtr<volScalarField> vf_;
         autoPtr<volScalarField> deltaVf_;
+        autoPtr<surfaceScalarField> sf_;
+        autoPtr<surfaceScalarField> deltaSf_;
         bool prevIterStored_;
+
+        bool isSurfaceType() const
+        {
+            return type_ == "surfaceScalar" || type_ == "surfaceVector";
+        }
 
         volScalarField& vf()
         {
@@ -80,10 +89,25 @@ class deltaVf
             return vf_.ref();
         }
 
+        surfaceScalarField& sf()
+        {
+            if (!db_.valid())
+            {
+                firstLookup();
+            }
+            if(!sf_.valid())
+            {
+                makeSfScalar();
+            }
+            return sf_.ref();
+        }
+
         void firstLookup();
         void lookupAndMakeScalar();
         void makeVfScalar();
         void makeDeltaVf();
+        void makeSfScalar();
+        void makeDeltaSf();
 
         //- No copy construct
         deltaVf(const deltaVf&) = delete;
@@ -91,6 +115,14 @@ class deltaVf
 public:
     //- runTime type information
         TypeName("delta");
+
+        static bool fieldExists
+        (
+            const Time& runTime,
+            const word& variableName
+        );
+
+        static wordList candidateFieldNames(const Time& runTime);
 
     // Constructors
         deltaVf

@@ -96,21 +96,28 @@ namespace Foam
 
         void variablySaturatedPoroFluid::checkMassBalance()
         {
-            forAll(iterCtrl().residuals(), iRes)
+            if
+            (
+                iterCtrl().requiresMassBalanceResidual()
+             && !MassBalancePtr_.valid()
+            )
             {
-                if (iterCtrl().residuals()[iRes].name() == "MassBalance")
-                {
-                    MassBalancePtr_.reset(
-                        new volScalarField(
-                            IOobject(
-                                "MassBalanceResidual",
-                                pField().time().timeName(),
-                                pField().db(),
-                                IOobject::NO_READ,
-                                IOobject::AUTO_WRITE),
-                            pField().mesh(),
-                            dimensionedScalar("", dimVolume, 0.0)));
-                }
+                MassBalancePtr_.reset
+                (
+                    new volScalarField
+                    (
+                        IOobject
+                        (
+                            "MassBalanceResidual",
+                            pField().time().timeName(),
+                            pField().db(),
+                            IOobject::NO_READ,
+                            IOobject::AUTO_WRITE
+                        ),
+                        pField().mesh(),
+                        dimensionedScalar("", dimVolume, 0.0)
+                    )
+                );
             }
         }
 
