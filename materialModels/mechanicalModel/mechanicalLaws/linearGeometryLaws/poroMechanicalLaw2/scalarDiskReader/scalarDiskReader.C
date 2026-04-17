@@ -42,9 +42,9 @@ namespace Foam
         if (!meshToMesh::interpolationMethodNames_.found(mapMethodName))
         {
             FatalErrorInFunction
-                << "unknown map method "
-                << mapMethodName << nl
-                << "Available methods include: "
+                << "Unknown map method '" << mapMethodName << "' for scalar field '"
+                << scalarName_ << "'." << nl
+                << "Set 'mapMethod' to one of: "
                 << meshToMesh::interpolationMethodNames_
                 << exit(FatalError);
         }
@@ -62,7 +62,9 @@ namespace Foam
                 if(mapMethodName=="direct")
                 {
                     WarningInFunction
-                        << "direct mapping selected for inconsitent region meshes, changing to imMapNearest"
+                        << "Direct mapping was selected for inconsistent region meshes "
+                        << "while reading scalar field '" << scalarName_ << "'. "
+                        << "Switching to imMapNearest automatically."
                         << endl;
                     mapMethod = meshToMesh::interpolationMethod::imMapNearest;
                 }
@@ -245,10 +247,15 @@ namespace Foam
             }
             else
             {
-                FatalError("Reading "+scalarName_) << "You have activated the scalarField reader for the field "
-                                                   << scalarName_ << "in poroMaterialLaw," << nl
-                                                   << "but there was no field in the start time folder." << nl
-                                                   << "Did you mean to run a coupled simulation?" << endl;
+                FatalErrorInFunction
+                    << "The scalar disk reader was enabled for field '" << scalarName_
+                    << "', but no volScalarField with that name was found in the "
+                    << "start-time directory." << nl
+                    << "Searched case directory: " << fieldRunTime.casePath() << nl
+                    << "Searched time directory: " << fieldRunTime.timePath() << nl
+                    << "Either provide the field at the start time or disable the "
+                    << "disk reader for uncoupled runs."
+                    << exit(FatalError);
             }
 
 

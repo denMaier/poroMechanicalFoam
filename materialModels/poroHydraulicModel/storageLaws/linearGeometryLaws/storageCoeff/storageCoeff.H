@@ -58,8 +58,13 @@ namespace Foam
         {
             // Private data
             dictionary& storageCoeffCoeffs_;
+            //- Legacy local copy of the selected type name. The base class also
+            //  stores the runtime-selected name; this member is kept only to
+            //  preserve the current class layout and behavior.
             word name_;
+            //- Uniform fallback storage coefficient from the dictionary.
             dimensionedScalar SsScalar_;
+            //- Optional per-cell storage field read from disk when present.
             autoPtr<volScalarField> SsField_;
 
         public:
@@ -84,6 +89,7 @@ namespace Foam
 
             //- Read transportProperties dictionary
 
+            //- Return the stored model name without changing the historic API.
             virtual word name() { return name_; }
 
             virtual scalar Ss
@@ -93,6 +99,8 @@ namespace Foam
                 const label cellI
             );
 
+            //- This model is static once configured, so callers do not need to
+            //  reassemble Ss in response to evolving hydraulic state.
             virtual bool updatesSs()  const 
             {
                 return false;

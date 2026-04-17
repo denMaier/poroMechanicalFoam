@@ -79,7 +79,7 @@ namespace Foam
             FatalErrorIn(
                 "fixedWallNoTension::"
                 "fixedWallNoTension")
-                << "value or refValue entry must be specified for patch "
+                << "Either 'value' or 'refValue' must be specified for patch '"
                 << patch().name() << abort(FatalError);
         }
 

@@ -322,7 +322,11 @@ namespace Foam
             // Sanity check if an appropriate poroSolid solver is used for the selected poroFluid solver
             if(poroFluid().name() == "poroFluid")
             {
-                FatalErrorInFunction() << "'poroFluid' is not suitable for variably saturated calculations" << endl;
+                FatalErrorInFunction()
+                    << "The selected poroFluid model '" << poroFluid().name()
+                    << "' is not suitable for variably saturated calculations." << nl
+                    << "Use a variably saturated poroFluid model such as varSatPoroFluid or varSatPoroFluidHead."
+                    << exit(FatalError);
             }
         }
 

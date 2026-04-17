@@ -69,10 +69,10 @@ namespace Foam
                     "volScalarField&, "
                     "volScalarField&, "
                     "volScalarField&) ")
-                    << "Unknown conductivityModel type "
-                    << name << endl
+                    << "Unknown conductivityModel type '" << name << "'."
                     << endl
-                    << "Valid  conductivityModels are : " << endl
+                    << endl
+                    << "Valid conductivityModel types are:" << endl
                     << dictionaryConstructorTablePtr_->toc()
                     << exit(FatalError);
             }

@@ -32,6 +32,10 @@ Description
     For relative hydraulic conductivity, kr can be a runtime definable expression of 
     saturation OR pressure.
 
+    The dictionary keys inside `pressureFunctionCoeffs` are legacy function-style
+    names such as `SOfP`, `CofP`, `krOfS`, and `krOfP`. They are part of the
+    existing user-facing configuration contract for this model.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -117,6 +121,8 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model exposes its behavior through the
+            //  configured runtime functions rather than custom write output.
             virtual void write() const{};
 
         };

@@ -69,10 +69,10 @@ namespace Foam
                     "volScalarField&, "
                     "volScalarField&, "
                     "volScalarField&) ")
-                    << "Unknown storageLaw type "
-                    << name << endl
+                    << "Unknown storageLaw type '" << name << "'."
                     << endl
-                    << "Valid  storageLaws are : " << endl
+                    << endl
+                    << "Valid storageLaw types are:" << endl
                     << dictionaryConstructorTablePtr_->toc()
                     << exit(FatalError);
             }

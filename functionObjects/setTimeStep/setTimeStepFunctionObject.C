@@ -98,7 +98,9 @@ bool Foam::functionObjects::setTimeStepFunctionObject::read
     if (!time_.controlDict().getOrDefault("adjustTimeStep", false))
     {
         FatalIOErrorInFunction(dict)
-            << "Need to set 'adjustTimeStep' true to allow timestep control"
+            << "The setTimeStep function object requires 'adjustTimeStep true' in system/controlDict."
+            << nl
+            << "Enable adjustTimeStep globally or remove this function object."
             << nl
             << exit(FatalIOError);
     }

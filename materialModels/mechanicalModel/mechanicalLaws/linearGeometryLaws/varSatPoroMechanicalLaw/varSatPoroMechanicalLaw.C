@@ -94,8 +94,10 @@ Foam::effectiveStressModel &Foam::varSatPoroMechanicalLaw::effectiveStressModelR
 {
     if (!effectiveStressModelPtr_.valid())
     {
-        FatalErrorInFunction() << "effectiveStressModel must be initialized first!"
-                               << endl;
+        FatalErrorInFunction()
+            << "effectiveStressModel has not been initialized." << nl
+            << "Construct or select the effective stress model before calling effectiveStressModelRef()."
+            << exit(FatalError);
     }
     return effectiveStressModelPtr_.ref();
 }

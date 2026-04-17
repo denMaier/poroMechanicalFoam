@@ -120,9 +120,12 @@ namespace Foam
         {
            if (p_At_.dimensions()!=pField.dimensions() && dimless/alpha_.dimensions()!=pField.dimensions())
             {
-              FatalErrorIn("montenegroMaier::montenegroMaier") << "Pressure dimensions are: " << pField.dimensions() << nl
-                                                    << "p_At has (wrong?) dimensions " << p_At_.dimensions() << nl
-                                                    << "alpha has (wrong?) dimensions " << alpha_.dimensions() << endl;
+              FatalErrorIn("montenegroMaier::montenegroMaier")
+                  << "montenegroMaier coefficients have inconsistent dimensions." << nl
+                  << "Pressure field dimensions: " << pField.dimensions() << nl
+                  << "p_At dimensions: " << p_At_.dimensions() << nl
+                  << "alpha dimensions: " << alpha_.dimensions()
+                  << exit(FatalError);
 
             } 
             if (debug)

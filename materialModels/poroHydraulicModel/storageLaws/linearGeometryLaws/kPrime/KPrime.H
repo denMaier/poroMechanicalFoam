@@ -28,6 +28,11 @@ Class
 Description
     Law, where storage is dependend of Saturation and (optionally) pressure.
 
+    `S_p0` may be supplied as a field on disk, and the `pDependent` toggle may
+    be inserted into the coefficients dictionary via `lookupOrAddDefault`.
+    Because the returned storage depends on the hydraulic state, this law
+    remains a state-dependent storage model.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -58,8 +63,9 @@ namespace Foam
         {
             // Private data
             dictionary& KPrimeCoeffs_;
-            // Water-Saturation at 0 Pressure
-            // (not to be confused with fluid-saturation S_0)
+            //- Water saturation at zero pressure.
+            //  This optional field may be read from disk and is not the same
+            //  quantity as the saturation-law parameter `S_0`.
             const volScalarField S_p0_;
             const dimensionedScalar Kw_;
             const dimensionedScalar p_At_;
@@ -94,6 +100,8 @@ namespace Foam
                 const label cellI
             );
 
+            //- Legacy hook used by older callers to decide whether Ss-related
+            //  diagnostics should be written for this law.
             virtual bool write()
             {   
                 if(pDep_ || writeSs_)

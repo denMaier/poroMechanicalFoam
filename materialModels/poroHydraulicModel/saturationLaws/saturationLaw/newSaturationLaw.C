@@ -68,10 +68,10 @@ namespace Foam
                     "volScalarField&, "
                     "volScalarField&, "
                     "volScalarField&) ")
-                    << "Unknown saturationLaw type "
-                    << name << endl
+                    << "Unknown saturationLaw type '" << name << "'."
                     << endl
-                    << "Valid  saturationLaws are : " << endl
+                    << endl
+                    << "Valid saturationLaw types are:" << endl
                     << dictionaryConstructorTablePtr_->toc()
                     << exit(FatalError);
             }

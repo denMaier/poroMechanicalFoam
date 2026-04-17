@@ -28,6 +28,10 @@ Class
 Description
     Run-time definable function (dependend of pressure) of storage.
 
+    The function keys inside `pressureFunctionCoeffs` are part of the existing
+    user-facing dictionary contract for this model. Since storage is evaluated
+    directly from the current pressure, this law remains state-dependent.
+
 Author
     Denis Maier, BAW. All rights reserved.
 

@@ -82,7 +82,11 @@ namespace Foam
     {
       if(iCrit_.dimensions() != i_.dimensions() || kappa_.dimensions() != k0_.dimensions())
       {
-        FatalErrorInFunction() << "limitedGradient coeffs don't have the right dimensions!" << endl;
+        FatalErrorInFunction()
+            << "limitedGradient coefficients have inconsistent dimensions." << nl
+            << "Expected iCrit to match hydraulic gradient dimensions " << i_.dimensions()
+            << " and kappa to match conductivity dimensions " << k0_.dimensions() << "."
+            << exit(FatalError);
       }
       k0_.rename("k0");
     }

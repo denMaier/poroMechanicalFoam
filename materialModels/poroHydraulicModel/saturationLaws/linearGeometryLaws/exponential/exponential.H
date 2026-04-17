@@ -28,6 +28,10 @@ Class
 Description
     Exponential SWCC.
 
+    The exponential coefficients may be supplied as fields, so both cell and
+    boundary-face evaluations use local coefficient values rather than uniform
+    scalars.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -59,10 +63,13 @@ namespace Foam
             // Private data
 
             dictionary& exponentialCoeffs_;
-
+            //- Optional field-backed exponential shape parameter.
             const volScalarField exp_;
+            //- Optional field-backed saturation scaling coefficient.
             const volScalarField coeffS_;
+            //- Optional field-backed relative-conductivity scaling coefficient.
             const volScalarField coeffk_;
+            //- Optional field-backed maximum saturation.
             const volScalarField S_0;
 
             // Private Member Functions
@@ -118,6 +125,7 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         };

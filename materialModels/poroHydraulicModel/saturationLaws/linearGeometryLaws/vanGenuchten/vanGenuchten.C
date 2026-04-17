@@ -125,8 +125,11 @@ namespace Foam
         {
            if ((dimless/alpha_.dimensions())!=pField.dimensions())
             {
-              FatalErrorIn("vanGenuchten::vanGenuchten") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                                    << "alpha has wrong dimensions " << alpha_.dimensions() << endl;
+              FatalErrorIn("vanGenuchten::vanGenuchten")
+                  << "vanGenuchten coefficient 'alpha' has inconsistent dimensions." << nl
+                  << "Pressure field dimensions: " << pField.dimensions() << nl
+                  << "alpha dimensions: " << alpha_.dimensions()
+                  << exit(FatalError);
             }
 
             if (debug)

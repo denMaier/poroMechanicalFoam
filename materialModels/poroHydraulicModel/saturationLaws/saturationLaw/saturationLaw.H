@@ -177,6 +177,9 @@ namespace Foam
         ) = 0;
 
 
+        //- Legacy extension hook kept for compatibility with older saturation
+        //  laws. Current concrete implementations typically provide a no-op
+        //  override and rely on normal field IO instead of custom write logic.
         virtual void write() const = 0;
 
     };

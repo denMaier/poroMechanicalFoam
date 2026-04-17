@@ -26,7 +26,7 @@ Class
     Foam::conductivityModels::kozenyCarman
 
 Description
-    Constitutive relations for soils: k(n) 
+    Constitutive relation for soils: k(n).
 
     References:
     J. Kozeny, "Ueber kapillare Leitung des Wassers im Boden." Sitzungsber Akad. Wiss., Wien, 136(2a): 271-306, 1927.
@@ -102,6 +102,8 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model computes k directly from the
+            //  current porosity field and stores no custom write-time state.
             virtual void write() const{};
 
         // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

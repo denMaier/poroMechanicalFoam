@@ -31,6 +31,10 @@ Description
     Reference:
     Brooks and Corey, 1966: 'Properties of Porous Media Affecting Fluid Flow'
 
+    The shape parameters may be provided as fields, so both cell and
+    boundary-face evaluations use the local field values rather than uniform
+    coefficients.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -62,10 +66,13 @@ namespace Foam
             // Private data
 
             dictionary& brooksCoreyCoeffs_;
-
+            //- Optional field-backed shape parameter.
             const volScalarField n_;
+            //- Optional field-backed residual saturation.
             const volScalarField S_r;
+            //- Optional field-backed maximum saturation.
             const volScalarField S_0;
+            //- Optional field-backed displacement pressure.
             const volScalarField pD_;
 
             // Private Member Functions
@@ -136,6 +143,7 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         };

@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 
     if (!inPressureUnits)
     {
-        Warning << "You selected head units for Potential output field!" << endl;
+        Info << "Writing 'Potential' in head units." << endl;
         Potential.write();
     }
     else if (inPressureUnits)
@@ -117,11 +117,6 @@ int main(int argc, char *argv[])
                 initHead.boundaryField().types());
         p_rgh.write();
     }
-    else
-    {
-        SeriousErrorIn("setTotalHeadPressueHead") << "Neither PressureHead nor Pressure Units were selected. What happend?" << endl;
-    }
-
     Info << "End\n"
          << endl;
 

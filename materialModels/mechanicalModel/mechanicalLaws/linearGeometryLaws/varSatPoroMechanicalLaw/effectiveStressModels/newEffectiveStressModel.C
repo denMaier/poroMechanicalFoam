@@ -68,10 +68,10 @@ namespace Foam
                 "const dictionary&, "
                 "const word&, "
                 "const fvMesh&) ")
-                << "Unknown effectiveStressModel type "
-                << name << endl
+                << "Unknown effectiveStressModel type '" << name << "'."
                 << endl
-                << "Valid  effectiveStressModels are : " << endl
+                << endl
+                << "Valid effectiveStressModel types are:" << endl
                 << dictionaryConstructorTablePtr_->toc()
                 << exit(FatalError);
         }

@@ -59,13 +59,17 @@ namespace Foam
         {
             if(krSFunc_.valid() && krPFunc_.valid())
             {
-                FatalErrorInFunction() << "relative hydr. conductivity can only be a function of pressure OR saturation"
-                                    << endl;
+                FatalErrorInFunction()
+                    << "Relative hydraulic conductivity in pressureFunction is over-specified." << nl
+                    << "Configure 'kr' as a function of either pressure ('krOfP') or saturation ('krOfS'), not both."
+                    << exit(FatalError);
             }
             else if(!krSFunc_.valid() && !krPFunc_.valid())
             {
-                FatalErrorInFunction() << "relative hydr. conductivity needs either pressure or saturation function"
-                                    << endl;
+                FatalErrorInFunction()
+                    << "Relative hydraulic conductivity in pressureFunction is missing." << nl
+                    << "Configure 'kr' with either 'krOfP' or 'krOfS'."
+                    << exit(FatalError);
             }
         }
 

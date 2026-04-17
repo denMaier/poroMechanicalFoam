@@ -66,7 +66,10 @@ void Foam::MassBalance::makeMassBalanceRef()
 
     if(!found)
     {
-        FatalErrorInFunction << "MassBalance field not found!" << endl;
+        FatalErrorInFunction
+            << "MassBalanceResidual field was not found in the current object registries." << nl
+            << "Enable the corresponding mass-balance field/function object before using the MassBalance convergence criterion."
+            << exit(FatalError);
     }
 }
 

@@ -111,8 +111,10 @@ zDependendDisplacementOrTractionFvPatchVectorField
         (
             "zDependendDisplacementOrTractionFvPatchVectorField::"
             "zDependendDisplacementOrTractionFvPatchVectorField"
-        )   << "constantDisplacement or displacementSeries can be specified, "
-            << "not both!" << abort(FatalError);
+        )   << "Patch '" << patch().name()
+            << "' defines both 'constantDisplacement' and 'displacementSeries'." << nl
+            << "Specify either a constant displacement or a time-varying displacement series, not both."
+            << abort(FatalError);
     }
     else if (dict.found("displacementSeries"))
     {
@@ -133,8 +135,10 @@ zDependendDisplacementOrTractionFvPatchVectorField
         (
             "zDependendDisplacementOrTractionFvPatchVectorField::"
             "zDependendDisplacementOrTractionFvPatchVectorField"
-        )   << "constantTraction or tractionSeries can be specified, "
-            << "not both!" << abort(FatalError);
+        )   << "Patch '" << patch().name()
+            << "' defines both 'constantTraction' and 'tractionSeries'." << nl
+            << "Specify either a constant traction or a time-varying traction series, not both."
+            << abort(FatalError);
     }
     else if (dict.found("tractionSeries"))
     {
@@ -155,8 +159,10 @@ zDependendDisplacementOrTractionFvPatchVectorField
         (
             "zDependendDisplacementOrTractionFvPatchVectorField::"
             "zDependendDisplacementOrTractionFvPatchVectorField"
-        )   << "constantPressure or pressureSeries can be specified, "
-            << "not both!" << abort(FatalError);
+        )   << "Patch '" << patch().name()
+            << "' defines both 'constantPressure' and 'pressureSeries'." << nl
+            << "Specify either a constant pressure or a time-varying pressure series, not both."
+            << abort(FatalError);
     }
     else if (dict.found("pressureSeries"))
     {
@@ -176,8 +182,10 @@ zDependendDisplacementOrTractionFvPatchVectorField
                 (
                     "zDependendDisplacementOrTractionFvPatchVectorField::"
                     "zDependendDisplacementOrTractionFvPatchVectorField"
-                )   << "z0 or zSeries can be specified, "
-                    << "not both!" << abort(FatalError);
+                )   << "Patch '" << patch().name()
+                    << "' defines both 'z0' and 'zSeries'." << nl
+                    << "Specify either a constant reference elevation or a time-varying elevation series, not both."
+                    << abort(FatalError);
             }
             else if (dict.found("zSeries"))
             {
@@ -209,7 +217,7 @@ zDependendDisplacementOrTractionFvPatchVectorField
         (
             "zDependendDisplacementOrTractionFvPatchVectorField::"
             "zDependendDisplacementOrTractionFvPatchVectorField"
-        )   << "value or refValue entry must be specified for patch "
+        )   << "Either 'value' or 'refValue' must be specified for patch '"
             << patch().name() << abort(FatalError);
     }
 

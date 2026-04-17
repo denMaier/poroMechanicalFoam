@@ -290,11 +290,12 @@ poroFluidModel::poroFluidModel
         if (mag(g_).value() == 0.0)
         {
             FatalErrorInFunction
-                << "Gravity is off, this leads to problems in the poroFluid "
-                   "calculation."
+                << "The poroFluid gravity field 'constant/g' is zero on region '"
+                << mesh().name() << "'." << nl
+                << "poroFluid requires non-zero gravity for head- and pressure-based "
+                   "calculations."
                 << nl
-                << "Please provide a non-zero-valued gravity file for "
-                   "poroFluid!"
+                << "Provide a non-zero gravity vector in constant/g for this region."
                 << exit(FatalError);
         }
     }
@@ -307,13 +308,12 @@ poroFluidModel::poroFluidModel
         if (mag(g_).value() == 0.0)
         {
             FatalErrorInFunction
-                << "Solid gravity is off, this leads to problems in the "
-                   "poroFluid calculation."
+                << "The shared solid gravity field 'g' on region 'solid' is zero "
+                   "while poroFluid region '" << mesh().name() << "' requires "
+                   "non-zero gravity."
                 << nl
-                << "In case you want to keep solid gravity off (e.g. for "
-                   "weightless calculations),"
-                << "please provide a seperate non-zero-valued gravity file for "
-                   "poroFluid!"
+                << "If the solid region is intentionally weightless, provide a "
+                   "separate non-zero gravity file for the poroFluid region instead."
                 << exit(FatalError);
         }
     }
@@ -358,7 +358,7 @@ poroFluidModel::New(Time& runTime, const word& region, const bool sharedMesh)
         poroFluidProperties.lookup("poroFluidModel") >> poroFluidModelTypeName;
     }
 
-    //- for compatebility
+    //- for compatibility
     if (poroFluidModelTypeName == "extPoroFluid")
     {
         poroFluidModelTypeName = "varSatPoroFluid";
@@ -382,9 +382,14 @@ poroFluidModel::New(Time& runTime, const word& region, const bool sharedMesh)
     if (cstrIter == dictionaryConstructorTablePtr_->end())
     {
         FatalErrorInFunction
-            << "Unknown poroFluidModel type " << poroFluidModelTypeName << endl
+            << "Unknown poroFluidModel type '" << poroFluidModelTypeName << "' "
+            << "requested in constant/"
+            << (runRegion == dynamicFvMesh::defaultRegion
+                    ? word("poroFluidProperties")
+                    : word(runRegion + "/poroFluidProperties"))
+            << "." << endl
             << endl
-            << "Valid  poroFluidModels are : " << endl
+            << "Valid poroFluidModel types are:" << endl
             << dictionaryConstructorTablePtr_->toc() << exit(FatalError);
     }
 
@@ -398,7 +403,9 @@ void Foam::poroFluidModel::pRGHisRequired()
     if (!pRGHheader_.typeHeaderOk<volScalarField>(true))
     {
         FatalErrorInFunction
-            << "This poroFluidModel requires the 'p_rgh' field to be specified!"
+            << "This poroFluidModel requires a volScalarField named 'p_rgh' in time "
+            << runTime().timeName() << " for region '" << mesh().name() << "'." << nl
+            << "Create the field or switch to a poroFluidModel that does not use p_rgh."
             << abort(FatalError);
     }
 }

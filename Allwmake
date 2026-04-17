@@ -9,11 +9,13 @@ set -e
 # Check if OpenFOAM/FOAM has been sourced
 if [[ -z "${WM_PROJECT}" ]]
 then
-    echo "Please source the OpenFOAM/FOAM bashrc first!"
+    echo "OpenFOAM environment is not sourced."
+    echo "Source the OpenFOAM/FOAM bashrc first, then rerun ./Allwmake."
     exit 1
 else
     if [[ "$WM_PROJECT_VERSION" != "v2412" && "$WM_PROJECT_VERSION" != "v2512" ]]; then
-        echo "Unsupported OpenFOAM version sourced! poroMechanicalFoam supports OpenFOAM v2412 and v2512."
+        echo "Unsupported OpenFOAM version detected: WM_PROJECT=$WM_PROJECT, WM_PROJECT_VERSION=$WM_PROJECT_VERSION"
+        echo "poroMechanicalFoam currently supports OpenFOAM v2412 and v2512."
         exit 1
     fi
 fi
@@ -25,12 +27,15 @@ fi
 
 check_build_log()
 {
-    log_file=$1
+    stage_name=$1
+    log_file=$2
 
     if grep -q "\ Error\ " "$log_file" || grep -q "\ Stop." "$log_file"
     then
         echo "** BUILD ERROR **"
-        echo "Build failed; examine $log_file for details."
+        echo "Build stage failed: $stage_name"
+        echo "Log file: $log_file"
+        echo "Review the first compiler or linker error in that log and rerun ./Allwmake."
         exit 1
     fi
 }
@@ -44,7 +49,8 @@ esac
 
 if [ ! -d "$S4F_ROOT/src/solids4FoamModels" ] && [ -d "$DEFAULT_S4F_ROOT/src/solids4FoamModels" ]
 then
-    echo "Warning: S4F_ROOT '$S4F_ROOT' is invalid; falling back to '$DEFAULT_S4F_ROOT'"
+    echo "Warning: S4F_ROOT '$S4F_ROOT' does not contain src/solids4FoamModels."
+    echo "Falling back to '$DEFAULT_S4F_ROOT'."
     S4F_ROOT="$DEFAULT_S4F_ROOT"
 fi
 
@@ -58,9 +64,10 @@ then
         cd abaqusUMATs && ./Allwmake "$@" 2>&1 | tee log.Allwmake
     )
 else
-    echo; echo "The S4F_USE_GFORTRAN variable is not set: skipping abaqusUMATs"
-    echo "To use abaqusUMATs, install gfortran and set the S4F_USE_GFORTRAN "
-    echo "variable to 1"; echo
+    echo
+    echo "S4F_USE_GFORTRAN is not set: skipping abaqusUMATs."
+    echo "If you need the Abaqus UMATs, install gfortran and set S4F_USE_GFORTRAN=1 before running ./Allwmake."
+    echo
 fi
 
 # Compile poroHydraulicModel
@@ -68,7 +75,7 @@ fi
     set -o pipefail
     cd materialModels/poroHydraulicModel/ && wmake libso "$@" 2>&1 | tee log.Allwmake
 )
-check_build_log "$REPO_ROOT/materialModels/poroHydraulicModel/log.Allwmake"
+check_build_log "poroHydraulicModel library" "$REPO_ROOT/materialModels/poroHydraulicModel/log.Allwmake"
 
 # Set up solids4foam submodule with sparse checkout if needed
 if [ "$S4F_ROOT" = "$REPO_ROOT/external/solids4foam" ]; then
@@ -93,7 +100,7 @@ EOF
         fi
 
         git -C external/solids4foam checkout v2.3
-        echo "solids4foam submodule ready."
+        echo "solids4foam submodule ready at: $S4F_ROOT"
     fi
 fi
 
@@ -111,14 +118,14 @@ fi
     set -o pipefail
     cd solids4FoamModelsMinimal && ./Allwmake "$@" 2>&1 | tee log.Allwmake
 )
-check_build_log "$REPO_ROOT/solids4FoamModelsMinimal/log.Allwmake"
+check_build_log "solids4FoamModelsMinimal library" "$REPO_ROOT/solids4FoamModelsMinimal/log.Allwmake"
 
 # Compile poroMechanicalFoam Library
 (
     set -o pipefail
     wmake libso "$@" 2>&1 | tee log.Allwmake
 )
-check_build_log "$REPO_ROOT/log.Allwmake"
+check_build_log "poroMechanicalFoam library" "$REPO_ROOT/log.Allwmake"
 
 
 # Compile poroMechanicalFoam application
@@ -126,7 +133,7 @@ check_build_log "$REPO_ROOT/log.Allwmake"
     set -o pipefail
     cd solvers && ./Allwmake "$@" 2>&1 | tee log.Allwmake
 )
-check_build_log "$REPO_ROOT/solvers/log.Allwmake"
+check_build_log "solver applications" "$REPO_ROOT/solvers/log.Allwmake"
 
 ##(cd abaqusUMATs && ./Allwmake)
 
@@ -140,9 +147,12 @@ then
     echo "There were build errors in the following logs:"
     echo $(find . -name log.Allwmake | xargs grep -l "\ Error\ ")
     echo $(find . -name log.Allwmake | xargs grep -l "\ Stop.")
-    echo; echo "Please examine these logs for additional details"; echo
+    echo
+    echo "Please examine these logs for the first compiler or linker failure and rerun ./Allwmake."
+    echo
     exit 1
 else
-    echo "There were no build errors: enjoy poroMechanicalFoam!"; echo
+    echo "There were no build errors. poroMechanicalFoam is ready to use."
+    echo
 fi
 echo

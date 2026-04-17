@@ -106,8 +106,10 @@ borePileFillingFvPatchVectorField
                 (
                     "borePileFillingFvPatchVectorField::"
                     "borePileFillingFvPatchVectorField"
-                )   << "z0 or zSeries can be specified, "
-                    << "not both!" << abort(FatalError);
+                )   << "Patch '" << patch().name()
+                    << "' defines both 'z0' and 'zSeries'." << nl
+                    << "Specify either a constant pile elevation ('z0') or a time-varying series ('zSeries'), not both."
+                    << abort(FatalError);
             }
             else if (dict.found("zSeries"))
             {
@@ -128,8 +130,10 @@ borePileFillingFvPatchVectorField
                 (
                     "borePileFillingFvPatchVectorField::"
                     "borePileFillingFvPatchVectorField"
-                )   << "hc or hcSeries can be specified, "
-                    << "not both!" << abort(FatalError);
+                )   << "Patch '" << patch().name()
+                    << "' defines both 'hc' and 'hcSeries'." << nl
+                    << "Specify either a constant concrete head ('hc') or a time-varying series ('hcSeries'), not both."
+                    << abort(FatalError);
             }
             else if (dict.found("hcSeries"))
             {
@@ -165,7 +169,7 @@ borePileFillingFvPatchVectorField
         (
             "borePileFillingFvPatchVectorField::"
             "borePileFillingFvPatchVectorField"
-        )   << "value or refValue entry must be specified for patch "
+        )   << "Either 'value' or 'refValue' must be specified for patch '"
             << patch().name() << abort(FatalError);
     }
 

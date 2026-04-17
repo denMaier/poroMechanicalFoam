@@ -27,7 +27,12 @@ Class
 
 Description
     soil constitutive relationship developed in-house at BAW. This relation incoporates
-    soil storage from occluded gas bubbles into the SWCC. Therefor no storage model is needed. 
+    soil storage from occluded gas bubbles into the SWCC. Therefor no storage model is needed.
+
+    In addition to the primary saturation response, this model maintains
+    auxiliary diagnostic fields (`Sf`, `Sfw`, `Ss_gr`) that expose the split
+    between free-water saturation, gas-bubble effects, and the additional
+    storage contribution.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -62,9 +67,13 @@ namespace Foam
 
             dictionary& montenegroMaierCoeffs_;
 
+            //- Initial trapped-gas saturation input field.
             const volScalarField S_fgr0_;
             const dimensionedScalar p_At_;
 
+            //- Auxiliary diagnostic fields updated during constitutive
+            //  evaluation. They are retained to preserve the model's historic
+            //  debug/output contract.
             volScalarField Sf_;
             volScalarField Sfw_;
             volScalarField Ss_gr_;
@@ -115,6 +124,8 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; auxiliary diagnostics are written through
+            //  their own field IO settings.
             virtual void write() const{};
 
         };

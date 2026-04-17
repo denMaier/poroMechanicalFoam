@@ -23,8 +23,8 @@ autoPtr<meshToMesh> solidToPoroFluid_;
     if (!meshToMesh::interpolationMethodNames_.found(mapMethodName))
     {
         FatalErrorInFunction
-            << "Unknown map method "
-            << mapMethodName << nl
+            << "Unknown mesh mapping method '" << mapMethodName
+            << "' in constant/poroCouplingProperties." << nl
             << "Available methods include: "
             << meshToMesh::interpolationMethodNames_
             << exit(FatalError);
@@ -47,8 +47,8 @@ autoPtr<meshToMesh> solidToPoroFluid_;
         if (mapMethodName == "direct")
         {
             WarningInFunction
-                << "Direct mapping selected for inconsistent region meshes, "
-                << "changing to imMapNearest"
+                << "Direct mapping was selected for inconsistent region meshes. "
+                << "Switching to imMapNearest automatically."
                 << endl;
             mapMethod = meshToMesh::interpolationMethod::imMapNearest;
         }

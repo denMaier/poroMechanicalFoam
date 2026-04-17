@@ -26,7 +26,11 @@ Class
     Foam::conductivityModels::gradientFunction
 
 Description
-    Constitutive relations for soils: k(i) 
+    Constitutive relation for soils: k(i).
+
+    This model evaluates conductivity from the current hydraulic-gradient field
+    `i`, so it is state-dependent and supports explicit cell and boundary-face
+    evaluation.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -63,8 +67,10 @@ namespace Foam
             word name_;
             dictionary& gradientFunctionProperties;
             autoPtr<Function1<scalar>> kIFunc_;
-            const volVectorField &i_;    
-            const uniformDimensionedVectorField gamma_;     
+            //- Current hydraulic gradient field used as model input.
+            const volVectorField &i_;
+            //- Reference fluid-specific-weight direction used to project `i`.
+            const uniformDimensionedVectorField gamma_;
 
         public:
             //- Runtime type information
@@ -98,6 +104,7 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

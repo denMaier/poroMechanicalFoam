@@ -117,7 +117,10 @@ Foam::poroPatchFlux::poroPatchFlux(
     else
     {
         WarningIn(this->name() + " function object constructor")
-            << "poroPatchFlux: historyPatch not specified" << endl;
+            << "poroPatchFlux: entry 'historyPatch' was not specified."
+            << nl
+            << "No patch-integrated flux history will be written until a valid patch name is configured."
+            << endl;
     }
 
     // Lookup the solid mesh
@@ -137,7 +140,10 @@ Foam::poroPatchFlux::poroPatchFlux(
     if (historyPatchID_ == -1)
     {
         WarningIn(this->name() + " function object constructor")
-            << "history patch " << historyPatchName << " not found"
+            << "history patch '" << historyPatchName << "' was not found on mesh '"
+            << mesh.name() << "'."
+            << nl
+            << "Available patches are: " << mesh.boundaryMesh().names()
             << endl;
     }
     else

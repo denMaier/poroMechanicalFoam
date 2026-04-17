@@ -29,6 +29,10 @@ Description
     Constitutive relations for soils: k(i), where k is greatly increased at icrit to
     limit the gradient to icrit.
 
+    The model uses the current hydraulic-gradient field `i` together with a
+    disk-backed or dictionary-backed reference conductivity `k0`, so it remains
+    state-dependent and supports explicit boundary-face evaluation.
+
 Author
     Denis Maier, BAW. All rights reserved.
 SourceFiles
@@ -64,6 +68,8 @@ namespace Foam
             dimensionedScalar iCrit_;
             const volVectorField &i_;
             const dimensionedVector gamma_;
+            //- Reference conductivity field read from `k` when present and then
+            //  renamed locally to avoid colliding with the assembled output `k`.
             volScalarField k0_;
 
             scalar kFunc(const scalar k0,const scalar iz) const;
@@ -100,6 +106,7 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -70,10 +70,10 @@ namespace Foam
                     "varSatPoroHydraulicModel&, "
                     "dictionary&, "
                     ") ")
-                    << "Unknown richardsLinearization type "
-                    << name << endl
+                    << "Unknown richardsLinearization type '" << name << "'."
                     << endl
-                    << "Valid  richardsLinearizations are : " << endl
+                    << endl
+                    << "Valid richardsLinearization types are:" << endl
                     << dictionaryConstructorTablePtr_->toc()
                     << exit(FatalError);
             }

@@ -27,7 +27,11 @@ Class
 
 Description
     Expresses the cell anisotropic hydraulic conductivity tensor as scalar face orthogonal hydraulic conductivities
-    on the cell faces.  
+    on the cell faces.
+
+    This model is effectively static once configured: it reads its tensor field
+    from disk and converts it into face-wise conductivity information for use
+    by the hydraulic model.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -62,6 +66,8 @@ namespace Foam
             word name_;
             dictionary& anisotropicConstantProperties;
             const dimensionedSymmTensor anisotropyFactors_;
+            //- Face-wise conductivity representation derived from the input
+            //  anisotropic conductivity data.
             autoPtr<surfaceScalarField> kf_;       
 
         public:
@@ -91,6 +97,7 @@ namespace Foam
 
             virtual void updateK(){}
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

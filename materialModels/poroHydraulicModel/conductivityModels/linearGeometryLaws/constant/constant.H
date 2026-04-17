@@ -60,8 +60,14 @@ namespace Foam
             : public conductivityModel
         {
             // Private data
+            //- Legacy local name storage. The base class already keeps the
+            //  selected runtime type; this member remains only to preserve the
+            //  existing class layout.
             word name_;
+            //- Uniform fallback conductivity from the dictionary.
             const dimensionedScalar kScalar_;
+            //- Optional conductivity field read from disk when a spatially
+            //  varying constant k is provided by the case.
             autoPtr<volScalarField> k_;         
 
         public:
@@ -86,6 +92,7 @@ namespace Foam
 
             //- Read transportProperties dictionary
 
+            //- Return the historic user-facing model name.
             virtual word name() { return "constant"; }
 
             virtual scalar k(const label cellI);
@@ -96,6 +103,8 @@ namespace Foam
                 const label faceI
             );
             
+            //- This model is static once configured, so callers do not need to
+            //  reassemble k in response to evolving hydraulic state.
             virtual bool updatesK() const
             {
                 return false;

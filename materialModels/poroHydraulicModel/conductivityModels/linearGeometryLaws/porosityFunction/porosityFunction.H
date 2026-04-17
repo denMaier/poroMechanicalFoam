@@ -26,7 +26,11 @@ Class
     Foam::conductivityModels::porosityFunction
 
 Description
-    Constitutive relations for soils: k(n) 
+    Constitutive relation for soils: k(n).
+
+    This model evaluates conductivity from the current porosity field `n`, so
+    it is state-dependent and supports explicit cell and boundary-face
+    evaluation.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -61,6 +65,7 @@ namespace Foam
             // Private data
             word name_;
             dictionary& porosityFunctionProperties;
+            //- Runtime function mapping porosity to conductivity.
             autoPtr<Function1<scalar>> kNFunc_;
 
         public:
@@ -95,6 +100,7 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

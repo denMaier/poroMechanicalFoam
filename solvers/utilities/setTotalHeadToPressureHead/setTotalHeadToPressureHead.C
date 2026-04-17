@@ -114,7 +114,7 @@ int main(int argc, char *argv[])
     }
     else if (inPressureUnits)
     {
-        Warning << "You selected pressure units for output field!" << endl;
+        Info << "Writing 'p' in pressure units using rho=" << rho << "." << endl;
         const volScalarField pHeadInit // Pressure head
             (
                 IOobject(
@@ -145,11 +145,6 @@ int main(int argc, char *argv[])
         }
         pHead.write();
     }
-    else
-    {
-        SeriousErrorIn("setTotalHeadPressueHead") << "Neither PressureHead nor Pressure Units were selected. What happend?" << endl;
-    }
-
     Info << "End\n"
          << endl;
 

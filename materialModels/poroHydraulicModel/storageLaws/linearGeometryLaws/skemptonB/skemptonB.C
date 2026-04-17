@@ -73,8 +73,11 @@ namespace Foam
     {
       if (Km_.dimensions()!=pField.dimensions())
       {
-        FatalErrorIn("skemptonB::skemptonB") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                             << "Km has wrong dimensions " << Km_.dimensions()  << endl;
+        FatalErrorIn("skemptonB::skemptonB")
+            << "skemptonB coefficient 'Km' has inconsistent dimensions." << nl
+            << "Pressure field dimensions: " << pField.dimensions() << nl
+            << "Km dimensions: " << Km_.dimensions()
+            << exit(FatalError);
       }
       makeCs();
     }

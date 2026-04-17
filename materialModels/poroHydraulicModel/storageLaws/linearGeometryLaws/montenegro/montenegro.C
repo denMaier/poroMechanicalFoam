@@ -66,8 +66,11 @@ namespace Foam
     {
       if (p_At_.dimensions()!=pField.dimensions() || p_e_.dimensions()!=pField.dimensions())
       {
-              FatalErrorIn("montenegro::montenegro") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                                    << "one or more coefficients have wrong dimensions " << endl;
+              FatalErrorIn("montenegro::montenegro")
+                  << "montenegro storage-law coefficients have inconsistent dimensions." << nl
+                  << "Pressure field dimensions: " << pField.dimensions() << nl
+                  << "Expected 'p_At' and 'p_e' to have the same dimensions as pressure."
+                  << exit(FatalError);
       }
       makeCs();
     }

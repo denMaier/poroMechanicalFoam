@@ -67,8 +67,11 @@ namespace Foam
     {
       if (p_At_.dimensions()!=pField.dimensions() || Kw_.dimensions()!=pField.dimensions())
       {
-              FatalErrorIn("KPrime::KPrime") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                                    << "one or more coefficients have wrong dimensions " << endl;
+              FatalErrorIn("KPrime::KPrime")
+                  << "KPrime coefficients have inconsistent dimensions." << nl
+                  << "Pressure field dimensions: " << pField.dimensions() << nl
+                  << "Expected 'p_At' and 'Kw' to have the same dimensions as pressure."
+                  << exit(FatalError);
       }
       makeCs();
     }

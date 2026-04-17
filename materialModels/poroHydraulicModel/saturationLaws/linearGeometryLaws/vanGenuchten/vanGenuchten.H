@@ -33,6 +33,10 @@ Description
     conductivity of unsaturated soils.". Soil Science Society of America Journal,
     44(5): 892-898
 
+    The shape parameters may be provided as fields, so both cell and
+    boundary-face evaluations use local field values rather than uniform
+    coefficients.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -68,10 +72,15 @@ namespace Foam
         protected:
             // Protected Member Functions
 
+            //- Optional field-backed van Genuchten parameter n.
             const volScalarField n_;
+            //- Derived m parameter assembled from n.
             volScalarField m_;
+            //- Optional field-backed residual saturation.
             const volScalarField S_r;
+            //- Optional field-backed maximum saturation.
             const volScalarField S_0;
+            //- Optional field-backed inverse air-entry parameter.
             const volScalarField alpha_;
 
             scalar SFunc
@@ -145,6 +154,7 @@ namespace Foam
 
             //virtual scalar dkbydp(const scalar p, const label cellI);
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         };

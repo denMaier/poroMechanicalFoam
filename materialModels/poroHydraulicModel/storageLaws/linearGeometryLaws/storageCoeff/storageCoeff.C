@@ -72,16 +72,24 @@ namespace Foam
           );
         if (SsField_().dimensions()!=dimless/pField.dimensions())
         {
-                FatalErrorIn("storageCoeff::storageCoeff") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                                      << "Ss has wrong dimensions " << SsField_().dimensions()  << endl;
+                FatalErrorIn("storageCoeff::storageCoeff")
+                    << "Field-based storage coefficient 'Ss' has inconsistent dimensions." << nl
+                    << "Pressure field dimensions: " << pField.dimensions() << nl
+                    << "Expected Ss dimensions: " << dimless/pField.dimensions() << nl
+                    << "Actual Ss dimensions: " << SsField_().dimensions()
+                    << exit(FatalError);
         }
       }
       else
       {
         if (SsScalar_.dimensions()!=dimless/pField.dimensions())
         {
-                FatalErrorIn("storageCoeff::storageCoeff") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                                      << "Ss has wrong dimensions " << SsScalar_.dimensions()  << endl;
+                FatalErrorIn("storageCoeff::storageCoeff")
+                    << "Scalar storage coefficient 'Ss' has inconsistent dimensions." << nl
+                    << "Pressure field dimensions: " << pField.dimensions() << nl
+                    << "Expected Ss dimensions: " << dimless/pField.dimensions() << nl
+                    << "Actual Ss dimensions: " << SsScalar_.dimensions()
+                    << exit(FatalError);
         }
       }
 

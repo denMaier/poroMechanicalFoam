@@ -105,7 +105,10 @@ namespace Foam
             buoyancyImplicit_ = dict.lookupOrDefault<Switch>("buoyancyIncluded", false);
             if(buoyancyImplicit_)
             {
-                WarningInFunction() << "For variably saturated calculations, please dont include buoyancy in total traction"
+                WarningInFunction() << "Patch '" << patch().name()
+                                    << "' enables 'buoyancyIncluded' for a variably saturated traction condition."
+                                    << nl
+                                    << "Do not include buoyancy in the prescribed total traction for this boundary condition."
                                     << " boundary conditions!" << endl;
             }
         }

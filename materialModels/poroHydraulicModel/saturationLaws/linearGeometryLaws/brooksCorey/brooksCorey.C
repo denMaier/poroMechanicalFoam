@@ -131,8 +131,11 @@ namespace Foam
     {
       if (pD_.dimensions()!=pField.dimensions())
       {
-        FatalErrorIn("vanGenuchten::vanGenuchten") << "Pressure dimensions are: " << pField.dimensions() << endl
-                                                   << "p_e has wrong dimensions " << pD_.dimensions() << endl;
+        FatalErrorIn("brooksCorey::brooksCorey")
+            << "brooksCorey coefficient 'p_e' has inconsistent dimensions." << nl
+            << "Pressure field dimensions: " << pField.dimensions() << nl
+            << "p_e dimensions: " << pD_.dimensions()
+            << exit(FatalError);
       }
       if (debug)
       {

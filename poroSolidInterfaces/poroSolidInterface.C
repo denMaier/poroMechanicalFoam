@@ -332,10 +332,11 @@ void Foam::poroSolidInterface::makeBiotCoeff()
     }
     if(!foundPMLaw)
     {
-        WarningInFunction() << "No 'poroMechanicalLaw2' found in 'mechanicalProperties'! " << nl
-                            << "This means there is no coupling from poroFluid to solid, "
-                            << "and Biot Coefficient will be set to 1.0 everywhere!" << nl
-                            << "To account for other values, the storage term in poroHydraulicProperties can be modified."
+        WarningInFunction() << "No 'poroMechanicalLaw2' entry was found in mechanicalProperties." << nl
+                            << "This means there is no explicit poroFluid-to-solid coupling law, "
+                            << "and the Biot coefficient will default to 1.0 everywhere." << nl
+                            << "If you need other values, either use poroMechanicalLaw2 or "
+                            << "adjust the storage term in poroHydraulicProperties accordingly."
                             << endl;
     }
 
@@ -359,7 +360,10 @@ void Foam::poroSolidInterface::makeBiotCoeff()
         if(!solidToPoroFluid_.valid())
         {
             FatalErrorInFunction
-                << "Cannot map Biot coefficient: solidToPoroFluid mapper is not initialized"
+                << "Cannot map the Biot coefficient because the solidToPoroFluid "
+                   "mesh mapper has not been initialized." << nl
+                << "This usually means non-shared mesh coupling was requested but "
+                   "poroCouplingProperties did not create a valid mapper."
                 << exit(FatalError);
         }
         const tmp<volScalarField> tbMapped(solidToPoroFluid().mapTgtToSrc(tb()));
@@ -409,8 +413,9 @@ Foam::poroSolidInterface::poroSolidInterface(
     if (!meshToMesh::interpolationMethodNames_.found(mapMethodName))
     {
         FatalErrorInFunction
-            << "unknown map method "
-            << mapMethodName << nl
+            << "Unknown mesh mapping method '" << mapMethodName << "' in "
+            << "constant/poroCouplingProperties, sub-dictionary '" << type << "Coeffs'."
+            << nl
             << "Available methods include: "
             << meshToMesh::interpolationMethodNames_
             << exit(FatalError);
@@ -429,7 +434,8 @@ Foam::poroSolidInterface::poroSolidInterface(
             if(mapMethodName=="direct")
             {
                 WarningInFunction
-                    << "direct mapping selected for inconsitent region meshes, changing to imMapNearest"
+                    << "Direct mapping was selected for inconsistent region meshes. "
+                    << "Switching to imMapNearest automatically."
                     << endl;
                 mapMethod = meshToMesh::interpolationMethod::imMapNearest;
             }
@@ -537,10 +543,10 @@ Foam::autoPtr<Foam::poroSolidInterface> Foam::poroSolidInterface::New(
     {
         FatalErrorIn(
             "poroSolidInterface::New(Time&, const word&)")
-            << "Unknown poroSolidInterface type " << fsiTypeName
+            << "Unknown poroSolidInterface type '" << fsiTypeName << "'."
             << endl
             << endl
-            << "Valid poroSolidInterface types are :" << endl
+            << "Valid poroSolidInterface types are:" << endl
             << dictionaryConstructorTablePtr_->toc()
             << exit(FatalError);
     }

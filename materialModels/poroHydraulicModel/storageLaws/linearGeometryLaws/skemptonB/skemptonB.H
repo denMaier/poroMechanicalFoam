@@ -30,6 +30,10 @@ Description
     It uses the Skempton parameter B and the Matrix compressibility to recalculate the 
     Storage.
 
+    `BParam` and `Km` may be supplied as fields from disk. Once configured,
+    this law is treated as static with respect to the evolving hydraulic state,
+    which is why `updatesSs()` returns `false`.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -60,7 +64,9 @@ namespace Foam
         {
             // Private data
             dictionary& skemptonBCoeffs_;
+            //- Optional field-backed Skempton B parameter.
             volScalarField BParam_;
+            //- Optional field-backed matrix bulk modulus.
             volScalarField Km_;
 
         public:

@@ -65,9 +65,9 @@ Foam::autoPtr<Foam::residualOperation> Foam::residualOperation::New(
         FatalErrorIn
         (
             "residualOperation::New(Time&, const word&)"
-        )   << "Unknown residualOperation type " << operation
+        )   << "Unknown residualOperation type '" << operation << "'."
             << endl << endl
-            << "Valid residualOperation types are :" << endl
+            << "Valid residualOperation types are:" << endl
             << dictionaryConstructorTablePtr_->toc()
             << exit(FatalError);
     }

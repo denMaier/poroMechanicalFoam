@@ -28,6 +28,10 @@ Class
 Description
     allows varSat-solvers to be used even for saturated conditions.
 
+    This is the degenerate saturation law: saturation and relative
+    conductivity are fixed at one, while moisture capacity is zero on both
+    cells and boundary faces.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -103,6 +107,7 @@ namespace Foam
                 const label faceI
             );
 
+            //- No-op legacy hook; this model has no custom write-time state.
             virtual void write() const{};
 
         };

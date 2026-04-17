@@ -105,8 +105,11 @@ else if (kind == "tensor")
 }
 else
 {
-	FatalError("") << "first argument (kind) must be scalar, vector, symmTensor or tensor"
-	<< endl;
+	FatalErrorInFunction
+	    << "Invalid field kind '" << kind << "'." << nl
+	    << "Expected one of: scalar, vector, symmTensor, tensor." << nl
+	    << "Usage: makeNewField <kind> <fieldName>"
+	    << exit(FatalError);
 }
     Info << nl << "End" << nl << endl;
 

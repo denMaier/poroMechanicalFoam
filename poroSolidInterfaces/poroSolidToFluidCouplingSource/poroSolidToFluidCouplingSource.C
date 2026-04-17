@@ -115,7 +115,9 @@ bool Foam::fv::poroSolidToFluidCouplingSource::read(const dictionary& dict)
     if (fieldNames_.size() != 1)
     {
         FatalErrorInFunction
-            << "settings are:" << fieldNames_ << exit(FatalError);
+            << "poroSolidToFluidCouplingSource currently supports exactly one coupled field." << nl
+            << "Configured field list: " << fieldNames_
+            << exit(FatalError);
     }
 
     applied_.setSize(fieldNames_.size(), false);

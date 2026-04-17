@@ -28,6 +28,10 @@ Class
 Description
     Extention of KPrime law with approximation of the influence of gas bubble compaction.
 
+    `S_pe` may be provided as a field on disk. Like `KPrime`, this law remains
+    state-dependent because the assembled storage varies with the current
+    pressure state.
+
 Author
     Denis Maier, BAW. All rights reserved.
 
@@ -58,6 +62,8 @@ namespace Foam
         {
             // Private data
             dictionary& montenegroCoeffs_;
+            //- Optional reference saturation field used by the bubble-compaction
+            //  approximation.
             const volScalarField S_pe_;
             const dimensionedScalar p_At_;
             const dimensionedScalar p_e_;
@@ -91,6 +97,8 @@ namespace Foam
                 const label cellI
             );
 
+            //- Legacy hook used by older callers to request Ss-related
+            //  diagnostic output for this state-dependent law.
             virtual bool write()
             {   
                 return true;
