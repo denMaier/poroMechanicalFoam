@@ -27,6 +27,7 @@ License
 #include "poroSolidInterface.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvOption.H"
+#include "fvMatrices.H"
 #include "fvc.H"
 #include "poroMechanicalLaw2.H"
 
@@ -35,6 +36,14 @@ namespace Foam
         defineTypeNameAndDebug(poroSolidInterface, 0);
         defineRunTimeSelectionTable(poroSolidInterface, dictionary);
         addNamedToRunTimeSelectionTable(physicsModel, poroSolidInterface, physicsModel, poroSolid);
+}
+
+namespace
+{
+    bool looksLikeLegacyPoroMechanicalLaw(const Foam::mechanicalLaw& law)
+    {
+        return law.type().find("poroMechanicalLaw") != std::string::npos;
+    }
 }
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -108,6 +117,40 @@ Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::fixedStressStabil
     return tStabil;
 }
 
+void Foam::poroSolidInterface::updateCouplingTerms
+(
+    const volScalarField& couplingCoeff,
+    const volScalarField& impK,
+    const volVectorField& U,
+    autoPtr<volScalarField>& nDotField,
+    autoPtr<volScalarField>& fixedStressStabilField
+) const
+{
+    if(!nDotField.valid())
+    {
+        tmp<volScalarField> tnDot(nDot(couplingCoeff, U));
+        nDotField.reset(tnDot.ptr());
+
+        if
+        (
+            !nDotField().mesh().objectRegistry::foundObject<volScalarField>
+            (
+                nDotField().name()
+            )
+        )
+        {
+            nDotField().mesh().objectRegistry::checkIn(nDotField());
+        }
+    }
+    else
+    {
+        nDotField.ref() = nDot(couplingCoeff, U);
+    }
+
+    const tmp<volScalarField> tStabil(fixedStressStabil(b(), impK));
+    fixedStressStabilField.reset(new volScalarField(tStabil()));
+}
+
 void Foam::poroSolidInterface::mapPressuresToSolidMesh
 (
     autoPtr<volScalarField>& pSolidMeshField,
@@ -132,6 +175,61 @@ void Foam::poroSolidInterface::mapPressuresToSolidMesh
     pSolidMeshField.ref() = solidToPoroFluid().mapSrcToTgt(poroFluid().p());
 }
 
+void Foam::poroSolidInterface::ensureSharedSolidFieldRegistered
+(
+    volScalarField& field,
+    const word& ownerRegistryName
+)
+{
+    if(!sharedMesh())
+    {
+        FatalErrorInFunction
+            << "Shared solid-field registration requested although meshes are not shared"
+            << exit(FatalError);
+    }
+
+    objectRegistry& solidRegistry =
+        const_cast<objectRegistry&>(static_cast<const objectRegistry&>(solidMesh()));
+
+    if(solidRegistry.foundObject<volScalarField>(field.name()))
+    {
+        const volScalarField& registeredField =
+            solidRegistry.lookupObject<volScalarField>(field.name());
+
+        if(&registeredField != &field)
+        {
+            FatalErrorInFunction
+                << "Solid registry already contains a different volScalarField named '"
+                << field.name() << "' while trying to expose the fluid-owned field from '"
+                << ownerRegistryName << "'" << nl
+                << "Existing object db: " << registeredField.db().name() << nl
+                << "Requested object db: " << field.db().name()
+                << exit(FatalError);
+        }
+
+        return;
+    }
+
+    solidRegistry.checkIn(field);
+    sharedSolidRegistryFieldNames_.insert(field.name());
+}
+
+void Foam::poroSolidInterface::updatePorosityFromSolidDisplacement()
+{
+    if(sharedMesh())
+    {
+        poroFluidRef().update_porosity(fvc::div(solid().D()), false);
+    }
+    else
+    {
+        tmp<volVectorField> DFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().D());
+        poroFluidRef().update_porosity(fvc::div(DFluidMesh), false);
+        DFluidMesh.clear();
+    }
+
+    afterPorosityUpdate();
+}
+
 bool Foam::poroSolidInterface::checkMechanicalLawUpdateBiotCoeff(const mechanicalLaw& law, const label lawI, PtrList<volScalarField> &bs)
     {
         bool isCoupled = false;
@@ -149,11 +247,13 @@ bool Foam::poroSolidInterface::checkMechanicalLawUpdateBiotCoeff(const mechanica
 
             isCoupled = true;
         }
-        else if (law.type()=="poroMechanicalLaw")
+        else if (looksLikeLegacyPoroMechanicalLaw(law))
         {
-            Warning() << " mechanicalLaw 'poroMechanicalLaw' selected,"
-                                << " Biot-Willis coefficient will only be regarded in effective stress formulation!" << nl
-                                << " Please consider using poroMechanicalLaw2 for consistent treatment!"<<endl;
+            Warning() << " mechanicalLaw '" << law.type() << "' selected,"
+                      << " Biot-Willis coefficient will only be regarded in effective stress formulation!" << nl
+                      << " Please consider using a law with explicit Biot-coefficient support"
+                      << " such as poroMechanicalLaw2 for consistent treatment!"
+                      << endl;
             isCoupled = true;
             bs.set
             (
@@ -189,7 +289,7 @@ bool Foam::poroSolidInterface::checkMechanicalLawUpdateBiotCoeff(const mechanica
                     )
             );
             Warning() << "mechanicalLaw " << law.type() << " for material " << law.name()
-                            << " is not 'poroMechanicalLaw2' or 'varSatPoroMechanicalLaw'." << nl
+                            << " does not expose explicit Biot-coefficient support." << nl
                             << "This means there is no coupling from poroFluid to solid, "
                             << "and Biot Coefficient will be set to 1.0 in this region!" << nl
                             << "To account for other values, the storage term in poroHydraulicProperties can be modified."
@@ -462,6 +562,20 @@ void Foam::poroSolidInterface::initializeFields()
 {
 }
 
+void Foam::poroSolidInterface::prepareCouplingLoop()
+{}
+
+void Foam::poroSolidInterface::afterPorosityUpdate()
+{}
+
+void Foam::poroSolidInterface::afterFluidSolve()
+{}
+
+void Foam::poroSolidInterface::beforeSolidSolve()
+{}
+
+void Foam::poroSolidInterface::writeAdditionalFields(const Time&)
+{}
 
 void Foam::poroSolidInterface::movePoroFluidMesh()
 {
@@ -471,8 +585,59 @@ void Foam::poroSolidInterface::movePoroFluidMesh()
 void Foam::poroSolidInterface::updateTotalFields()
 {}
 
+bool Foam::poroSolidInterface::evolveCouplingLoop()
+{
+    prepareCouplingLoop();
+    initializeSolidHydraulicFields();
+
+    SolverPerformance<vector>::debug = 0;
+
+    couplingControl().reset();
+
+    do
+    {
+        assembleCouplingTerms();
+
+        if(!porosityConstantExplicit())
+        {
+            updatePorosityFromSolidDisplacement();
+        }
+
+        poroFluidRef().evolve();
+        afterFluidSolve();
+
+        if(!sharedMesh())
+        {
+            syncSolidHydraulicFields();
+        }
+
+        beforeSolidSolve();
+        solidRef().evolve();
+    }
+    while(couplingControl().loop());
+
+    clearCouplingTerms();
+    couplingControl().write();
+
+    Info << "Coupling Evolved" << endl;
+
+    if(!porosityConstant())
+    {
+        updatePorosityFromSolidDisplacement();
+    }
+
+    return true;
+}
+
+bool Foam::poroSolidInterface::evolve()
+{
+    return evolveCouplingLoop();
+}
+
 void Foam::poroSolidInterface::writeFields(const Time &runTime)
 {
+    writeAdditionalFields(runTime);
+
     autoPtr<volSymmTensorField> DEpsilon;
     if(solid().incremental())
     {

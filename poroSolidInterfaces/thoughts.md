@@ -32,7 +32,7 @@ Implemented:
 
 That now keeps the non-shared mapped-field update paths localized instead of spreading them across the coupling loop.
 
-## 3. Reduce duplication between `poroSolid` and `varSatPoroSolid`
+## 3. Keep coupling sequencing equivalent between `poroSolid` and `varSatPoroSolid` [done]
 
 Both derived classes duplicate most of the outer coupling loop:
 
@@ -42,14 +42,26 @@ Both derived classes duplicate most of the outer coupling loop:
 - porosity updates
 - pressure mapping back to the solid mesh
 
-This makes small behavior changes easy to apply in one class but miss in the other. A more robust design would move the common loop skeleton into `poroSolidInterface` and expose only formulation-specific hooks such as:
+This makes small behavior changes easy to apply in one class but miss in the other.
 
-- assembleExplicitCoupling()
-- assembleImplicitCoupling()
-- syncHydraulicStateToSolid()
-- postFluidSolve()
+The safer target is not to force all coupling logic into one monolithic function. The important part is that the overall coupling sequence is shared in one place, while formulation-specific deviations stay local.
 
-## 4. Strengthen type-based Biot-coefficient discovery
+Implemented:
+
+- common outer coupling loop skeleton in `poroSolidInterface::evolve()`
+- reusable default implementation factored into `poroSolidInterface::evolveCouplingLoop()`
+- shared helper for assembling `nDot` and fixed-stress stabilization fields
+- common `writeFields()` path in `poroSolidInterface`, with formulation-specific extra outputs handled through `writeAdditionalFields()`
+- formulation-specific hooks for:
+  - loop preparation
+  - assembly inputs (`b` vs `S*b`, pressure-unit scaling)
+  - hydraulic state synchronization back to the solid
+  - post-porosity synchronization
+  - pre-solid-solve updates such as density refresh
+
+That now keeps the coupling order equivalent by construction in the default path, keeps output handling consistent, and still allows a derived class to override `evolve()` completely when a formulation really needs a different loop.
+
+## 4. Strengthen type-based Biot-coefficient discovery [partly done]
 
 `poroSolidInterface::checkMechanicalLawUpdateBiotCoeff()` currently mixes:
 
@@ -65,7 +77,15 @@ A more robust design would expose a small virtual interface for mechanical laws 
 
 Then the interface layer would not need to know specific implementation class names.
 
-## 5. Make object-registry ownership more explicit
+Implemented so far:
+
+- kept the direct `dynamic_cast` path for `poroMechanicalLaw2`-style laws with explicit Biot support
+- replaced the exact `law.type() == "poroMechanicalLaw"` check with a centralized helper that treats runtime types containing `poroMechanicalLaw` as legacy poro-coupled laws
+- clarified warnings so the fallback now refers to missing explicit Biot-coefficient support instead of hard-coding a short list of recognized class names
+
+That is only a small robustness improvement. The design is still partly type-based until a proper capability interface exists.
+
+## 5. Make object-registry ownership more explicit [done]
 
 The shared-mesh path relies on `objectRegistry::checkIn(...)` for fluid-owned fields so the solid-side constitutive laws can find them. That is convenient, but it is also fragile because ownership and lifetime are implicit.
 
@@ -74,6 +94,15 @@ It would be more robust to centralize that registration logic in helper function
 - which registry owns the field
 - whether the field may already be registered
 - whether repeated construction/destruction in restart scenarios is safe
+
+Implemented:
+
+- centralized shared-mesh registration in `poroSolidInterface::ensureSharedSolidFieldRegistered()`
+- explicit tracking of which field names were borrowed from the fluid registry into the solid registry
+- collision checks that now fail if the solid registry already contains a different object under the expected hydraulic field name
+- derived coupling classes no longer call `objectRegistry::checkIn(...)` directly for shared hydraulic fields
+
+That now makes the ownership model explicit in one place: the fluid model still owns the field, while the interface is responsible for exposing it on the solid registry when meshes are shared.
 
 ## 6. Clarify the saturation weighting used in stabilization
 

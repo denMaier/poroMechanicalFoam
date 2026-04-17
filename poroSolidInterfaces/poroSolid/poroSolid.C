@@ -51,15 +51,8 @@ namespace Foam
         {
             if(sharedMesh())
             {
-                if(!solidMesh().objectRegistry::foundObject<volScalarField>("p"))
-                {
-                    solidMesh().objectRegistry::checkIn(poroFluidRef().p());
-                }
-
-                if(!solidMesh().objectRegistry::foundObject<volScalarField>("p_rgh"))
-                {
-                    solidMesh().objectRegistry::checkIn(poroFluidRef().p_rgh());
-                }
+                ensureSharedSolidFieldRegistered(poroFluidRef().p(), poroFluidMesh().name());
+                ensureSharedSolidFieldRegistered(poroFluidRef().p_rgh(), poroFluidMesh().name());
             }
             else
             {
@@ -114,6 +107,44 @@ namespace Foam
             mapPressuresToSolidMesh(pSolidMesh_, pRghSolidMesh_);
         }
 
+        void poroSolid::prepareCouplingLoop()
+        {
+            Info << "Preparing poroSolid solver" << endl;
+        }
+
+        void poroSolid::assembleCouplingTerms()
+        {
+            if(sharedMesh())
+            {
+                const volScalarField impK(solid().mechanical().impK());
+                updateCouplingTerms(b(), impK, solid().U(), nDot_, fixedStressStabil_);
+            }
+            else
+            {
+                Info << "Mapping fields to poroFluid mesh";
+                const volScalarField impK(solid().mechanical().impK());
+                tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
+                tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));
+
+                updateCouplingTerms(b(), tmpImpK(), UFluidMesh(), nDot_, fixedStressStabil_);
+
+                tmpImpK.clear();
+                UFluidMesh.clear();
+            }
+        }
+
+        void poroSolid::afterFluidSolve()
+        {
+            q_relAcc_.clear();
+        }
+
+        void poroSolid::clearCouplingTerms()
+        {
+            q_relAcc_.clear();
+            nDot_.clear();
+            fixedStressStabil_.clear();
+        }
+
         //- fluxes arising from differencial acceleration (usually not significant)
         tmp<surfaceVectorField> poroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& U)
         {
@@ -149,179 +180,9 @@ namespace Foam
 
         // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-        bool poroSolid::evolve()
+        //- explicit coupling terms to pressure equation
+        const tmp<volScalarField> poroSolid::explicitCouplingDtoP() const
         {
-            Info << "Preparing poroSolid solver" << endl;
-
-            initializeSolidHydraulicFields();
-
-            SolverPerformance<scalar> solverPerfp;
-            SolverPerformance<vector>::debug = 0;  
-
-            // Reset the residuals from last timestep
-            couplingControl().reset();
-
-            //#######- Pressure-displacement coupling outer loop #########
-            do
-            {
-
-                //## First initialize of coupling terms for the fluid
-
-                // For shared mesh calculations (solid and poroFluid use the same mesh) 
-                // We dont need any mesh to mesh mapping, we can simply initilize the fields on the solid mesh
-                if(sharedMesh())
-                {
-                    // This is returned as "tmp" so we need to safe the data here otherwise it runs out of scope
-                    const volScalarField impK(solid().mechanical().impK()); 
-                    //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
-                    if(!nDot_.valid())
-                    {
-                        tmp<volScalarField> tnDot(nDot(b(), solid().U()));
-                        nDot_.reset(tnDot.ptr());
-
-                        if
-                        (
-                            !nDot_().mesh().objectRegistry::foundObject<volScalarField>
-                            (
-                                nDot_().name()
-                            )
-                        )
-                        {
-                            nDot_().mesh().objectRegistry::checkIn(nDot_());
-                        }
-                    }
-                    else
-                    {
-                        nDot_.ref() = nDot(b(), solid().U());
-                    }
-                    {
-                        const tmp<volScalarField> tStabil(fixedStressStabil(b(), impK));
-                        fixedStressStabil_.reset(new volScalarField(tStabil()));
-                    }
-                    // TODO: Find solution to get this term working again
-                    //q_relAcc_.reset(q_relAcc(poroFluid().poroHydraulic().kf()(),solid().U()).ptr());
-                    // If we implicitly update the porosity, this is done now. 
-                    if(!porosityConstantExplicit())
-                    {
-                        //Calculating n = n_start+div(D)
-                        // Info: some of the compression might also be due to grain compression, 
-                        // this is neglected here.
-                        poroFluidRef().update_porosity(fvc::div(solid().D()),false); 
-                    }
-                }
-                else // Different meshes for poroFluid and solid
-                {
-                    Info << "Mapping fields to poroFluid mesh";
-                    // This is returned as "tmp" so we need to safe the data here otherwise it runs out of scope
-                    const volScalarField impK(solid().mechanical().impK()); 
-                    // Map the solid velocity onto fluid mesh
-                    tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
-                    // For the stabilization term, we also need the solid stiffness on the fluid mesh
-                    tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));
-
-                    //calculate the exchange terms, the functions ndot, fixstressstabil and q_relAcc are defined above
-                    if(!nDot_.valid())
-                    {
-                        tmp<volScalarField> tnDot(nDot(b(), UFluidMesh()));
-                        nDot_.reset(tnDot.ptr());
-
-                        if
-                        (
-                            !nDot_().mesh().objectRegistry::foundObject<volScalarField>
-                            (
-                                nDot_().name()
-                            )
-                        )
-                        {
-                            nDot_().mesh().objectRegistry::checkIn(nDot_());
-                        }
-                    }
-                    else
-                    {
-                        nDot_.ref() = nDot(b(), UFluidMesh());
-                    }
-                    {
-                        const tmp<volScalarField> tStabil(fixedStressStabil(b(), tmpImpK()));
-                        fixedStressStabil_.reset(new volScalarField(tStabil()));
-                    }
-                    // TODO: Find solution to get this term working again
-                    //q_relAcc_.reset(q_relAcc(poroFluid().poroHydraulic().kf()(),UFluidMesh()).ptr());
-
-                    // The mapped velocity and stiffness are no longer needed, we can delete them to safe memory
-                    tmpImpK.clear();
-                    UFluidMesh.clear();
-
-                    // If we implicitly update the porosity, this is done now. 
-                    if(!porosityConstantExplicit())
-                    {
-                        //Maping the displacement field
-                        tmp<volVectorField> DFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().D());
-                        //Calculating n = n_start+div(D)
-                        // Info: some of the compression might also be due to grain compression, 
-                        // this is neglected here.
-                        poroFluidRef().update_porosity(fvc::div(DFluidMesh),false); 
-                        // Clear mapped D to safe memory
-                        DFluidMesh.clear();
-                    }
-                }
-
-                //- Evolving the fluid solver
-                poroFluidRef().evolve();
-
-                // Delete mechanic to hydraulic coupling terms to safe memory
-                q_relAcc_.clear();
-
-                //- Preparing the hydraulic to mechanic source terms for coupling
-                // If we share the mesh for solid and poroFluid, the pressures are already checked in
-                // The poroMechanicalLaw class will take care of the coupling terms
-                // on different meshes, we first need to map the pressure fields from poroFluid to solid mesh
-                if (!sharedMesh())
-                {
-                    syncSolidHydraulicFields();
-                }
-
-                //- Evolving solid solver
-                solidRef().evolve();
-
-            } while (couplingControl().loop());
-
-            nDot_.clear();
-            fixedStressStabil_.clear();
-
-            // If we wont to write out iteration metrics, this function will do it
-            couplingControl().write();
-
-            Info << "Coupling Evolved" << endl;
-
-            // If porosity is changing we do this here.
-            // This is the only time we update porosity in the timestep for explicit porosity
-            // and we do it here again for implicit porosity to make sure its uptodate
-            if(!porosityConstant())
-            {
-                if(sharedMesh())
-                {
-                    //Calculating n = n_start+div(D)
-                    // Info: some of the compression might also be due to grain compression, 
-                    // this is neglected here.
-                    poroFluidRef().update_porosity(fvc::div(solid().D()),false); 
-                }
-                else
-                {
-                    tmp<volVectorField> DFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().D());
-                    //Calculating n = n_start+div(D)
-                    // Info: some of the compression might also be due to grain compression, 
-                    // this is neglected here.
-                    poroFluidRef().update_porosity(fvc::div(DFluidMesh),false); 
-                    DFluidMesh.clear();
-                }
-            }
-
-            return true;
-        }
-        
-            //- explicit coupling terms to pressure equation 
-            const tmp<volScalarField> poroSolid::explicitCouplingDtoP() const
-            {
                 if(!nDot_.valid())
                 {
                     FatalErrorInFunction
@@ -344,16 +205,10 @@ namespace Foam
                         << "Implicit coupling term fixedStressStabil is not initialized"
                         << exit(FatalError);
                 }
-                tmp<volScalarField> tSp(
-                    new volScalarField(fixedStressStabil_())
-                    );
-                return tSp;
-            }
-
-        void poroSolid::writeFields(const Time &runTime)
-        {
-            poroFluidRef().writeFields(runTime);
-            solidRef().writeFields(runTime);
+            tmp<volScalarField> tSp(
+                new volScalarField(fixedStressStabil_())
+                );
+            return tSp;
         }
 
         // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -68,6 +68,7 @@ SourceFiles
 #include "globalPolyPatch.H"
 #include "meshToMesh.H"
 #include "iterationControl.H"
+#include "HashSet.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -115,6 +116,9 @@ namespace Foam
         //- Internal work done by solid
         autoPtr<volScalarField> intWork_;
 
+        //- Names of fluid-owned fields borrowed into the solid registry.
+        HashSet<word> sharedSolidRegistryFieldNames_;
+
         // Private Member Functions
 
         void makeIterCtrl();
@@ -145,12 +149,62 @@ namespace Foam
         //- fixed stress stabilization coupling term
         tmp<volScalarField> fixedStressStabil(const volScalarField& b, const volScalarField& impK) const;
 
+        //- Assemble the standard explicit and implicit flow coupling fields.
+        void updateCouplingTerms
+        (
+            const volScalarField& couplingCoeff,
+            const volScalarField& impK,
+            const volVectorField& U,
+            autoPtr<volScalarField>& nDot,
+            autoPtr<volScalarField>& fixedStressStabil
+        ) const;
+
         //- map fluid pressure fields to the solid mesh fields
         void mapPressuresToSolidMesh
         (
             autoPtr<volScalarField>& pSolidMeshField,
             autoPtr<volScalarField>& pRghSolidMeshField
         );
+
+        //- Register a fluid-owned scalar field on the solid registry for shared meshes.
+        void ensureSharedSolidFieldRegistered
+        (
+            volScalarField& field,
+            const word& ownerRegistryName
+        );
+
+        //- Update porosity from the current solid displacement state.
+        void updatePorosityFromSolidDisplacement();
+
+        //- Hook: formulation-specific setup before the coupling loop starts.
+        virtual void prepareCouplingLoop();
+
+        //- Hook: ensure solid-side hydraulic fields exist before coupling starts.
+        virtual void initializeSolidHydraulicFields() = 0;
+
+        //- Hook: assemble formulation-specific coupling terms on the fluid mesh.
+        virtual void assembleCouplingTerms() = 0;
+
+        //- Hook: synchronize hydraulic state back to the solid mesh after the fluid solve.
+        virtual void syncSolidHydraulicFields() = 0;
+
+        //- Hook: keep any extra solid-side state in sync after porosity changes.
+        virtual void afterPorosityUpdate();
+
+        //- Hook: formulation-specific cleanup right after the fluid solve.
+        virtual void afterFluidSolve();
+
+        //- Hook: formulation-specific work between fluid and solid solves.
+        virtual void beforeSolidSolve();
+
+        //- Hook: cleanup of transient coupling fields after the outer loop.
+        virtual void clearCouplingTerms() = 0;
+
+        //- Hook: write any additional formulation-specific result fields.
+        virtual void writeAdditionalFields(const Time& runTime);
+
+        //- Default shared coupling implementation used by evolve().
+        bool evolveCouplingLoop();
 
         const Switch &porosityConstantExplicit() const
         {
@@ -319,7 +373,7 @@ namespace Foam
         virtual void setDeltaT(Time &runTime);
 
         //- Evolve the interface
-        virtual bool evolve() = 0;
+        virtual bool evolve();
 
         virtual void end();
 

@@ -111,12 +111,6 @@ namespace Foam
             //- Return the saturation field once it actually exists in the poroFluid registry.
             const volScalarField& saturationField() const;
 
-            //- Lazily register or allocate hydraulic fields required on the solid side.
-            void initializeSolidHydraulicFields();
-
-            //- Synchronize pressure and saturation fields required on the solid side.
-            void syncSolidHydraulicFields();
-
             //- Synchronize the porosity field required on the solid side.
             void syncSolidPorosityField();
 
@@ -137,6 +131,32 @@ namespace Foam
             void operator=(const varSatPoroSolid &);
 
         protected:
+
+            virtual void prepareCouplingLoop();
+
+            //- Lazily register or allocate hydraulic fields required on the solid side.
+            virtual void initializeSolidHydraulicFields();
+
+            //- Assemble variably saturated coupling terms on the fluid mesh.
+            virtual void assembleCouplingTerms();
+
+            //- Synchronize pressure and saturation fields required on the solid side.
+            virtual void syncSolidHydraulicFields();
+
+            //- Keep mirrored solid-side porosity in sync after porosity updates.
+            virtual void afterPorosityUpdate();
+
+            //- Cleanup per-iteration transient terms after the fluid solve.
+            virtual void afterFluidSolve();
+
+            //- Update solid-side density state after fluid-side hydraulic refresh.
+            virtual void beforeSolidSolve();
+
+            //- Cleanup transient coupling fields after the outer loop.
+            virtual void clearCouplingTerms();
+
+            //- Write solid density in addition to the standard outputs.
+            virtual void writeAdditionalFields(const Time& runTime);
 
         public:
             //- Runtime type information
@@ -174,8 +194,6 @@ namespace Foam
              * constitutive law and density updates see the latest hydraulic
              * state.
              */
-            virtual bool evolve();
-
             // Access
 
             /**
@@ -193,9 +211,6 @@ namespace Foam
              * when assembling the stabilized flow equation.
              */
             virtual const tmp<volScalarField>  implicitCouplingDtoP() const; 
-
-            //- Write solid density in addition to the usual fluid and solid outputs.
-            virtual void writeFields(const Time &runTime);
 
         };
 

@@ -105,14 +105,6 @@ namespace Foam
             //- Absolute pore pressure on the solid mesh for non-shared mesh coupling.
             autoPtr<volScalarField> pSolidMesh_;
 
-            // Private Member Functions
-
-            //- Lazily register or allocate hydraulic fields required on the solid side.
-            void initializeSolidHydraulicFields();
-
-            //- Synchronize the hydraulic state required on the solid side.
-            void syncSolidHydraulicFields();
-
             /**
              * \brief Estimate the additional flux caused by relative acceleration.
              *
@@ -129,6 +121,23 @@ namespace Foam
 
         protected:
             // Protected member functions
+
+            virtual void prepareCouplingLoop();
+
+            //- Lazily register or allocate hydraulic fields required on the solid side.
+            virtual void initializeSolidHydraulicFields();
+
+            //- Assemble saturated coupling terms on the fluid mesh.
+            virtual void assembleCouplingTerms();
+
+            //- Synchronize the hydraulic state required on the solid side.
+            virtual void syncSolidHydraulicFields();
+
+            //- Cleanup per-iteration transient terms after the fluid solve.
+            virtual void afterFluidSolve();
+
+            //- Cleanup transient coupling fields after the outer loop.
+            virtual void clearCouplingTerms();
 
         public:
             //- Runtime type information
@@ -166,8 +175,6 @@ namespace Foam
              * solid side if necessary, evolves the solid model, and finally
              * updates porosity for the completed time step.
              */
-            virtual bool evolve();
-            
             // Access
 
             /**
@@ -185,9 +192,6 @@ namespace Foam
              * when assembling the stabilized flow equation.
              */
             virtual const tmp<volScalarField>  implicitCouplingDtoP() const; 
-
-            //- Write both fluid and solid result fields for the current time.
-            virtual void writeFields(const Time &runTime);
 
         };
 
