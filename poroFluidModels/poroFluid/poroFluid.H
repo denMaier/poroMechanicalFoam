@@ -177,6 +177,12 @@ namespace Foam
                     return 0.0;
                 }
 
+                //- Return the face hydraulic conductivity needed by q_relAcc.
+                virtual tmp<surfaceScalarField> relativeAccelerationConductivity() const
+                {
+                    return poroHydraulic().kf();
+                }
+
                 //- Report the outer iteration counter managed by iterationControl.
                 virtual label outerIters()
                 {

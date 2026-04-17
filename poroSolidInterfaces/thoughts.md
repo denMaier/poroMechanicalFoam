@@ -110,7 +110,7 @@ In `varSatPoroSolid`, the explicit coupling term uses a saturation-weighted Biot
 
 That may be intentional, but the rationale is not obvious from the code. A comment or a small formulation note would make this safer to maintain. If the intent is actually to weight stabilization with saturation as well, this deserves a closer numerical review before any change.
 
-## 7. Revisit the currently disabled `q_relAcc_` contribution
+## 7. Revisit the currently disabled `q_relAcc_` contribution [done]
 
 Both derived classes keep a `q_relAcc_` field and a helper that computes it, but the term is commented out in the active coupling assembly.
 
@@ -120,7 +120,10 @@ That leaves the code in an ambiguous state:
 - it is allocated as part of the design
 - it is not actually used
 
-More robust options would be:
+Implemented:
 
-- remove the dead path until it is validated
-- or guard it with an explicit runtime switch and a documented experimental status
+- exposed `poroFluidModel::relativeAccelerationConductivity()` so each fluid formulation provides the correct face conductivity for the term
+- reactivated `q_relAcc_` in both `poroSolid` and `varSatPoroSolid`
+- compute solid acceleration on the native solid mesh first and only then map it to the fluid mesh for non-shared coupling
+
+That now removes the actual blocker that had disabled the term: the interface lacked a formulation-independent way to get the required face conductivity, and the non-shared path previously had no robust place to take the time derivative.

@@ -150,6 +150,12 @@ namespace Foam
             //- Advance one Richards-equation time step in hydraulic-head form.
             virtual bool evolve();
 
+            //- Return the face-effective conductivity needed by q_relAcc.
+            virtual tmp<surfaceScalarField> relativeAccelerationConductivity() const
+            {
+                return poroHydraulic().kEfff(pField());
+            }
+
             //- Estimate the next time step from the current nonlinear state.
             virtual scalar newDeltaT();
 

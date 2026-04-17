@@ -309,6 +309,9 @@ namespace Foam
                 return phi_;
             }
 
+            //- Return the face conductivity used by the relative-acceleration source.
+            virtual tmp<surfaceScalarField> relativeAccelerationConductivity() const = 0;
+
             fv::options& fvOptions()
             {
                 return fvOptions_;

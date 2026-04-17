@@ -117,18 +117,27 @@ namespace Foam
             if(sharedMesh())
             {
                 const volScalarField impK(solid().mechanical().impK());
+                const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
+                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+
                 updateCouplingTerms(b(), impK, solid().U(), nDot_, fixedStressStabil_);
+                q_relAcc_.reset(q_relAcc(tkf(), tSolidA()).ptr());
             }
             else
             {
                 Info << "Mapping fields to poroFluid mesh";
                 const volScalarField impK(solid().mechanical().impK());
+                const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
                 tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
+                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+                tmp<volVectorField> aFluidMesh = solidToPoroFluid().mapTgtToSrc(tSolidA());
                 tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));
 
                 updateCouplingTerms(b(), tmpImpK(), UFluidMesh(), nDot_, fixedStressStabil_);
+                q_relAcc_.reset(q_relAcc(tkf(), aFluidMesh()).ptr());
 
                 tmpImpK.clear();
+                aFluidMesh.clear();
                 UFluidMesh.clear();
             }
         }
@@ -145,15 +154,15 @@ namespace Foam
             fixedStressStabil_.clear();
         }
 
-        //- fluxes arising from differencial acceleration (usually not significant)
-        tmp<surfaceVectorField> poroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& U)
+        //- fluxes arising from differential acceleration of the solid skeleton
+        tmp<surfaceVectorField> poroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& a)
         {
             tmp<surfaceVectorField> tq
             (
                 new surfaceVectorField
                 (
                     "q_relAcc",
-                    kf * fvc::interpolate(fvc::ddt(U)/mag(poroFluid().g()))
+                    kf * fvc::interpolate(a/mag(poroFluid().g()))
                 )
             );
             return tq;
@@ -189,12 +198,18 @@ namespace Foam
                         << "Explicit coupling term nDot is not initialized"
                         << exit(FatalError);
                 }
-                tmp<volScalarField> tSu(
-                    new volScalarField(
-                        nDot_() //- fvc::div(poroFluidMesh().Sf() & q_relAcc_())
+                if(q_relAcc_.valid())
+                {
+                    return tmp<volScalarField>
+                    (
+                        new volScalarField
+                        (
+                            nDot_() - fvc::div(poroFluidMesh().Sf() & q_relAcc_())
                         )
                     );
-                return tSu;
+                }
+
+                return tmp<volScalarField>(new volScalarField(nDot_()));
             }
             //- implicit coupling terms to pressure equation (get multiplied with pField)
             const tmp<volScalarField>  poroSolid::implicitCouplingDtoP() const

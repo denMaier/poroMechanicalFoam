@@ -223,6 +223,8 @@ namespace Foam
             {
                 const volScalarField impK(solid().mechanical().impK()/magGammaW_);
                 tmp<volScalarField> bishopBiot(SFluidMesh*b());
+                const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
+                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
 
                 // The explicit deformation-to-flow term is saturation-weighted,
                 // but the fixed-stress stabilization intentionally keeps the
@@ -230,12 +232,16 @@ namespace Foam
                 // This term is used for split-scheme robustness, not as a
                 // direct physical coupling law, so we do not weaken it by S.
                 updateCouplingTerms(bishopBiot(), impK, solid().U(), nDot_, fixedStressStabil_);
+                q_relAcc_.reset(q_relAcc(tkf(), tSolidA()).ptr());
             }
             else
             {
                 Info << "Mapping fields to poroFluid mesh" << endl;
                 const volScalarField impK(solid().mechanical().impK()/magGammaW_);
+                const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
                 tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
+                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+                tmp<volVectorField> aFluidMesh = solidToPoroFluid().mapTgtToSrc(tSolidA());
                 tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK)());
                 tmp<volScalarField> bishopBiot(SFluidMesh*b());
 
@@ -245,8 +251,10 @@ namespace Foam
                 // This term is used for split-scheme robustness, not as a
                 // direct physical coupling law, so we do not weaken it by S.
                 updateCouplingTerms(bishopBiot(), tmpImpK(), UFluidMesh(), nDot_, fixedStressStabil_);
+                q_relAcc_.reset(q_relAcc(tkf(), aFluidMesh()).ptr());
 
                 tmpImpK.clear();
+                aFluidMesh.clear();
                 UFluidMesh.clear();
                 bishopBiot.clear();
             }
@@ -282,15 +290,15 @@ namespace Foam
             solid().rho().write();
         }
 
-        //- fluxes arising from differencial acceleration (usually not significant)
-        tmp<surfaceVectorField> varSatPoroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& U)
+        //- fluxes arising from differential acceleration of the solid skeleton
+        tmp<surfaceVectorField> varSatPoroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& a)
         {
             tmp<surfaceVectorField> tq
             (
                 new surfaceVectorField
                 (
                     "q_relAcc",
-                    kf * fvc::interpolate(fvc::ddt(U)/mag(poroFluid().g()))
+                    kf * fvc::interpolate(a/mag(poroFluid().g()))
                 )
             );
             return tq;
@@ -329,12 +337,18 @@ namespace Foam
                     << "Explicit coupling term nDot is not initialized"
                     << exit(FatalError);
             }
-            tmp<volScalarField> tSu(
-                new volScalarField(
-                    nDot_() //- fvc::div(poroFluidMesh().Sf() & q_relAcc_())
+            if(q_relAcc_.valid())
+            {
+                return tmp<volScalarField>
+                (
+                    new volScalarField
+                    (
+                        nDot_() - fvc::div(poroFluidMesh().Sf() & q_relAcc_())
                     )
                 );
-            return tSu;
+            }
+
+            return tmp<volScalarField>(new volScalarField(nDot_()));
         }
         //- implicit coupling terms to pressure equation (get multiplied with pField)
         const tmp<volScalarField>  varSatPoroSolid::implicitCouplingDtoP() const

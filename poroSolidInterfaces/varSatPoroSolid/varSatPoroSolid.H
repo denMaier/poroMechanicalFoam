@@ -120,7 +120,7 @@ namespace Foam
              * The term is currently kept as an optional extension path and is
              * not assembled into the active coupling operators.
              */
-            tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& U);
+            tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& a);
 
             // Private Member Functions
 

@@ -111,7 +111,7 @@ namespace Foam
              * The term is kept for completeness but is currently not assembled
              * into the active coupling operators.
              */
-            tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& U);
+            tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& a);
 
             //- Disallow default bitwise copy construct
             poroSolid(const poroSolid &);
