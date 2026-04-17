@@ -254,17 +254,34 @@ namespace Foam
                 hydraulicGradient() = fvc::grad(p_rgh()) / poroHydraulic().magGamma();
 
                 //////////////////- Output first and latest linear solver performance  ////////////////////////////////////////////////////////////////////////////////////////////////
-                autoPtr<List<SolverPerformance<scalar>>> sp(new List<SolverPerformance<scalar>>(mesh().data().solverPerformanceDict().findEntry("p_rgh")->stream()));
-                if (sp().size() == 1)
+                if (mesh().data().solverPerformanceDict().found("p_rgh"))
                 {
-                    sp().last().print(Info.masterStream(mesh().comm()));
+                    autoPtr<List<SolverPerformance<scalar>>> sp
+                    (
+                        new List<SolverPerformance<scalar>>
+                        (
+                            mesh().data().solverPerformanceDict().findEntry("p_rgh")->stream()
+                        )
+                    );
+
+                    if (sp().size() == 1)
+                    {
+                        sp().last().print(Info.masterStream(mesh().comm()));
+                    }
+                    else
+                    {
+                        Info << "Initial linear solver run:" << endl;
+                        sp().first().print(Info.masterStream(mesh().comm()));
+                        Info << "Final linear solver run:" << endl;
+                        sp().last().print(Info.masterStream(mesh().comm()));
+                    }
                 }
                 else
                 {
-                    Info << "Initial linear solver run:" << endl;
-                    sp().first().print(Info.masterStream(mesh().comm()));
-                    Info << "Final linear solver run:" << endl;
-                    sp().last().print(Info.masterStream(mesh().comm()));
+                    WarningInFunction
+                        << "No solverPerformance entry for `p_rgh` found after solve. "
+                        << "Skipping solver-performance summary output."
+                        << endl;
                 }
 
                 ///////////////////- Update the Coeffs and secondary fields ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -311,12 +328,52 @@ namespace Foam
 
         scalar varSatPoroFluid::newDeltaT()
         {
-            scalar maxCv = max(poroHydraulic().kEff(p()) / ((Ss_ + linearization().C())*poroHydraulic().magGamma())).value();
+            const tmp<volScalarField> tDenom
+            (
+                (Ss_ + linearization().C()) * poroHydraulic().magGamma()
+            );
+            const dimensionedScalar minDenom
+            (
+                "minDenom",
+                tDenom().dimensions(),
+                SMALL
+            );
+            const scalar maxCv
+            (
+                max
+                (
+                    poroHydraulic().kEff(p())
+                  / max(tDenom(), minDenom)
+                ).value()
+            );
             Info << "max c_v: " << maxCv << endl;
-            scalar minDeltaX = min(mesh().V() / fvc::surfaceSum(mag(mesh().Sf())));
-            scalar wishedTimeStep = CoNumber_ * pow(minDeltaX, 2) / maxCv;
-            scalar maxDeltaTFact = wishedTimeStep / runTime().deltaTValue();
-            scalar deltaTFact = min(min(maxDeltaTFact, 1.0 + 0.1 * maxDeltaTFact), 1.2);
+
+            if (maxCv <= SMALL)
+            {
+                WarningInFunction
+                    << "Degenerate hydraulic diffusivity estimate detected. "
+                    << "Keeping current deltaT = " << runTime().deltaTValue()
+                    << endl;
+                return runTime().deltaTValue();
+            }
+
+            const scalar minDeltaX
+            (
+                min(mesh().V() / fvc::surfaceSum(mag(mesh().Sf())))
+            );
+            const scalar wishedTimeStep
+            (
+                CoNumber_ * pow(minDeltaX, 2) / maxCv
+            );
+            const scalar maxDeltaTFact
+            (
+                wishedTimeStep / max(runTime().deltaTValue(), SMALL)
+            );
+            const scalar deltaTFact
+            (
+                min(min(maxDeltaTFact, 1.0 + 0.1 * maxDeltaTFact), 1.2)
+            );
+
             return deltaTFact * runTime().deltaTValue();
         }
 

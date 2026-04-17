@@ -26,23 +26,19 @@ Class
     varSatPoroFluid
 
 Description
-    Richard's equation solver for flow through variably saturated porous media.
+    Richards-equation solver for variably saturated flow using the excess
+    pressure `p_rgh` as the primary unknown.
 
-    This solver is based on p_rgh (pressure deviation from inital hydrostatic conditions)
-    as the main variable.
+    Relative to `varSatPoroFluidHead`, this formulation absorbs the hydrostatic
+    reference state into the field decomposition and solves only for deviations
+    from that state. The class therefore reconstructs the total pore pressure
+    as `p = p_rgh + p_Hyd` and evaluates saturation-dependent constitutive data
+    from that total pressure.
 
-    The equation considers the flow of pore fluid (water + gas bubbles). As that the
-    Saturation S is considered the Saturation of pore fluid!
-    This is an important distinction particularly when considering Saturation dependent
-    Storage Ss, since here the Water Saturation Sw is used!
-    The flux is converted from total volumetric flux to pore Fluid flux by the use
-    of the **effective** hydraulic conductivity (parametric formuli).
-    Also any source terms should also be considered to induce pore fluid, so that we
-    need to take into account that not all the volume is filled with pore fluid.
-    It thus needs to be scaled by saturation S. 
-
-    Storage, hydraulic conductivity and Saturation are runtime-selectable functions
-    handled by the 'varSatPoroHydraulicModel'-Object.
+    The solver combines:
+    - `variablySaturatedPoroFluid` for shared Richards-equation infrastructure
+    - `varSatPoroHydraulicModel` for constitutive laws
+    - a runtime-selected `richardsLinearization` scheme for nonlinear updates
 
 Author
     Denis Maier, BAW.  All rights reserved.
@@ -67,17 +63,26 @@ namespace Foam
                         Class varSatPoroFluid Declaration
 \*---------------------------------------------------------------------------*/
 
+        /**
+         * Variably saturated Richards solver in excess-pressure form.
+         *
+         * This concrete class specializes `variablySaturatedPoroFluid` by
+         * choosing `p_rgh` as the primary unknown and by assembling the
+         * corresponding storage, saturation and Darcy-flux terms in `evolve()`.
+         */
         class varSatPoroFluid
             : public variablySaturatedPoroFluid
         {
             // Private data
 
-            //- Storage coefficient
+            //- Compressibility / storage contribution used in the pressure equation.
             volScalarField Ss_;
             
-            //- effective hydraulic conductivity devided by water specific weight and interpolated to surfaces
+            //- Face-effective conductivity divided by specific weight for the
+            //  `p_rgh` Darcy term.
             autoPtr<surfaceScalarField> kEffbyGammafPtr_;
 
+            //- Flag indicating whether the chosen ddt scheme is steady-state.
             bool steadyState_;
 
             // Private Member Functions
@@ -88,12 +93,16 @@ namespace Foam
             //- Disallow default bitwise assignment
             void operator=(const varSatPoroFluid &);
 
+            //- Allocate the face conductivity field on first use.
             void makeKEffbyGammaf();
 
+            //- Construct the variably saturated constitutive model for the
+            //  `p_rgh` formulation.
             virtual void makePoroHydraulic();
 
         protected:
 
+            //- Non-const access to the effective face conductivity field.
             surfaceScalarField &kEffbyGammaf();
 
         public:
@@ -120,13 +129,13 @@ namespace Foam
             // Member Functions
 
             // Standard Access
-            //- Renaming establisches p_rgh as pressure field
+            //- Expose `p_rgh` as the generic primary field.
             virtual volScalarField &pField()
             {
                 return p_rgh();
             }
                 
-            //- Renaming establisches p_rgh as pressure field
+            //- Const overload of the `p_rgh` primary-field alias.
             virtual const volScalarField &pField() const
             {
                 return p_rgh();
@@ -134,12 +143,13 @@ namespace Foam
 
             // Edit
 
-            //- Evolve the fluid model
+            //- Advance one Richards-equation time step in `p_rgh` form.
             virtual bool evolve();
 
-            //- Return the desired new time-step size
+            //- Estimate the next time step from the current nonlinear state.
             virtual scalar newDeltaT();
 
+            //- Write derived diagnostic and post-processing fields.
             virtual void writeFields(const Time &runTime);
         };
 

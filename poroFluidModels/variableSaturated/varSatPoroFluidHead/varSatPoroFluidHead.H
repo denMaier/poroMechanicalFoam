@@ -26,13 +26,19 @@ Class
     varSatPoroFluidHead
 
 Description
-    Richard's equation solver for flow through variably saturated porous media.
+    Richards-equation solver for variably saturated flow using hydraulic head
+    `pHead` as the primary unknown.
 
-    This solver is based on pHead (relative/total pressure in m watercolumn)
-    as the main variable.
+    Compared with `varSatPoroFluid`, this formulation keeps gravity explicit in
+    the governing equation. The solved field is hydraulic head in units of water
+    column, and total pore pressure is reconstructed afterwards as
+    `p = gamma * pHead`.
 
-    Storage, hydraulic conductivity and Saturation are runtime-selectable functions
-    handled by the 'varSatPoroHydraulicModel'-Object.
+    This class is the head-based concrete child of
+    `variablySaturatedPoroFluid`. It reuses the same constitutive and
+    linearization infrastructure as the `p_rgh` version, but assembles the
+    equation in a form that is natural for head-based boundary conditions and
+    post-processing.
 
 Author
     Denis Maier, BAW.  All rights reserved.
@@ -58,18 +64,27 @@ namespace Foam
                         Class varSatPoroFluidHead Declaration
         \*---------------------------------------------------------------------------*/
 
+        /**
+         * Variably saturated Richards solver in hydraulic-head form.
+         *
+         * The class exposes `pHead_` as the primary field, reconstructs total
+         * pressure after convergence, and carries a face-effective conductivity
+         * field appropriate for the head-based Darcy formulation.
+         */
         class varSatPoroFluidHead
             : public variablySaturatedPoroFluid
         {
             // Private data
+            //- Primary unknown: hydraulic head of the pore fluid.
             volScalarField pHead_;
 
-            //- Storage coefficient
+            //- Compressibility / storage contribution used in the pressure equation.
             volScalarField Ss_;
 
-            //- effective hydraulic conductivity interpolated to surfaces
+            //- Face-effective hydraulic conductivity for the head formulation.
             autoPtr<surfaceScalarField> kEfffPtr_;
 
+            //- Flag indicating whether the chosen ddt scheme is steady-state.
             bool steadyState_;
 
             // Private Member Functions
@@ -80,12 +95,16 @@ namespace Foam
             //- Disallow default bitwise assignment
             void operator=(const varSatPoroFluidHead &);
 
+            //- Allocate the face conductivity field on first use.
             void makeKEfff();
 
+            //- Construct the variably saturated constitutive model for the
+            //  `pHead` formulation.
             virtual void makePoroHydraulic();
 
         protected:
             
+            //- Non-const access to the effective face conductivity field.
             surfaceScalarField &kEfff();
 
         public:
@@ -114,13 +133,13 @@ namespace Foam
 
             // Access
 
-                //- renameing of primary fields for convinience
+            //- Expose hydraulic head as the generic primary field.
             virtual volScalarField &pField()
             {
                 return pHead_;
             }
                 
-                //- renameing of primary fields for convinience
+            //- Const overload of the hydraulic-head primary-field alias.
             virtual const volScalarField &pField() const
             {
                 return pHead_;
@@ -128,12 +147,13 @@ namespace Foam
 
             // Edit
 
-            //- Evolve the fluid model
+            //- Advance one Richards-equation time step in hydraulic-head form.
             virtual bool evolve();
 
-            //- Return the desired new time-step size
+            //- Estimate the next time step from the current nonlinear state.
             virtual scalar newDeltaT();
 
+            //- Write derived diagnostic and post-processing fields.
             virtual void writeFields(const Time &runTime);
         };
 

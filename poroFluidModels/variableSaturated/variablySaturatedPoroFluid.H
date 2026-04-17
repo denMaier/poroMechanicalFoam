@@ -26,24 +26,25 @@ Class
     variablySaturatedPoroFluid
 
 Description
-    Base class for:
-    Richard's equation solver for flow through variably saturated porous media.
+    Abstract intermediate base for variably saturated pore-fluid solvers based on
+    Richards equation.
 
-    This solver can be based on p_rgh (pressure deviation from inital hydrostatic conditions)
-    or pHead (relative/total pressure in m watercolumn) as the main variable.
+    The class factors out everything shared by the concrete `p_rgh` and
+    `pHead` formulations:
+    - saturation-dependent constitutive data via `varSatPoroHydraulicModel`
+    - the pore-fluid saturation field `S`
+    - optional mass-balance residual bookkeeping
+    - runtime selection of the nonlinear/linearization strategy through
+      `richardsLinearization`
 
-    The equation considers the flow of pore fluid (water + gas bubbles). As that the
-    Saturation S is considered the Saturation of pore fluid!
-    This is an important distinction particularly when considering Saturation dependent
-    Storage Ss, since here the Water Saturation Sw is used!
-    The flux is converted from total volumetric flux to pore Fluid flux by the use
-    of the **effective** hydraulic conductivity (parametric formuli).
-    Also any source terms should also be considered to induce pore fluid, so that we
-    need to take into account that not all the volume is filled with pore fluid.
-    It thus needs to be scaled by saturation S. 
+    The model consistently treats `S` as pore-fluid saturation, i.e. the
+    occupied fraction of pore volume by the mobile pore fluid. This is distinct
+    from pure water saturation when the constitutive model accounts for trapped
+    gas or similar effects. As a consequence, fluxes and storage terms are based
+    on effective hydraulic properties rather than simply saturated values.
 
-    Storage, hydraulic conductivity and Saturation are runtime-selectable functions
-    handled by the 'varSatPoroHydraulicModel'-Object.
+    Concrete subclasses only need to decide which pressure variable is solved
+    (`p_rgh` or `pHead`) and how the corresponding equation is assembled.
 
 Author
     Denis Maier, BAW.  All rights reserved.
@@ -70,6 +71,15 @@ namespace Foam
                         Class variablySaturatedPoroFluid Declaration
 \*---------------------------------------------------------------------------*/
 
+        /**
+         * Shared base class for Richards-equation pore-fluid solvers.
+         *
+         * `variablySaturatedPoroFluid` sits between the generic
+         * `poroFluidModel` interface and the concrete variably saturated
+         * formulations. It owns the constitutive model, the saturation field and
+         * the linearization strategy, while the children implement the actual
+         * equation form and choose the primary field exposed through `pField()`.
+         */
         class variablySaturatedPoroFluid
             : public poroFluidModel
         {
@@ -84,25 +94,31 @@ namespace Foam
         protected:
             // Protected Data
 
-            //- Transport model
+            //- Variably saturated constitutive model for saturation, storage,
+            //  conductivity and hydrostatic reconstruction.
             mutable autoPtr<varSatPoroHydraulicModel> poroHydPtr_;
 
-            //- Porohydraulic algorithm
+            //- Runtime-selected linearization/nonlinear update strategy for
+            //  Richards equation.
             mutable autoPtr<richardsLinearization> richardsLinearizationPtr_;
 
-            //- Saturation of pore fluid (Water + Bubbles)
+            //- Saturation of the mobile pore fluid occupying the pore space.
             autoPtr<volScalarField> SPtr_;
 
-            //- Mass Balance Field (demand driven)
+            //- Optional field storing a mass-balance residual for diagnostics.
             autoPtr<volScalarField> MassBalancePtr_;
 
             // Protected Member Functions
+            //- Construct the concrete constitutive model for the active child.
             virtual void makePoroHydraulic() = 0;
 
+            //- Allocate the saturation field on first use.
             void makeS();
 
+            //- Construct the runtime-selected Richards linearization scheme.
             void makeRichardsLinearization();
 
+            //- Non-const access to the lazily created pore-fluid saturation.
             volScalarField& S()
             {
                 if(!SPtr_.valid())
@@ -112,6 +128,7 @@ namespace Foam
                 return SPtr_.ref();
             }
 
+            //- Non-const access to the lazily created constitutive model.
             varSatPoroHydraulicModel& poroHydraulic()
             {
                 if(!poroHydPtr_.valid())
@@ -121,6 +138,7 @@ namespace Foam
                 return poroHydPtr_.ref();
             }
 
+            //- Non-const access to the lazily created linearization object.
             richardsLinearization& linearization()
             {
                 if(!richardsLinearizationPtr_.valid())
@@ -158,6 +176,7 @@ namespace Foam
 
             // Special Acess
 
+            //- Const access to the pore-fluid saturation field.
             const volScalarField& S() const
             {
                 if (!SPtr_.valid())
@@ -168,11 +187,13 @@ namespace Foam
                 return SPtr_();
             }
 
+            //- Return the reference porosity from the constitutive model.
             virtual tmp<volScalarField> n0()
             {
                 return poroHydraulic().n0();
             }
 
+            //- Const access to the variably saturated constitutive model.
             const varSatPoroHydraulicModel& poroHydraulic() const
             {
                 if (!poroHydPtr_.valid())
@@ -193,8 +214,10 @@ namespace Foam
             //- Return the desired new time-step size
             //virtual scalar newDeltaT() = 0;
 
+            //- Allocate diagnostics needed for mass-balance monitoring.
             void checkMassBalance();
 
+            //- Return the accumulated material residual if diagnostics are active.
             virtual scalar materialResidual()
             {
                 return MassBalancePtr_.valid()
@@ -202,7 +225,7 @@ namespace Foam
                            : 0.0;
             }
 
-            //- Return number of top-level iterations
+            //- Return number of top-level iterations.
             virtual label outerIters()
             {
                 notImplemented("outerIters()");
@@ -212,6 +235,7 @@ namespace Foam
             // Reminder: This still needs to be implemented by children
             //virtual void writeFields(const Time &runTime) = 0;
 
+            //- Persist hydraulic-model state before the simulation ends.
             virtual void end();
         };
 

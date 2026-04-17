@@ -52,7 +52,10 @@ namespace Foam
             {
                 if (!poroHydPtr_.valid())
                 {
-                    FatalErrorIn("varSatPoroFluidHead::poroHydraulic()") << "varSatPoroHydraulicModel not initialized before first use" << endl;
+                    poroHydPtr_.reset
+                    (
+                        new poroHydraulicModel(p_rgh(), g())
+                    );
                 }
 
                 return poroHydPtr_.ref();
@@ -65,7 +68,7 @@ namespace Foam
                 const word &region,
                 const bool sharedmesh)
                 : poroFluidModel(typeName, runTime, "p_rgh", region, sharedmesh),
-                  poroHydPtr_(new poroHydraulicModel(p_rgh(), g())),
+                  poroHydPtr_(),
                   Ss_
                   (
                     (
@@ -174,12 +177,52 @@ namespace Foam
 
             scalar poroFluid::newDeltaT()
             {
-                scalar maxCv = max(poroHydraulic().k() / (Ss_*poroHydraulic().magGamma())).value();
+                const tmp<volScalarField> tDenom
+                (
+                    Ss_ * poroHydraulic().magGamma()
+                );
+                const dimensionedScalar minDenom
+                (
+                    "minDenom",
+                    tDenom().dimensions(),
+                    SMALL
+                );
+                const scalar maxCv
+                (
+                    max
+                    (
+                        poroHydraulic().k()
+                      / max(tDenom(), minDenom)
+                    ).value()
+                );
                 Info << "max c_v: " << maxCv << endl;
-                scalar minDeltaX = min(mesh().V() / fvc::surfaceSum(mag(mesh().Sf())));
-                scalar wishedTimeStep = CoNumber_ * pow(minDeltaX, 2) / maxCv;
-                scalar maxDeltaTFact = wishedTimeStep / runTime().deltaTValue();
-                scalar deltaTFact = min(min(maxDeltaTFact, 1.0 + 0.1 * maxDeltaTFact), 1.2);
+
+                if (maxCv <= SMALL)
+                {
+                    WarningInFunction
+                        << "Degenerate hydraulic diffusivity estimate detected. "
+                        << "Keeping current deltaT = " << runTime().deltaTValue()
+                        << endl;
+                    return runTime().deltaTValue();
+                }
+
+                const scalar minDeltaX
+                (
+                    min(mesh().V() / fvc::surfaceSum(mag(mesh().Sf())))
+                );
+                const scalar wishedTimeStep
+                (
+                    CoNumber_ * pow(minDeltaX, 2) / maxCv
+                );
+                const scalar maxDeltaTFact
+                (
+                    wishedTimeStep / max(runTime().deltaTValue(), SMALL)
+                );
+                const scalar deltaTFact
+                (
+                    min(min(maxDeltaTFact, 1.0 + 0.1 * maxDeltaTFact), 1.2)
+                );
+
                 return deltaTFact * runTime().deltaTValue();
             }
 

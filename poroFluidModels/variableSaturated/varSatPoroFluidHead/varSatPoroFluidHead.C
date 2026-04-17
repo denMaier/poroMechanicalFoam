@@ -248,17 +248,34 @@ namespace Foam
                 hydraulicGradient() = fvc::grad(pHead_) + fvc::grad(poroHydraulic().z());   
 
 //////////////////- Output first and latest linear solver performance  ////////////////////////////////////////////////////////////////////////////////////////////////
-                autoPtr<List<SolverPerformance<scalar>>> sp(new List<SolverPerformance<scalar>>(mesh().data().solverPerformanceDict().findEntry("pHead")->stream()));
-                if(sp().size()==1)
+                if (mesh().data().solverPerformanceDict().found("pHead"))
                 {
-                    sp().last().print(Info.masterStream(mesh().comm()));
+                    autoPtr<List<SolverPerformance<scalar>>> sp
+                    (
+                        new List<SolverPerformance<scalar>>
+                        (
+                            mesh().data().solverPerformanceDict().findEntry("pHead")->stream()
+                        )
+                    );
+
+                    if (sp().size() == 1)
+                    {
+                        sp().last().print(Info.masterStream(mesh().comm()));
+                    }
+                    else
+                    {    
+                        Info << "Initial solve:" << endl;
+                        sp().first().print(Info.masterStream(mesh().comm()));
+                        Info << "Final solve:" << endl;
+                        sp().last().print(Info.masterStream(mesh().comm()));
+                    }
                 }
                 else
-                {    
-                    Info << "Initial solve:" << endl;
-                    sp().first().print(Info.masterStream(mesh().comm()));
-                    Info << "Final solve:" << endl;
-                    sp().last().print(Info.masterStream(mesh().comm()));
+                {
+                    WarningInFunction
+                        << "No solverPerformance entry for `pHead` found after solve. "
+                        << "Skipping solver-performance summary output."
+                        << endl;
                 }
 
  ///////////////////- Update the coefficients //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -303,12 +320,52 @@ namespace Foam
 
         scalar varSatPoroFluidHead::newDeltaT()
         {
-            scalar maxCv = max(kEfff() / fvc::interpolate(Ss_+linearization().C(),"interpolate(Ss)")).value();
+            const tmp<surfaceScalarField> tDenom
+            (
+                fvc::interpolate(Ss_ + linearization().C(), "interpolate(Ss)")
+            );
+            const dimensionedScalar minDenom
+            (
+                "minDenom",
+                tDenom().dimensions(),
+                SMALL
+            );
+            const scalar maxCv
+            (
+                max
+                (
+                    kEfff()
+                  / max(tDenom(), minDenom)
+                ).value()
+            );
             Info << "max c_v: " << maxCv << endl;
-            scalar minDeltaX = min(mesh().V() / fvc::surfaceSum(mag(mesh().Sf())));
-            scalar wishedTimeStep = CoNumber_ * pow(minDeltaX, 2) / maxCv;
-            scalar maxDeltaTFact = wishedTimeStep / runTime().deltaTValue();
-            scalar deltaTFact = min(min(maxDeltaTFact, 1.0 + 0.1 * maxDeltaTFact), 1.2);
+
+            if (maxCv <= SMALL)
+            {
+                WarningInFunction
+                    << "Degenerate hydraulic diffusivity estimate detected. "
+                    << "Keeping current deltaT = " << runTime().deltaTValue()
+                    << endl;
+                return runTime().deltaTValue();
+            }
+
+            const scalar minDeltaX
+            (
+                min(mesh().V() / fvc::surfaceSum(mag(mesh().Sf())))
+            );
+            const scalar wishedTimeStep
+            (
+                CoNumber_ * pow(minDeltaX, 2) / maxCv
+            );
+            const scalar maxDeltaTFact
+            (
+                wishedTimeStep / max(runTime().deltaTValue(), SMALL)
+            );
+            const scalar deltaTFact
+            (
+                min(min(maxDeltaTFact, 1.0 + 0.1 * maxDeltaTFact), 1.2)
+            );
+
             return deltaTFact * runTime().deltaTValue();
         }
 
