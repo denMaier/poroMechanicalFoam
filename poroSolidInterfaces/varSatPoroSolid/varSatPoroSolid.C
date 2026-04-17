@@ -224,7 +224,7 @@ namespace Foam
                 const volScalarField impK(solid().mechanical().impK()/magGammaW_);
                 tmp<volScalarField> bishopBiot(SFluidMesh*b());
                 const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
-                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+                const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
 
                 // The explicit deformation-to-flow term is saturation-weighted,
                 // but the fixed-stress stabilization intentionally keeps the
@@ -240,7 +240,7 @@ namespace Foam
                 const volScalarField impK(solid().mechanical().impK()/magGammaW_);
                 const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
                 tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
-                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+                const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
                 tmp<volVectorField> aFluidMesh = solidToPoroFluid().mapTgtToSrc(tSolidA());
                 tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK)());
                 tmp<volScalarField> bishopBiot(SFluidMesh*b());

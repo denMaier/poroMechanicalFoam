@@ -118,7 +118,7 @@ namespace Foam
             {
                 const volScalarField impK(solid().mechanical().impK());
                 const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
-                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+                const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
 
                 updateCouplingTerms(b(), impK, solid().U(), nDot_, fixedStressStabil_);
                 q_relAcc_.reset(q_relAcc(tkf(), tSolidA()).ptr());
@@ -129,7 +129,7 @@ namespace Foam
                 const volScalarField impK(solid().mechanical().impK());
                 const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
                 tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
-                const tmp<volVectorField> tSolidA(fvc::ddt(solid().U()));
+                const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
                 tmp<volVectorField> aFluidMesh = solidToPoroFluid().mapTgtToSrc(tSolidA());
                 tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));
 
