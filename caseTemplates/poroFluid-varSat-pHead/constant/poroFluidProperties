@@ -1,0 +1,23 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      poroFluidProperties;
+}
+
+poroFluidModel   varSatPoroFluidHead;
+
+varSatPoroFluidHeadCoeffs
+{
+    solutionAlgorithm   Celia;
+    enabled             true;
+    iterations          20;
+    infoFrequency       1;
+
+    convergence
+    {
+        pHead           max 1e-7;
+    }
+}
+

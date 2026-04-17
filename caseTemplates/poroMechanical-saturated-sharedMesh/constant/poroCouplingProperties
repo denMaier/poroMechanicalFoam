@@ -1,0 +1,25 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      poroCouplingProperties;
+}
+
+poroSolidInterface       poroSolid;
+sharedMesh               true;
+porosityConstant         true;
+
+poroSolidCoeffs
+{
+    enabled             true;
+    iterations          20;
+    infoFrequency       1;
+
+    convergence
+    {
+        p_rgh           max 1e-7;
+        D               max 1e-7;
+    }
+}
+

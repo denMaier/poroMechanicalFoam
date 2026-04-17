@@ -33,6 +33,13 @@ See `docs/solids4FoamModelsMinimal.md` for details on the minimal solids4Foam su
 See the solver setup in the repository case files and the
 [BAW report](https://www.baw.de/content/files/forschung_entwicklung/documents/B3952.00.04.70001.pdf)
 for background and example workflows.
+
+For user-facing usage instructions, see
+[`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
+
+For repository structure, build targets, runtime architecture, and extension
+points, see the maintainer reference:
+[`docs/REPOSITORY_DOCUMENTATION.md`](docs/REPOSITORY_DOCUMENTATION.md).
 ## Contributing
 We welcome contributions to poroMechanicalFoam! If you'd like to contribute, please follow these steps:
 1. Fork the repository

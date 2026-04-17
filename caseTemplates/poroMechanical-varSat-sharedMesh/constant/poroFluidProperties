@@ -1,0 +1,25 @@
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      poroFluidProperties;
+}
+
+// Switch to `varSatPoroFluidHead` and rename the coeffs sub-dictionary
+// if you want the hydraulic-head formulation instead.
+poroFluidModel   varSatPoroFluid;
+
+varSatPoroFluidCoeffs
+{
+    solutionAlgorithm   Celia;
+    enabled             true;
+    iterations          20;
+    infoFrequency       1;
+
+    convergence
+    {
+        p_rgh           max 1e-7;
+    }
+}
+
