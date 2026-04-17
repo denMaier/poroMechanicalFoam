@@ -289,8 +289,7 @@ poroFluidModel::poroFluidModel
         g_ = uniformDimensionedVectorField(gheader);
         if (mag(g_).value() == 0.0)
         {
-            FatalErrorIn("poroFluidModel::poroFluidModel(const "
-                         "word&,Time&,const word&,const word&,const bool)")
+            FatalErrorInFunction
                 << "Gravity is off, this leads to problems in the poroFluid "
                    "calculation."
                 << nl
@@ -307,8 +306,7 @@ poroFluidModel::poroFluidModel
                      "g");
         if (mag(g_).value() == 0.0)
         {
-            FatalErrorIn("poroFluidModel::poroFluidModel(const "
-                         "word&,Time&,const word&,const word&,const bool)")
+            FatalErrorInFunction
                 << "Solid gravity is off, this leads to problems in the "
                    "poroFluid calculation."
                 << nl
@@ -383,7 +381,7 @@ poroFluidModel::New(Time& runTime, const word& region, const bool sharedMesh)
 
     if (cstrIter == dictionaryConstructorTablePtr_->end())
     {
-        FatalErrorIn("poroFluidModel::New(Time&, const fvMesh&, const bool) ")
+        FatalErrorInFunction
             << "Unknown poroFluidModel type " << poroFluidModelTypeName << endl
             << endl
             << "Valid  poroFluidModels are : " << endl
@@ -399,7 +397,7 @@ void Foam::poroFluidModel::pRGHisRequired()
 {
     if (!pRGHheader_.typeHeaderOk<volScalarField>(true))
     {
-        FatalErrorIn(type() + "::pRGHisRequired()")
+        FatalErrorInFunction
             << "This poroFluidModel requires the 'p_rgh' field to be specified!"
             << abort(FatalError);
     }

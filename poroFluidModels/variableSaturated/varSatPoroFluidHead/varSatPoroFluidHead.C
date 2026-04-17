@@ -51,7 +51,7 @@ namespace Foam
             kEfffPtr_.reset(
                 new surfaceScalarField(
                 IOobject(
-                      "makeKEfff",
+                      "kEfff",
                       runTime().timeName(),
                       pHead_.db(),
                       IOobject::NO_READ,
@@ -121,7 +121,7 @@ namespace Foam
                 && mesh().fieldRelaxationFactor("kEfff")!=1.0
             )
             {
-                FatalErrorIn("varSatPoroFluidHead::varSatPoroFluidHead") 
+                FatalErrorInFunction
                     << " k should only be relaxed for steady-state calculations!!!"
                     << endl;
             }
