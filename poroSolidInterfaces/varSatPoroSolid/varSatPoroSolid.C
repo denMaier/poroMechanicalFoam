@@ -47,6 +47,183 @@ namespace Foam
         addToRunTimeSelectionTable(poroSolidInterface, varSatPoroSolid, dictionary);
 
         // * * * * * * * * * * *  Private Member Functions * * * * * * * * * * * * * //
+        void varSatPoroSolid::initializePressureUnits()
+        {
+            if(magGammaWInitialized_)
+            {
+                return;
+            }
+
+            if(pField().dimensions() == dimLength)
+            {
+                if(!poroFluid().foundObject<UniformDimensionedField<vector>>("gamma_water"))
+                {
+                    FatalErrorInFunction
+                        << "Head-based variably saturated coupling requires a "
+                        << "'gamma_water' uniform field once the conversion factor "
+                        << "is actually needed"
+                        << exit(FatalError);
+                }
+
+                const dimensionedVector& gammaW =
+                    poroFluid().lookupObject<UniformDimensionedField<vector>>("gamma_water");
+                magGammaW_ = mag(gammaW).value();
+                magGammaW_.dimensions() = gammaW.dimensions();
+            }
+            else if(pField().dimensions() != dimPressure)
+            {
+                FatalErrorInFunction
+                    << "pore pressure field is neither in head nor in pressure dimensions"
+                    << exit(FatalError);
+            }
+
+            magGammaWInitialized_ = true;
+        }
+
+        const volScalarField& varSatPoroSolid::saturationField() const
+        {
+            if(!poroFluid().foundObject<volScalarField>("S"))
+            {
+                FatalErrorInFunction
+                    << "variably saturated coupling requires a saturation field 'S' "
+                    << "once saturation is actually used"
+                    << exit(FatalError);
+            }
+
+            return poroFluid().lookupObject<volScalarField>("S");
+        }
+
+        void varSatPoroSolid::initializeSolidHydraulicFields()
+        {
+            if(sharedMesh())
+            {
+                if(!solidMesh().objectRegistry::foundObject<volScalarField>("p"))
+                {
+                    solidMesh().objectRegistry::checkIn(poroFluidRef().p().ref());
+                }
+
+                if(!solidMesh().objectRegistry::foundObject<volScalarField>("p_rgh"))
+                {
+                    solidMesh().objectRegistry::checkIn(poroFluidRef().p_rgh().ref());
+                }
+
+                if(!solidMesh().objectRegistry::foundObject<volScalarField>("S"))
+                {
+                    solidMesh().objectRegistry::checkIn(const_cast<volScalarField&>(saturationField()));
+                }
+
+                if(!solidMesh().objectRegistry::foundObject<volScalarField>("n"))
+                {
+                    solidMesh().objectRegistry::checkIn(const_cast<volScalarField&>(poroFluidRef().n()));
+                }
+            }
+            else
+            {
+                const volScalarField& S = saturationField();
+
+                if(!pSolidMesh_.valid())
+                {
+                    pSolidMesh_.reset
+                    (
+                        new volScalarField
+                        (
+                            IOobject
+                            (
+                                "p",
+                                runTime().timeName(),
+                                solidMesh(),
+                                IOobject::NO_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            solidToPoroFluid().mapSrcToTgt(poroFluid().p())()
+                        )
+                    );
+                }
+
+                if(!pRghSolidMesh_.valid())
+                {
+                    pRghSolidMesh_.reset
+                    (
+                        new volScalarField
+                        (
+                            IOobject
+                            (
+                                "p_rgh",
+                                runTime().timeName(),
+                                solidMesh(),
+                                IOobject::NO_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            solidToPoroFluid().mapSrcToTgt(poroFluid().p_rgh())()
+                        )
+                    );
+                }
+
+                if(!SSolidMesh_.valid())
+                {
+                    SSolidMesh_.reset
+                    (
+                        new volScalarField
+                        (
+                            IOobject
+                            (
+                                "S",
+                                runTime().timeName(),
+                                solidMesh(),
+                                IOobject::NO_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            solidToPoroFluid().mapSrcToTgt(S)(),
+                            "zeroGradient"
+                        )
+                    );
+                }
+
+                if(!nSolidMesh_.valid())
+                {
+                    nSolidMesh_.reset
+                    (
+                        new volScalarField
+                        (
+                            IOobject
+                            (
+                                "n",
+                                runTime().timeName(),
+                                solidMesh(),
+                                IOobject::NO_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            solidToPoroFluid().mapSrcToTgt(poroFluidRef().n())(),
+                            "zeroGradient"
+                        )
+                    );
+                }
+            }
+        }
+
+        void varSatPoroSolid::syncSolidHydraulicFields()
+        {
+            if(sharedMesh())
+            {
+                return;
+            }
+
+            initializeSolidHydraulicFields();
+            mapPressuresToSolidMesh(pSolidMesh_, pRghSolidMesh_);
+            SSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(saturationField());
+        }
+
+        void varSatPoroSolid::syncSolidPorosityField()
+        {
+            if(sharedMesh())
+            {
+                return;
+            }
+
+            initializeSolidHydraulicFields();
+            nSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(poroFluidRef().n())();
+        }
+
         //- fluxes arising from differencial acceleration (usually not significant)
         tmp<surfaceVectorField> varSatPoroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& U)
         {
@@ -73,87 +250,13 @@ namespace Foam
               pSolidMesh_(), // p on solid Mesh (includes the buoyancy force on the solid)
               SSolidMesh_(), // saturation on solid Mesh 
               nSolidMesh_(), // porosity on solid Mesh 
-              magGammaW_(dimensionedScalar("gammaw",dimless,1.0)) // this to facilitate pressureHead and p_rgh based solvers in one class
+              magGammaW_(dimensionedScalar("gammaw",dimless,1.0)), // this to facilitate pressureHead and p_rgh based solvers in one class
+              magGammaWInitialized_(false)
         {
             // Sanity check if an appropriate poroSolid solver is used for the selected poroFluid solver
             if(poroFluid().name() == "poroFluid")
             {
                 FatalErrorInFunction() << "'poroFluid' is not suitable for variably saturated calculations" << endl;
-            }
-
-            // this to facilitate pressureHead and p_rgh based solvers in one class
-            // we will use either 1 or specific weight of water to bring all fields to the chosen pressure units
-            if(pField().dimensions()==dimLength)
-            {
-                const dimensionedVector& gammaW = poroFluid().lookupObject<UniformDimensionedField<vector>>("gamma_water");
-                magGammaW_ = mag(gammaW).value();
-                magGammaW_.dimensions() = gammaW.dimensions();
-            }
-            else if(pField().dimensions()!=dimPressure)
-            {
-                FatalError() << "pore pressure field is neither in head nor in pressure dimensions!"
-                             << endl;
-            }
-
-            // Get reference to saturation
-            const volScalarField& S = poroFluid().lookupObject<volScalarField>("S");
-
-            // If we use the solid mesh for poroFluid calculations we only need to make the pressure available to the solid solver
-            if(sharedMesh())
-            {
-                // Checkin the pressure fields in the solid registry, so the porous material law wrapping class can find it later
-                solidMesh().objectRegistry::checkIn(poroFluidRef().p().ref());
-                solidMesh().objectRegistry::checkIn(poroFluidRef().p_rgh().ref());
-                solidMesh().objectRegistry::checkIn(const_cast<volScalarField&>(S));
-                solidMesh().objectRegistry::checkIn(const_cast<volScalarField&>(poroFluidRef().n()));
-            }
-            else
-            {
-
-                // Map pressure fields onto solid field so the porous material law wrapping class can find it later
-                // This is done now, and the fields are kept in memory so that other classes can use them at any time
-                // e.g. the material model needs them very early bc they are used to calculate total density of solid+water mixture
-                pSolidMesh_.reset(
-                    new volScalarField(
-                        IOobject(
-                            "p",
-                            runTime.timeName(),
-                            solidMesh(),
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE),
-                            solidToPoroFluid().mapSrcToTgt(poroFluid().p())()));
-
-                pRghSolidMesh_.reset(
-                    new volScalarField(
-                        IOobject(
-                            "p_rgh",
-                            runTime.timeName(),
-                            solidMesh(),
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE),
-                            solidToPoroFluid().mapSrcToTgt(poroFluid().p_rgh())()));
-
-                SSolidMesh_.reset(
-                    new volScalarField(
-                        IOobject(
-                            "S",
-                            runTime.timeName(),
-                            solidMesh(),
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE),
-                            solidToPoroFluid().mapSrcToTgt(S)(),
-                            "zeroGradient"));
-
-                nSolidMesh_.reset(
-                    new volScalarField(
-                        IOobject(
-                            "n",
-                            runTime.timeName(),
-                            solidMesh(),
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE),
-                            solidToPoroFluid().mapSrcToTgt(poroFluidRef().n())(),
-                            "zeroGradient"));
             }
         }
 
@@ -162,6 +265,9 @@ namespace Foam
         bool varSatPoroSolid::evolve()
         {
             Info << "Preparing varSatPoroSolid solver" << endl;
+
+            initializePressureUnits();
+            initializeSolidHydraulicFields();
 
             SolverPerformance<scalar> solverPerfp;
             SolverPerformance<vector>::debug = 0;
@@ -177,7 +283,7 @@ namespace Foam
                 // For shared mesh calculations (solid and poroFluid use the same mesh) 
                 // We dont need any mesh to mesh mapping, we can simply initilize the fields on the solid mesh
                 // Get reference to saturation
-                const volScalarField& SFluidMesh = poroFluid().lookupObject<volScalarField>("S");
+                const volScalarField& SFluidMesh = saturationField();
                 if(sharedMesh())
                 {
                     // This is returned as "tmp" so we need to safe the data here otherwise it runs out of scope
@@ -276,7 +382,7 @@ namespace Foam
                         // Info: some of the compression might also be due to grain compression, 
                         // this is neglected here.
                         poroFluidRef().update_porosity(fvc::div(DFluidMesh),false); 
-                        nSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(poroFluidRef().n())();
+                        syncSolidPorosityField();
                         // Clear mapped D to safe memory
                         DFluidMesh.clear();
                     }
@@ -294,16 +400,7 @@ namespace Foam
                 // on different meshes, we first need to map the pressure fields from poroFluid to solid mesh
                 if (!sharedMesh())
                 {
-                    if(!SSolidMesh_.valid())
-                    {
-                        FatalErrorInFunction
-                            << "Saturation field on solid mesh is not initialized for non-shared mesh coupling"
-                            << exit(FatalError);
-                    }
-                    // Get reference to saturation
-                    const volScalarField& S = poroFluid().lookupObject<volScalarField>("S");
-                    mapPressuresToSolidMesh(pSolidMesh_, pRghSolidMesh_);
-                    SSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(S);
+                    syncSolidHydraulicFields();
                 }
 
                 // To update the solid+water total density that is stored in the solid material law
@@ -339,16 +436,10 @@ namespace Foam
                 }
                 else
                 {
-                    if(!nSolidMesh_.valid())
-                    {
-                        FatalErrorInFunction
-                            << "Porosity field on solid mesh is not initialized for non-shared mesh coupling"
-                            << exit(FatalError);
-                    }
                     tmp<volVectorField> DFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().D());
                     //Calculating n = n_start+div(D)
                     poroFluidRef().update_porosity(fvc::div(DFluidMesh),false); 
-                    nSolidMesh_.ref() = solidToPoroFluid().mapSrcToTgt(poroFluidRef().n())();
+                    syncSolidPorosityField();
                     DFluidMesh.clear();
                 }
             }

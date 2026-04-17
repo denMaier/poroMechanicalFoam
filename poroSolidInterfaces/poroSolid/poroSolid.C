@@ -47,6 +47,73 @@ namespace Foam
         addToRunTimeSelectionTable(poroSolidInterface, poroSolid, dictionary);
 
         // * * * * * * * * * * *  Private Member Functions * * * * * * * * * * * * * //
+        void poroSolid::initializeSolidHydraulicFields()
+        {
+            if(sharedMesh())
+            {
+                if(!solidMesh().objectRegistry::foundObject<volScalarField>("p"))
+                {
+                    solidMesh().objectRegistry::checkIn(poroFluidRef().p());
+                }
+
+                if(!solidMesh().objectRegistry::foundObject<volScalarField>("p_rgh"))
+                {
+                    solidMesh().objectRegistry::checkIn(poroFluidRef().p_rgh());
+                }
+            }
+            else
+            {
+                if(!pSolidMesh_.valid())
+                {
+                    pSolidMesh_.reset
+                    (
+                        new volScalarField
+                        (
+                            IOobject
+                            (
+                                "p",
+                                runTime().timeName(),
+                                solidMesh(),
+                                IOobject::NO_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            solidToPoroFluid().mapSrcToTgt(poroFluid().p())()
+                        )
+                    );
+                }
+
+                if(!pRghSolidMesh_.valid())
+                {
+                    pRghSolidMesh_.reset
+                    (
+                        new volScalarField
+                        (
+                            IOobject
+                            (
+                                "p_rgh",
+                                runTime().timeName(),
+                                solidMesh(),
+                                IOobject::NO_READ,
+                                IOobject::NO_WRITE
+                            ),
+                            solidToPoroFluid().mapSrcToTgt(poroFluid().p_rgh())()
+                        )
+                    );
+                }
+            }
+        }
+
+        void poroSolid::syncSolidHydraulicFields()
+        {
+            if(sharedMesh())
+            {
+                return;
+            }
+
+            initializeSolidHydraulicFields();
+            mapPressuresToSolidMesh(pSolidMesh_, pRghSolidMesh_);
+        }
+
         //- fluxes arising from differencial acceleration (usually not significant)
         tmp<surfaceVectorField> poroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& U)
         {
@@ -78,38 +145,6 @@ namespace Foam
             {
                 Warning() << "'varSatPoroFluid/Head' should be used with 'varSatPoroSolid'" << endl;
             }
-            
-            // If we use the solid mesh for poroFluid calculations we only need to make the pressure available to the solid solver
-            if(sharedMesh())
-            {                
-                // Checkin the pressure fields in the solid registry, so the porous material law wrapping class can find it later
-                solidMesh().objectRegistry::checkIn(poroFluidRef().p());
-                solidMesh().objectRegistry::checkIn(poroFluidRef().p_rgh());
-            }
-            else // For calculations where solid and fluid are on different meshes, we need to map the pressure field onto the solid mesh
-            {
-                // Map pressure fields onto solid field so the porous material law wrapping class can find it later
-                pSolidMesh_.reset(
-                    new volScalarField(
-                        IOobject(
-                            "p",
-                            runTime.timeName(),
-                            solidMesh(),
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE),
-                            solidToPoroFluid().mapSrcToTgt(poroFluid().p())()));
-
-                pRghSolidMesh_.reset(
-                    new volScalarField(
-                        IOobject(
-                            "p_rgh",
-                            runTime.timeName(),
-                            solidMesh(),
-                            IOobject::NO_READ,
-                            IOobject::NO_WRITE),
-                            solidToPoroFluid().mapSrcToTgt(poroFluid().p_rgh())()));
-
-            }
         }
 
         // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -117,6 +152,8 @@ namespace Foam
         bool poroSolid::evolve()
         {
             Info << "Preparing poroSolid solver" << endl;
+
+            initializeSolidHydraulicFields();
 
             SolverPerformance<scalar> solverPerfp;
             SolverPerformance<vector>::debug = 0;  
@@ -240,7 +277,7 @@ namespace Foam
                 // on different meshes, we first need to map the pressure fields from poroFluid to solid mesh
                 if (!sharedMesh())
                 {
-                    mapPressuresToSolidMesh(pSolidMesh_, pRghSolidMesh_);
+                    syncSolidHydraulicFields();
                 }
 
                 //- Evolving solid solver

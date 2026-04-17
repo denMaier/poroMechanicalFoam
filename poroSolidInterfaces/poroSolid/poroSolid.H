@@ -26,23 +26,26 @@ Class
     poroSolid
 
 Description
-    Solver for fully saturated poro-elasto-plasticity.
+    Coupling implementation for fully saturated poromechanics.
 
-    We start the timeloop in which we update the coupling terms
-    and first evolve the poroFluid solver, then evolve the 
-    solid solver.
+    This class specializes Foam::poroSolidInterface for the saturated case,
+    where pore pressure alone drives the hydraulic-to-mechanical coupling.
 
-    The coupling from solid to fluid works by adding a 
-    fvOption (poroSolidToFluidCouplingSource Class)
-    to the fvOption list of the poroFluid object and 
-    provide functions (explicit/implicitCouplingDtoP)
-    that the fvOption accesses and adds it to the fluid 
-    function.
+    Responsibilities:
+    - build the deformation-to-flow source terms used by
+      Foam::fv::poroSolidToFluidCouplingSource
+    - expose pore pressure fields on the solid side, either by registering the
+      fluid fields directly for shared meshes or by storing mapped copies on
+      the solid mesh
+    - execute the staggered pressure-displacement outer loop:
+      1. assemble coupling terms from the current solid state
+      2. evolve the poroFluid model
+      3. map hydraulic fields back to the solid mesh if required
+      4. evolve the solid model
 
-    The coulpling from fluid to solid is handled by the
-    wrapping class (poroMechanicalLaw/varSatPoroMechanicalLaw)
-    around the solid mechanicalLaws. All it needs is to be able 
-    to find a scalar field named p or p_rgh on the solid mesh/registry
+    The flow-to-solid coupling itself is consumed by the porous mechanical laws
+    on the solid side, which look up `p` and `p_rgh` in the solid mesh object
+    registry.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -71,27 +74,51 @@ namespace Foam
 
         /*---------------------------------------------------------------------------*\
                         Class poroSolid Declaration
-\*---------------------------------------------------------------------------*/
+        \*---------------------------------------------------------------------------*/
 
+        /**
+         * \brief Fully saturated poro-solid coupling driver.
+         *
+         * The class extends Foam::poroSolidInterface with the fields required
+         * by the saturated formulation. It owns transient coupling fields that
+         * are assembled before each fluid solve and exposes them through
+         * explicitCouplingDtoP() and implicitCouplingDtoP().
+         *
+         * For shared-mesh runs, the fluid pressure fields are registered
+         * directly on the solid mesh registry. For non-shared runs, mapped
+         * copies are stored in pSolidMesh_ and pRghSolidMesh_ so the solid-side
+         * constitutive laws see the same names independent of mesh layout.
+         */
         class poroSolid
             : public poroSolidInterface
         {
             // Private data
 
-            //- Field for stabilization procedure for groundwater equation
+            //- Fixed-stress stabilization coefficient for the flow equation.
             autoPtr<volScalarField> fixedStressStabil_;
-            //- porosity change per unit time, which couples deformation into the flow equation
+            //- Volumetric strain-rate contribution added explicitly to flow.
             autoPtr<volScalarField> nDot_;
-            //- flow induced by solid acceleration, which couples deformation into the flow equation
+            //- Relative acceleration correction for Darcy fluxes (currently unused).
             autoPtr<surfaceVectorField> q_relAcc_;
-            //- momentum transfer from fluid to solid
+            //- Pressure head on the solid mesh for non-shared mesh coupling.
             autoPtr<volScalarField> pRghSolidMesh_;
-            //- momentum transfer from fluid to solid
+            //- Absolute pore pressure on the solid mesh for non-shared mesh coupling.
             autoPtr<volScalarField> pSolidMesh_;
 
             // Private Member Functions
 
-            //- fluxes arising from differencial acceleration (usually not significant)
+            //- Lazily register or allocate hydraulic fields required on the solid side.
+            void initializeSolidHydraulicFields();
+
+            //- Synchronize the hydraulic state required on the solid side.
+            void syncSolidHydraulicFields();
+
+            /**
+             * \brief Estimate the additional flux caused by relative acceleration.
+             *
+             * The term is kept for completeness but is currently not assembled
+             * into the active coupling operators.
+             */
             tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& U);
 
             //- Disallow default bitwise copy construct
@@ -108,7 +135,14 @@ namespace Foam
             TypeName("poroSolid");
 
             // Constructors
-            //- Construct from components
+
+            /**
+             * \brief Construct the saturated poro-solid coupling model.
+             *
+             * Besides base-class construction, this prepares the saturated
+             * coupling object. The solid-side hydraulic fields are then
+             * registered or allocated lazily before the first coupled solve.
+             */
             poroSolid(
                 Time &runTime,
                 const word &region = "poroFluid");
@@ -123,17 +157,36 @@ namespace Foam
 
             // Edit
 
-            //- Evolve the solid solver and solve the mathematical model
+            /**
+             * \brief Advance one coupled pressure-displacement time step.
+             *
+             * The method performs the staggered outer iteration managed by
+             * couplingControl(). It assembles deformation-to-flow terms,
+             * evolves the poroFluid model, maps hydraulic fields back to the
+             * solid side if necessary, evolves the solid model, and finally
+             * updates porosity for the completed time step.
+             */
             virtual bool evolve();
             
             // Access
 
-            //- explicit coupling terms
+            /**
+             * \brief Return the explicit deformation source for the flow solve.
+             *
+             * The returned field is the currently assembled `nDot` term, i.e.
+             * the Biot-weighted volumetric strain-rate contribution.
+             */
             virtual const tmp<volScalarField>  explicitCouplingDtoP() const;
-            //- explicit coupling terms (get multiplied with pField)
+
+            /**
+             * \brief Return the implicit fixed-stress stabilization coefficient.
+             *
+             * The fvOption multiplies this field with the current pressure field
+             * when assembling the stabilized flow equation.
+             */
             virtual const tmp<volScalarField>  implicitCouplingDtoP() const; 
 
-
+            //- Write both fluid and solid result fields for the current time.
             virtual void writeFields(const Time &runTime);
 
         };

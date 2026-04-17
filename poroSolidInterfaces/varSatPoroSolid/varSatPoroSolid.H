@@ -26,24 +26,17 @@ Class
     varSatPoroSolid
 
 Description
-    Solver for partially saturated poro-elasto-plasticity.
-    The bishop effective stress principle is use.
-    
-    We start the timeloop in which we update the coupling terms
-    and first evolve the poroFluid solver, then evolve the 
-    solid solver.
+    Coupling implementation for variably saturated poromechanics.
 
-    The coupling from solid to fluid works by adding a 
-    fvOption (poroSolidToFluidCouplingSource Class)
-    to the fvOption list of the poroFluid object and 
-    provide functions (explicit/implicitCouplingDtoP)
-    that the fvOption accesses and adds it to the fluid 
-    function.
+    This specialization augments the saturated coupling workflow with the
+    additional state required by the partially saturated formulation:
+    saturation, porosity on the solid mesh, and pressure-unit conversion for
+    pressure-head based fluid solvers.
 
-    The coulpling from fluid to solid is handled by the
-    wrapping class (varSatPoroMechanicalLaw)
-    around the solid mechanicalLaws. All it needs is to be able 
-    to find a scalar field named p or p_rgh on the solid mesh/registry
+    The class follows the same staggered outer loop as Foam::poroSolid, but it
+    scales the deformation-to-flow coupling with saturation (Bishop-type
+    weighting) and keeps the solid-side copies of `S` and `n` synchronized when
+    separate meshes are used.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -72,32 +65,67 @@ namespace Foam
 
         /*---------------------------------------------------------------------------*\
                         Class varSatPoroSolid Declaration
-\*---------------------------------------------------------------------------*/
+        \*---------------------------------------------------------------------------*/
 
+        /**
+         * \brief Variably saturated poro-solid coupling driver.
+         *
+         * The class extends Foam::poroSolidInterface with the extra fields
+         * required by the variably saturated formulation:
+         * - mapped or shared access to `p` and `p_rgh`
+         * - mapped or shared access to saturation `S`
+         * - mapped or shared access to porosity `n`
+         * - a conversion factor between pressure-head and pressure units
+         *
+         * These fields allow the solid constitutive model and density update
+         * logic to consume a consistent hydraulic state regardless of whether
+         * the fluid and solid run on the same mesh.
+         */
         class varSatPoroSolid
             : public poroSolidInterface
         {
             // Private data
 
-            //- Field for stabilization procedure for groundwater equation
+            //- Fixed-stress stabilization coefficient for the flow equation.
             autoPtr<volScalarField> fixedStressStabil_;
-            //- porosity change, which couples deformation into the flow equation
+            //- Saturation-weighted volumetric strain-rate source for flow.
             autoPtr<volScalarField> nDot_;
-            //- flow induced by solid acceleration, which couples deformation into the flow equation
+            //- Relative acceleration correction for Darcy fluxes (currently unused).
             autoPtr<surfaceVectorField> q_relAcc_;
-            //- momentum transfer from fluid to solid
+            //- Pressure head on the solid mesh for non-shared mesh coupling.
             autoPtr<volScalarField> pRghSolidMesh_;
-            //- momentum transfer from fluid to solid
+            //- Absolute pore pressure on the solid mesh for non-shared mesh coupling.
             autoPtr<volScalarField> pSolidMesh_;
-            //- Saturation for effective stress calculation
+            //- Saturation field mirrored onto the solid mesh.
             autoPtr<volScalarField> SSolidMesh_;
-            //- porosity for total density calculation
+            //- Porosity field mirrored onto the solid mesh for density updates.
             autoPtr<volScalarField> nSolidMesh_;
-            //- water specific weight (used when head based poroFluid
-            //  to convert from and two pressure)
+            //- Pressure-head to pressure conversion factor for head-based solvers.
             dimensionedScalar magGammaW_;
+            //- Has the pressure-head conversion factor been initialized?
+            bool magGammaWInitialized_;
 
-            //- fluxes arising from differencial acceleration (usually not significant)
+            //- Lazily initialize the pressure-head conversion factor when needed.
+            void initializePressureUnits();
+
+            //- Return the saturation field once it actually exists in the poroFluid registry.
+            const volScalarField& saturationField() const;
+
+            //- Lazily register or allocate hydraulic fields required on the solid side.
+            void initializeSolidHydraulicFields();
+
+            //- Synchronize pressure and saturation fields required on the solid side.
+            void syncSolidHydraulicFields();
+
+            //- Synchronize the porosity field required on the solid side.
+            void syncSolidPorosityField();
+
+            /**
+             * \brief Estimate the additional flux caused by relative acceleration.
+             *
+             * The term is currently kept as an optional extension path and is
+             * not assembled into the active coupling operators.
+             */
             tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& U);
 
             // Private Member Functions
@@ -115,7 +143,14 @@ namespace Foam
             TypeName("varSatPoroSolid");
 
             // Constructors
-            //- Construct from components
+
+            /**
+             * \brief Construct the variably saturated poro-solid coupling model.
+             *
+             * Construction validates that a variably saturated poroFluid model
+             * is in use and prepares the lazy initialization paths for the
+             * solid-side hydraulic state and any pressure-head conversion.
+             */
             varSatPoroSolid(
                 Time &runTime,
                 const word &region = "poroFluid");
@@ -130,16 +165,36 @@ namespace Foam
 
             // Edit
 
-            //- Evolve the solid solver and solve the mathematical model
+            /**
+             * \brief Advance one coupled pressure-displacement time step.
+             *
+             * Compared to the saturated model, the deformation-to-flow source is
+             * weighted by saturation and the mirrored solid-side saturation and
+             * porosity fields are refreshed during the coupling loop so the
+             * constitutive law and density updates see the latest hydraulic
+             * state.
+             */
             virtual bool evolve();
 
             // Access
 
-            //- explicit coupling terms
+            /**
+             * \brief Return the explicit deformation source for the flow solve.
+             *
+             * This is the assembled `nDot` field based on the saturation-
+             * weighted Biot coefficient and the current solid velocity field.
+             */
             virtual const tmp<volScalarField>  explicitCouplingDtoP() const;
-            //- explicit coupling terms (get multiplied with pField)
+
+            /**
+             * \brief Return the implicit fixed-stress stabilization coefficient.
+             *
+             * The fvOption multiplies this field with the current pressure field
+             * when assembling the stabilized flow equation.
+             */
             virtual const tmp<volScalarField>  implicitCouplingDtoP() const; 
 
+            //- Write solid density in addition to the usual fluid and solid outputs.
             virtual void writeFields(const Time &runTime);
 
         };
