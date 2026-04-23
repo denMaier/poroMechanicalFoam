@@ -90,19 +90,19 @@ namespace Foam
     virtual tmp<volScalarField> pStar() const;
 
     //- Return cell-effective conductivity k*kr(p).
-    virtual const tmp<volScalarField> kEff(const volScalarField &p) const;
+    virtual const tmp<volScalarField> kEff(const volScalarField &p);
 
     //- Return face-effective conductivity kf*interpolate(kr(p)).
-    virtual const tmp<surfaceScalarField> kEfff(const volScalarField &p) const;
+    virtual const tmp<surfaceScalarField> kEfff(const volScalarField &p);
 
     //- Return relative conductivity from the active saturation laws.
-    virtual tmp<volScalarField> kr(const volScalarField &p) const;
+    virtual tmp<volScalarField> kr(const volScalarField &p);
 
     //- Return saturation from the active saturation laws.
-    virtual tmp<volScalarField> S(const volScalarField &p) const;
+    virtual tmp<volScalarField> S(const volScalarField &p);
 
     //- Return specific moisture capacity dS/dp from the active saturation laws.
-    virtual tmp<volScalarField> C(const volScalarField &p) const;
+    virtual tmp<volScalarField> C(const volScalarField &p);
 
     //- Write function must be defined for regIOobjects
     virtual bool writeData(Ostream&) const
