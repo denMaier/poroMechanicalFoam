@@ -37,7 +37,7 @@ namespace
     {
         if (!stream.size())
         {
-            Foam::FatalErrorInFunction
+            FatalErrorInFunction
                 << "linearSolver convergence entry for field '" << fieldName
                 << "' requires at least the keyword 'linearSolver'."
                 << Foam::exit(Foam::FatalError);
@@ -45,7 +45,7 @@ namespace
 
         if (!stream.first().isWord() || stream.first().wordToken() != "linearSolver")
         {
-            Foam::FatalErrorInFunction
+            FatalErrorInFunction
                 << "linearSolver convergence entry for field '" << fieldName
                 << "' must start with the keyword 'linearSolver'."
                 << Foam::exit(Foam::FatalError);
@@ -58,7 +58,7 @@ namespace
 
         if (stream.size() != 2)
         {
-            Foam::FatalErrorInFunction
+            FatalErrorInFunction
                 << "linearSolver convergence entry for field '" << fieldName
                 << "' must be 'linearSolver <tolerance|show>'."
                 << Foam::exit(Foam::FatalError);
@@ -74,7 +74,7 @@ namespace
             return -1.0;
         }
 
-        Foam::FatalErrorInFunction
+        FatalErrorInFunction
             << "linearSolver convergence entry for field '" << fieldName
             << "' must end with a number or the word show."
             << Foam::exit(Foam::FatalError);
@@ -98,7 +98,7 @@ namespace
 
         if (!solverDict.found(fieldName))
         {
-            Foam::FatalErrorInFunction
+            FatalErrorInFunction
                 << "Field '" << fieldName << "' exists on mesh '"
                 << mesh.name() << "' but has no solverPerformance entry in the "
                 << "current outer iteration." << Foam::nl
@@ -114,7 +114,7 @@ namespace
 
         if (!sp.size())
         {
-            Foam::FatalErrorInFunction
+            FatalErrorInFunction
                 << "solverPerformance entry for field '" << fieldName
                 << "' on mesh '" << mesh.name() << "' is empty."
                 << Foam::exit(Foam::FatalError);

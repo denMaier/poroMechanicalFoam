@@ -154,7 +154,13 @@ namespace Foam
             fixedStressStabil_.clear();
         }
 
-        //- fluxes arising from differential acceleration of the solid skeleton
+        //- Darcy-type flux induced by solid-matrix acceleration.
+        //  With hydraulic conductivity K [m/s], the reduced saturated
+        //  fluid-momentum balance gives q_acc = -(K/|g|) a_s in addition to the
+        //  standard pressure-driven Darcy flux. This helper returns the
+        //  positive face-vector quantity K/|g| a_s; explicitCouplingDtoP()
+        //  later inserts it as -div(q_relAcc), so the assembled flux
+        //  contribution is the required -q_relAcc.
         tmp<surfaceVectorField> poroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& a)
         {
             tmp<surfaceVectorField> tq
@@ -200,6 +206,9 @@ namespace Foam
                 }
                 if(q_relAcc_.valid())
                 {
+                    // See q_relAcc() above: the physical acceleration-induced
+                    // Darcy contribution is -q_relAcc, hence the source enters
+                    // continuity as -div(q_relAcc).
                     return tmp<volScalarField>
                     (
                         new volScalarField

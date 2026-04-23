@@ -45,7 +45,7 @@ namespace
         {
             if (zoneSubDict.found(legacyKey))
             {
-                Foam::WarningInFunction
+                WarningInFunction
                     << "Zone '" << zoneName << "' defines both '" << canonicalKey
                     << "' and legacy key '" << legacyKey << "'. Using '"
                     << canonicalKey << "'."
@@ -57,7 +57,7 @@ namespace
 
         if (zoneSubDict.found(legacyKey))
         {
-            Foam::WarningInFunction
+            WarningInFunction
                 << "Zone '" << zoneName << "' uses legacy key '" << legacyKey
                 << "'. Please rename it to '" << canonicalKey
                 << "' in poroHydraulicProperties."
@@ -66,7 +66,7 @@ namespace
             return zoneSubDict.get<Foam::word>(legacyKey);
         }
 
-        Foam::FatalIOErrorInFunction(zoneSubDict)
+        FatalIOErrorInFunction(zoneSubDict)
             << "Zone '" << zoneName << "' does not define required selector key '"
             << canonicalKey << "'"
             << " (legacy alias '" << legacyKey << "' is also accepted)."

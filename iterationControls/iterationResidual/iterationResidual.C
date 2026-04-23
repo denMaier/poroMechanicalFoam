@@ -50,7 +50,7 @@ namespace
             return -1.0;
         }
 
-        Foam::FatalErrorInFunction
+        FatalErrorInFunction
             << "last entry for residual " << name
             << " must be either a number or the word show"
             << ::Foam::abort(Foam::FatalError);
@@ -76,7 +76,7 @@ namespace
 
         if (stream.size() < 2)
         {
-            Foam::FatalErrorInFunction
+            FatalErrorInFunction
                 << "Residual " << name
                 << " requires '<operation> <tolerance|show>'." << Foam::nl
                 << "For example: " << name << " max 1e-6"

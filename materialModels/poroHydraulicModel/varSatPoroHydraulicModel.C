@@ -44,7 +44,7 @@ namespace
         {
             if (zoneSubDict.found("SWCC"))
             {
-                Foam::WarningInFunction
+                WarningInFunction
                     << "Zone '" << zoneName << "' defines both 'saturationLaw'"
                     << " and legacy key 'SWCC'. Using 'saturationLaw'."
                     << Foam::endl;
@@ -55,7 +55,7 @@ namespace
 
         if (zoneSubDict.found("SWCC"))
         {
-            Foam::WarningInFunction
+            WarningInFunction
                 << "Zone '" << zoneName << "' uses legacy key 'SWCC'."
                 << " Please rename it to 'saturationLaw' in poroHydraulicProperties."
                 << Foam::endl;
@@ -63,7 +63,7 @@ namespace
             return zoneSubDict.get<Foam::word>("SWCC");
         }
 
-        Foam::FatalIOErrorInFunction(zoneSubDict)
+        FatalIOErrorInFunction(zoneSubDict)
             << "Zone '" << zoneName << "' does not define required selector key"
             << " 'saturationLaw' (legacy alias 'SWCC' is also accepted)."
             << Foam::exit(Foam::FatalIOError);

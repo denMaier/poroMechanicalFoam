@@ -290,7 +290,13 @@ namespace Foam
             solid().rho().write();
         }
 
-        //- fluxes arising from differential acceleration of the solid skeleton
+        //- Darcy-type flux induced by solid-matrix acceleration.
+        //  For the liquid phase the reduced momentum balance gives
+        //  q_acc = -(K_eff/|g|) a_s, where K_eff already contains the
+        //  saturation-dependent mobility. This helper returns the positive
+        //  face-vector quantity K_eff/|g| a_s; explicitCouplingDtoP() later
+        //  inserts it as -div(q_relAcc), so the assembled flux contribution is
+        //  the required -q_relAcc.
         tmp<surfaceVectorField> varSatPoroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& a)
         {
             tmp<surfaceVectorField> tq
@@ -343,6 +349,9 @@ namespace Foam
             }
             if(q_relAcc_.valid())
             {
+                // See q_relAcc() above: the physical acceleration-induced Darcy
+                // contribution is -q_relAcc, hence the source enters continuity
+                // as -div(q_relAcc).
                 return tmp<volScalarField>
                 (
                     new volScalarField

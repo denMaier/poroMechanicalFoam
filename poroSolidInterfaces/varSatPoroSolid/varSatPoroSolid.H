@@ -90,7 +90,7 @@ namespace Foam
             autoPtr<volScalarField> fixedStressStabil_;
             //- Saturation-weighted volumetric strain-rate source for flow.
             autoPtr<volScalarField> nDot_;
-            //- Relative acceleration correction for Darcy fluxes (currently unused).
+            //- Solid-acceleration contribution to the Darcy relative flux.
             autoPtr<surfaceVectorField> q_relAcc_;
             //- Pressure head on the solid mesh for non-shared mesh coupling.
             autoPtr<volScalarField> pRghSolidMesh_;
@@ -115,10 +115,14 @@ namespace Foam
             void syncSolidPorosityField();
 
             /**
-             * \brief Estimate the additional flux caused by relative acceleration.
+             * \brief Estimate the solid-acceleration contribution to Darcy flux.
              *
-             * The term is currently kept as an optional extension path and is
-             * not assembled into the active coupling operators.
+             * In the reduced liquid-phase momentum balance the solid
+             * acceleration enters with the same mobility as the pressure term,
+             * giving a correction proportional to K_eff/g * a_s. No Biot factor
+             * appears here; Biot coupling acts in mass balance and effective
+             * stress, while the reduced fluid momentum law depends on hydraulic
+             * mobility.
              */
             tmp<surfaceVectorField> q_relAcc(const surfaceScalarField& kf, const volVectorField& a);
 
