@@ -148,19 +148,19 @@ tmp<volScalarField> varSatPoroHydraulicModel::pStar() const
     return tpStar;
 }
 
-const tmp<volScalarField> varSatPoroHydraulicModel::kEff(const volScalarField &p)
+const tmp<volScalarField> varSatPoroHydraulicModel::kEff(const volScalarField &p) const
 {
     return k() * kr(p);
 }
 
-const tmp<surfaceScalarField> varSatPoroHydraulicModel::kEfff(const volScalarField &p)
+const tmp<surfaceScalarField> varSatPoroHydraulicModel::kEfff(const volScalarField &p) const
 {
     // The variably saturated face mobility is the saturated face conductivity
     // scaled by the interpolated relative conductivity.
     return kf()*fvc::interpolate(this->kr(p));
 }
 
-tmp<volScalarField> varSatPoroHydraulicModel::kr(const volScalarField &p)
+tmp<volScalarField> varSatPoroHydraulicModel::kr(const volScalarField &p) const
 {
     tmp<volScalarField> tkr
     (
@@ -202,7 +202,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::kr(const volScalarField &p)
     return tkr;
 }
 
-tmp<volScalarField> varSatPoroHydraulicModel::S(const volScalarField &p)
+tmp<volScalarField> varSatPoroHydraulicModel::S(const volScalarField &p) const
 {
     tmp<volScalarField> tS
     (
@@ -244,7 +244,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::S(const volScalarField &p)
     return tS;
 }
 
-tmp<volScalarField> varSatPoroHydraulicModel::C(const volScalarField &p)
+tmp<volScalarField> varSatPoroHydraulicModel::C(const volScalarField &p) const
 {
     tmp<volScalarField> tC
     (
