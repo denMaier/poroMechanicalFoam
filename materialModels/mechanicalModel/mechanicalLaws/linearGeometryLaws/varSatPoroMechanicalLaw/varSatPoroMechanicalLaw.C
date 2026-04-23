@@ -157,6 +157,19 @@ Foam::varSatPoroMechanicalLaw::~varSatPoroMechanicalLaw()
 
 Foam::tmp<Foam::volScalarField> Foam::varSatPoroMechanicalLaw::rho() const
 {
+    if
+    (
+        !readFromDisk_
+     && (
+            !baseMesh().foundObject<volScalarField>("S")
+         || !baseMesh().foundObject<volScalarField>("n")
+         || !mesh().time().foundObject<varSatPoroHydraulicModel>("poroHydraulicModel")
+        )
+    )
+    {
+        return mechanicalLaw::rho();
+    }
+
     //- Select water density to use
     const dimensionedScalar rhow = readFromDisk_
                                     ? rho_water

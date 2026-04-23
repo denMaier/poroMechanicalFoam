@@ -114,11 +114,9 @@ namespace Foam
             // Update total pore pressure
             p() = p_rgh() + poroHydraulic().p_Hyd();
 
-            // Now that p is initalized we can initalize these object:
-            {
-                const tmp<volScalarField> tS(poroHydraulic().S(p()));
-                SPtr_.reset(new volScalarField(tS()));
-            }
+            // Initialize through S() so the field is registered in the
+            // objectRegistry for coupled solid/material-law lookups.
+            S() = poroHydraulic().S(p());
 
             // Initialize iteration control
             iterCtrl();
