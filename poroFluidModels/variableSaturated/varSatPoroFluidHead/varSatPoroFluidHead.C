@@ -128,11 +128,9 @@ namespace Foam
 
             p() = pHead_ * poroHydraulic().magGamma();
 
-            // Now that p is initalized we can initalize these object:
-            {
-                const tmp<volScalarField> tS(poroHydraulic().S(pHead_));
-                SPtr_.reset(new volScalarField(tS()));
-            }
+            // Initialize through S() so the field is registered in the
+            // objectRegistry for coupled solid/material-law lookups.
+            S() = poroHydraulic().S(pHead_);
 
             // Initialize iteration control
             iterCtrl();
