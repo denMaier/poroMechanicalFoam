@@ -7,6 +7,7 @@
 #include "varSatPoroMechanicalLawTerms.H"
 #include "residualOperation.H"
 #include "deltaVf.H"
+#include "iterationControl.H"
 
 using namespace Foam;
 
@@ -542,6 +543,77 @@ void testDeltaVfResiduals(fvMesh& mesh)
     checkNear("deltaVf vector residual tracks magnitude delta", vectorResidual.calcResidual(), 7.0);
 }
 
+void testIterationControlDictionary(fvMesh& mesh)
+{
+    Time& runTime = const_cast<Time&>(mesh.time());
+
+    dictionary futureDict
+    (
+        IStringStream
+        (
+            "enabled true;"
+            "timeStart 100;"
+            "iterations 5;"
+        )()
+    );
+
+    iterationControl inactiveControl(runTime, futureDict, "futureLoop");
+
+    checkNear("iterationControl disables future time window", inactiveControl.nCycles(), 0);
+    checkTrue("iterationControl future window is inactive", !inactiveControl.status());
+
+    volScalarField trackedControl
+    (
+        IOobject("trackedControlDelta", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("trackedControlDelta", dimLength, 1.0),
+        "zeroGradient"
+    );
+
+    dictionary activeDict
+    (
+        IStringStream
+        (
+            "enabled true;"
+            "iterations 4;"
+            "interval 2;"
+            "infoFrequency 1000;"
+            "writeResidualField false;"
+            "convergence"
+            "{"
+            "    trackedControlDelta max 1e-9;"
+            "}"
+        )()
+    );
+
+    iterationControl activeControl(runTime, activeDict, "activeLoop");
+
+    checkNear("iterationControl reads iteration count", activeControl.nCycles(), 4);
+    checkNear("iterationControl reads loop interval", activeControl.interval(), 2);
+    checkTrue("iterationControl detects active status", activeControl.status());
+    checkTrue
+    (
+        "iterationControl does not require mass balance for field residual",
+        !activeControl.requiresMassBalanceResidual()
+    );
+    checkNear("iterationControl creates one residual", activeControl.residuals().size(), 1);
+    checkNear
+    (
+        "iterationControl residual first call stores baseline",
+        activeControl.residuals()[0].calcResidual(),
+        0.0
+    );
+
+    trackedControl = dimensionedScalar("trackedControlDelta", dimLength, 3.25);
+
+    checkNear
+    (
+        "iterationControl residual uses configured delta field",
+        activeControl.residuals()[0].calcResidual(),
+        2.25
+    );
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -888,6 +960,7 @@ int main(int argc, char *argv[])
     testFvOptionMatrixAssembly(mesh);
     testResidualOperations();
     testDeltaVfResiduals(mesh);
+    testIterationControlDictionary(mesh);
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);
