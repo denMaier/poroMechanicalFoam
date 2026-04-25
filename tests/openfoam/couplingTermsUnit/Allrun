@@ -51,6 +51,7 @@ divSchemes
     default none;
     div(U) Gauss linear;
     div(affineU) Gauss linear;
+    div(lifecycleAffineU) Gauss linear;
 }
 
 laplacianSchemes

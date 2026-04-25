@@ -187,6 +187,109 @@ void testVarSatWeightingDecision(const fvMesh& mesh)
     );
 }
 
+void testCouplingFieldLifecycle(fvMesh& mesh)
+{
+    volScalarField explicitCoeff
+    (
+        IOobject("lifecycleExplicitCoeff", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("lifecycleExplicitCoeff", dimless, 0.2),
+        "zeroGradient"
+    );
+
+    volScalarField stabilCoeff
+    (
+        IOobject("lifecycleStabilCoeff", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("lifecycleStabilCoeff", dimless, 0.8),
+        "zeroGradient"
+    );
+
+    volScalarField impK
+    (
+        IOobject("lifecycleImpK", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("lifecycleImpK", dimPressure, 2.0e5),
+        "zeroGradient"
+    );
+
+    volVectorField U
+    (
+        IOobject("lifecycleAffineU", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedVector("lifecycleAffineU", dimVelocity, Zero),
+        "calculated"
+    );
+
+    forAll(U, cellI)
+    {
+        U[cellI] = mesh.C()[cellI];
+    }
+    forAll(U.boundaryField(), patchI)
+    {
+        U.boundaryFieldRef()[patchI] == mesh.Cf().boundaryField()[patchI];
+    }
+
+    autoPtr<volScalarField> nDotField;
+    autoPtr<volScalarField> fixedStressField;
+
+    poroCouplingTerms::updateCouplingFields
+    (
+        explicitCoeff,
+        stabilCoeff,
+        impK,
+        U,
+        nDotField,
+        fixedStressField
+    );
+
+    objectRegistry& registry =
+        const_cast<objectRegistry&>(static_cast<const objectRegistry&>(mesh));
+    const volScalarField* firstNDotPtr = &nDotField();
+
+    checkTrue("coupling lifecycle creates nDot", nDotField.valid());
+    checkTrue("coupling lifecycle creates fixedStress", fixedStressField.valid());
+    checkTrue("coupling lifecycle registers nDot", registry.foundObject<volScalarField>("nDot"));
+    checkTrue
+    (
+        "coupling lifecycle registry owns nDot instance",
+        &registry.lookupObject<volScalarField>("nDot") == firstNDotPtr
+    );
+    checkNear("coupling lifecycle first nDot uses explicit coeff", nDotField()[0], 0.6);
+    checkNear("coupling lifecycle first fixedStress uses stabil coeff", fixedStressField()[0], 3.2e-6);
+
+    explicitCoeff = dimensionedScalar("updatedExplicitCoeff", dimless, 0.5);
+    stabilCoeff = dimensionedScalar("updatedStabilCoeff", dimless, 0.4);
+
+    forAll(U, cellI)
+    {
+        U[cellI] = 2.0*mesh.C()[cellI];
+    }
+    forAll(U.boundaryField(), patchI)
+    {
+        U.boundaryFieldRef()[patchI] == 2.0*mesh.Cf().boundaryField()[patchI];
+    }
+
+    poroCouplingTerms::updateCouplingFields
+    (
+        explicitCoeff,
+        stabilCoeff,
+        impK,
+        U,
+        nDotField,
+        fixedStressField
+    );
+
+    checkTrue("coupling lifecycle reuses nDot field", &nDotField() == firstNDotPtr);
+    checkTrue
+    (
+        "coupling lifecycle registry still points at nDot",
+        &registry.lookupObject<volScalarField>("nDot") == firstNDotPtr
+    );
+    checkNear("coupling lifecycle updates nDot in place", nDotField()[0], 3.0);
+    checkNear("coupling lifecycle updates fixedStress from stabil coeff", fixedStressField()[0], 8.0e-7);
+}
+
 void testRelativeAccelerationFlux(const fvMesh& mesh)
 {
     surfaceScalarField kf
@@ -279,6 +382,49 @@ void testFvOptionCouplingRates(const fvMesh& mesh)
         "fvOption explicit rate keeps source dimensions",
         tExplicitRate().dimensions() == explicitSource.dimensions()
     );
+}
+
+void testFvOptionMatrixAssembly(const fvMesh& mesh)
+{
+    volScalarField p
+    (
+        IOobject("matrixAssemblyP", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("matrixAssemblyP", dimPressure, 10.0),
+        "zeroGradient"
+    );
+
+    volScalarField implicitCoeff
+    (
+        IOobject("matrixImplicitCoeff", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("matrixImplicitCoeff", dimless/dimPressure, 8.0e-7),
+        "zeroGradient"
+    );
+
+    volScalarField explicitSource
+    (
+        IOobject("matrixExplicitSource", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("matrixExplicitSource", dimless/dimTime, 1.75),
+        "zeroGradient"
+    );
+
+    fvScalarMatrix eqn(p, dimVol/dimTime);
+    const dimensionedScalar deltaT("matrixDeltaT", dimTime, 0.25);
+
+    poroCouplingTerms::addCouplingSource
+    (
+        eqn,
+        p,
+        implicitCoeff,
+        explicitSource,
+        deltaT
+    );
+
+    checkNear("fvOption matrix diagonal gets implicit rate", eqn.diag()[0], 3.2e-6);
+    checkNear("fvOption matrix source gets negative explicit rate", eqn.source()[0], 1.75);
+    checkTrue("fvOption matrix dimensions are volume per time", eqn.dimensions() == dimVol/dimTime);
 }
 
 void testSharedRegistryRegistration(fvMesh& mesh)
@@ -520,9 +666,11 @@ int main(int argc, char *argv[])
     testNDotRigidTranslation(mesh);
     testFixedStressStabil(mesh);
     testVarSatWeightingDecision(mesh);
+    testCouplingFieldLifecycle(mesh);
     testRelativeAccelerationFlux(mesh);
     testExplicitCouplingSourceSign(mesh);
     testFvOptionCouplingRates(mesh);
+    testFvOptionMatrixAssembly(mesh);
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);

@@ -87,26 +87,16 @@ void Foam::fv::poroSolidToFluidCouplingSource::addSup
     // Get poroSold base class, so we can get the coupling terms from it
     const auto& interface = mesh_.thisDb().parent().lookupObject<poroSolidInterface>(interfaceName_,true);
     const tmp<volScalarField> tImplicitCoupling(interface.implicitCouplingDtoP());
-    const tmp<volScalarField> tImplicitRate
-    (
-        poroCouplingTerms::implicitCouplingRate
-        (
-            tImplicitCoupling(),
-            mesh_.time().deltaT()
-        )
-    );
-
-    // Fixed Stress coefficient, added to the diagonal (Sp part)
-    // and RHS with last iteration values(Su part)
-    eqn += fvm::SuSp(tImplicitRate(), interface.pField());
-
-    // Explicit coupling (doesnt depend on p, so no implicit parts possible)
     const tmp<volScalarField> tExplicitCoupling(interface.explicitCouplingDtoP());
-    const tmp<volScalarField> tExplicitRate
+
+    poroCouplingTerms::addCouplingSource
     (
-        poroCouplingTerms::explicitCouplingRate(tExplicitCoupling())
+        eqn,
+        interface.pField(),
+        tImplicitCoupling(),
+        tExplicitCoupling(),
+        mesh_.time().deltaT()
     );
-    eqn += fvm::Su(tExplicitRate(), interface.pField());
 }
 
 void Foam::fv::poroSolidToFluidCouplingSource::addSup

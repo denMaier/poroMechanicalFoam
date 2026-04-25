@@ -12,9 +12,13 @@
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "tmp.H"
+#include "autoPtr.H"
 
 namespace Foam
 {
+template<class Type>
+class fvMatrix;
+
 namespace poroCouplingTerms
 {
     tmp<volScalarField> nDot
@@ -27,6 +31,16 @@ namespace poroCouplingTerms
     (
         const volScalarField& biotCoeff,
         const volScalarField& impK
+    );
+
+    void updateCouplingFields
+    (
+        const volScalarField& explicitCouplingCoeff,
+        const volScalarField& stabilCouplingCoeff,
+        const volScalarField& impK,
+        const volVectorField& U,
+        autoPtr<volScalarField>& nDotField,
+        autoPtr<volScalarField>& fixedStressStabilField
     );
 
     tmp<surfaceVectorField> relativeAccelerationFlux
@@ -51,6 +65,15 @@ namespace poroCouplingTerms
     tmp<volScalarField> explicitCouplingRate
     (
         const volScalarField& explicitSource
+    );
+
+    void addCouplingSource
+    (
+        fvMatrix<scalar>& eqn,
+        const volScalarField& pField,
+        const volScalarField& implicitCoupling,
+        const volScalarField& explicitCoupling,
+        const dimensionedScalar& deltaT
     );
 }
 }

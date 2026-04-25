@@ -8,6 +8,8 @@
 
 #include "poroCouplingTerms.H"
 #include "fvc.H"
+#include "fvMatrices.H"
+#include "fvmSup.H"
 
 Foam::tmp<Foam::volScalarField> Foam::poroCouplingTerms::nDot
 (
@@ -62,6 +64,44 @@ Foam::tmp<Foam::volScalarField> Foam::poroCouplingTerms::fixedStressStabil
     );
 
     return tStabil;
+}
+
+void Foam::poroCouplingTerms::updateCouplingFields
+(
+    const volScalarField& explicitCouplingCoeff,
+    const volScalarField& stabilCouplingCoeff,
+    const volScalarField& impK,
+    const volVectorField& U,
+    autoPtr<volScalarField>& nDotField,
+    autoPtr<volScalarField>& fixedStressStabilField
+)
+{
+    if(!nDotField.valid())
+    {
+        tmp<volScalarField> tnDot(nDot(explicitCouplingCoeff, U));
+        nDotField.reset(tnDot.ptr());
+
+        if
+        (
+            !nDotField().mesh().objectRegistry::foundObject<volScalarField>
+            (
+                nDotField().name()
+            )
+        )
+        {
+            nDotField().mesh().objectRegistry::checkIn(nDotField());
+        }
+    }
+    else
+    {
+        nDotField.ref() = nDot(explicitCouplingCoeff, U);
+    }
+
+    const tmp<volScalarField> tStabil
+    (
+        fixedStressStabil(stabilCouplingCoeff, impK)
+    );
+    fixedStressStabilField.reset(new volScalarField(tStabil()));
 }
 
 Foam::tmp<Foam::surfaceVectorField>
@@ -128,6 +168,30 @@ Foam::tmp<Foam::volScalarField> Foam::poroCouplingTerms::explicitCouplingRate
             -explicitSource
         )
     );
+}
+
+void Foam::poroCouplingTerms::addCouplingSource
+(
+    fvMatrix<scalar>& eqn,
+    const volScalarField& pField,
+    const volScalarField& implicitCoupling,
+    const volScalarField& explicitCoupling,
+    const dimensionedScalar& deltaT
+)
+{
+    const tmp<volScalarField> tImplicitRate
+    (
+        implicitCouplingRate(implicitCoupling, deltaT)
+    );
+
+    eqn += fvm::SuSp(tImplicitRate(), pField);
+
+    const tmp<volScalarField> tExplicitRate
+    (
+        explicitCouplingRate(explicitCoupling)
+    );
+
+    eqn += fvm::Su(tExplicitRate(), pField);
 }
 
 // ************************************************************************* //

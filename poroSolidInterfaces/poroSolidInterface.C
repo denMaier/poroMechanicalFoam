@@ -90,29 +90,15 @@ void Foam::poroSolidInterface::updateCouplingTerms
     autoPtr<volScalarField>& fixedStressStabilField
 ) const
 {
-    if(!nDotField.valid())
-    {
-        tmp<volScalarField> tnDot(nDot(couplingCoeff, U));
-        nDotField.reset(tnDot.ptr());
-
-        if
-        (
-            !nDotField().mesh().objectRegistry::foundObject<volScalarField>
-            (
-                nDotField().name()
-            )
-        )
-        {
-            nDotField().mesh().objectRegistry::checkIn(nDotField());
-        }
-    }
-    else
-    {
-        nDotField.ref() = nDot(couplingCoeff, U);
-    }
-
-    const tmp<volScalarField> tStabil(fixedStressStabil(b(), impK));
-    fixedStressStabilField.reset(new volScalarField(tStabil()));
+    poroCouplingTerms::updateCouplingFields
+    (
+        couplingCoeff,
+        b(),
+        impK,
+        U,
+        nDotField,
+        fixedStressStabilField
+    );
 }
 
 void Foam::poroSolidInterface::mapPressuresToSolidMesh
