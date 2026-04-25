@@ -4,7 +4,8 @@ cd "${0%/*}" || exit 1
 set -e
 
 testCase="${TMPDIR:-/tmp}/poroMechanicalFoam-varSatPoroSolidInterfaceUnit-$$"
-trap 'rm -rf "$testCase"' EXIT
+badFluidCase="${TMPDIR:-/tmp}/poroMechanicalFoam-varSatPoroSolidInterfaceUnit-badFluid-$$"
+trap 'rm -rf "$testCase" "$badFluidCase"' EXIT
 
 mkdir -p \
     "$testCase/system/solid" \
@@ -401,3 +402,92 @@ openfoamArchLib="${WM_PROJECT_DIR}/platforms/$WM_OPTIONS/lib"
 export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$openfoamArchLib:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
 export LD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$openfoamArchLib:$WM_PROJECT_DIR/env/lib:${LD_LIBRARY_PATH:-}"
 varSatPoroSolidInterfaceUnit -case "$testCase"
+
+set +e
+explicitBeforeAssembleOutput=$(varSatPoroSolidInterfaceUnit -case "$testCase" -explicit-before-assemble 2>&1)
+explicitBeforeAssembleStatus=$?
+set -e
+
+if [ "$explicitBeforeAssembleStatus" -eq 0 ]; then
+    echo "Expected explicit coupling access before assembly to fail, but it succeeded."
+    exit 1
+fi
+
+case "$explicitBeforeAssembleOutput" in
+    *"Explicit coupling term nDot is not initialized"*)
+        echo "PASS explicit coupling rejects access before assembly"
+        ;;
+    *)
+        echo "$explicitBeforeAssembleOutput"
+        echo "Explicit coupling before assembly failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
+
+set +e
+implicitBeforeAssembleOutput=$(varSatPoroSolidInterfaceUnit -case "$testCase" -implicit-before-assemble 2>&1)
+implicitBeforeAssembleStatus=$?
+set -e
+
+if [ "$implicitBeforeAssembleStatus" -eq 0 ]; then
+    echo "Expected implicit coupling access before assembly to fail, but it succeeded."
+    exit 1
+fi
+
+case "$implicitBeforeAssembleOutput" in
+    *"Implicit coupling term fixedStressStabil is not initialized"*)
+        echo "PASS implicit coupling rejects access before assembly"
+        ;;
+    *)
+        echo "$implicitBeforeAssembleOutput"
+        echo "Implicit coupling before assembly failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
+
+cp -R "$testCase" "$badFluidCase"
+
+cat > "$badFluidCase/constant/poroFluid/poroFluidProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroFluidProperties;
+}
+
+poroFluidModel poroFluid;
+
+poroFluidCoeffs
+{
+    enabled true;
+    iterations 1;
+    infoFrequency 1;
+
+    convergence
+    {
+        p_rgh max 1e-12;
+    }
+}
+EOF
+
+set +e
+badFluidOutput=$(varSatPoroSolidInterfaceUnit -case "$badFluidCase" 2>&1)
+badFluidStatus=$?
+set -e
+
+if [ "$badFluidStatus" -eq 0 ]; then
+    echo "Expected varSatPoroSolid with saturated poroFluid to fail, but it succeeded."
+    exit 1
+fi
+
+case "$badFluidOutput" in
+    *"not suitable for variably saturated calculations"*)
+        echo "PASS varSatPoroSolid rejects saturated poroFluid"
+        ;;
+    *)
+        echo "$badFluidOutput"
+        echo "varSatPoroSolid saturated poroFluid failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac

@@ -144,6 +144,11 @@ Tested code:
   - accelerating displacement adds a transient source.
   - `afterFluidSolve()` clears the transient acceleration contribution while
     keeping the `nDot` and implicit DTO terms available.
+- `Allrun` fatal-path coverage:
+  - explicit and implicit DTO access before coupling-term assembly fails with
+    the intended diagnostics.
+  - `varSatPoroSolid` rejects a saturated `poroFluid` configuration before
+    running with an invalid variably saturated coupling setup.
 
 Low-value or tautological candidates:
 
@@ -238,6 +243,10 @@ Low-value or tautological candidates:
 - Re-assembly checks proving saturation changes update explicit coupling while
   implicit stabilization remains saturation-independent.
 - Fatal-path checks in `couplingTermsUnit/Allrun`.
+- Fatal-path check that `varSatPoroSolid` rejects the saturated `poroFluid`
+  model.
+- Fatal-path checks that unassembled explicit and implicit coupling DTOs cannot
+  be consumed.
 - Disk reread-on-time-index-change and field-registration idempotence checks.
 
 ## Suggested Cleanup Priority

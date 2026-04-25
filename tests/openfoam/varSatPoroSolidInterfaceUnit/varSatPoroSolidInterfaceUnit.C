@@ -553,10 +553,38 @@ void testVarSatAccelerationTransferAndAfterFluidHook(TestVarSatPoroSolid& coupli
 
 int main(int argc, char *argv[])
 {
+    argList::addBoolOption
+    (
+        "explicit-before-assemble",
+        "Run the expected uninitialized explicit coupling failure path"
+    );
+    argList::addBoolOption
+    (
+        "implicit-before-assemble",
+        "Run the expected uninitialized implicit coupling failure path"
+    );
+
     #include "setRootCase.H"
     #include "createTime.H"
 
     TestVarSatPoroSolid coupling(runTime);
+
+    if (args.found("explicit-before-assemble"))
+    {
+        coupling.explicitCouplingDtoP();
+        FatalErrorInFunction
+            << "explicit-before-assemble test unexpectedly completed"
+            << exit(FatalError);
+    }
+
+    if (args.found("implicit-before-assemble"))
+    {
+        coupling.implicitCouplingDtoP();
+        FatalErrorInFunction
+            << "implicit-before-assemble test unexpectedly completed"
+            << exit(FatalError);
+    }
+
     testVarSatSharedMeshRegistration(coupling);
     testVarSatSharedMeshCoupling(coupling);
     testVarSatFvOptionTransfersInterfaceTerms(coupling);
