@@ -10,6 +10,7 @@
 #include "iterationControl.H"
 #include "LinearSolverRes.H"
 #include "SolverPerformance.H"
+#include "MassBalanceTerms.H"
 
 using namespace Foam;
 
@@ -688,6 +689,43 @@ void testLinearSolverResiduals(fvMesh& mesh)
     mesh.data().solverPerformanceDict().clear();
 }
 
+void testMassBalanceTerms(const fvMesh& mesh)
+{
+    volScalarField massBalance
+    (
+        IOobject("unitMassBalanceResidual", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("unitMassBalanceResidual", dimVolume, 4.0),
+        "zeroGradient"
+    );
+
+    massBalance.oldTime();
+    massBalance.storeOldTime();
+    massBalance = dimensionedScalar("unitMassBalanceResidual", dimVolume, -1.0);
+
+    const scalarField absoluteResidual
+    (
+        MassBalanceTerms::residualValues(massBalance, false)
+    );
+    const scalarField relativeResidual
+    (
+        MassBalanceTerms::residualValues(massBalance, true)
+    );
+
+    checkNear("MassBalance absolute residual uses magnitude", absoluteResidual[0], 1.0);
+    checkNear("MassBalance relative residual uses stored old-time denominator", relativeResidual[0], 0.25);
+
+    massBalance.storeOldTime();
+    massBalance = dimensionedScalar("unitMassBalanceResidual", dimVolume, 0.0);
+
+    const scalarField zeroRelativeResidual
+    (
+        MassBalanceTerms::residualValues(massBalance, true)
+    );
+
+    checkNear("MassBalance zero relative residual stays zero", zeroRelativeResidual[0], 0.0);
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -1036,6 +1074,7 @@ int main(int argc, char *argv[])
     testDeltaVfResiduals(mesh);
     testIterationControlDictionary(mesh);
     testLinearSolverResiduals(mesh);
+    testMassBalanceTerms(mesh);
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);

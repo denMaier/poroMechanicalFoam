@@ -18,6 +18,7 @@ EXE_INC = \
     -I../../../iterationControls/iterationResidual \
     -I../../../iterationControls/iterationResidual/deltaVf \
     -I../../../iterationControls/iterationResidual/LinearSolverRes \
+    -I../../../iterationControls/iterationResidual/MassBalance \
     -I../../../iterationControls/iterationControl \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels \

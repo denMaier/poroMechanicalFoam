@@ -24,6 +24,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "MassBalance.H"
+#include "MassBalanceTerms.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
 
@@ -103,15 +104,10 @@ Foam::scalar Foam::MassBalance::calcResidual()
         makeMassBalanceRef();
     }
 
-    tmp<scalarField> tMassBalanceInternal = mag(MassBalance_->primitiveField());
-    scalarField MassBalanceInternal(tMassBalanceInternal());
-    if(relative_)
-    {
-        dimensionedScalar dimensionedSmall("", MassBalance_->dimensions(), SMALL);
-        MassBalanceInternal =
-            mag(MassBalanceInternal)
-          / max(MassBalance_->oldTime(), dimensionedSmall)().primitiveField();
-    }
+    const scalarField MassBalanceInternal
+    (
+        MassBalanceTerms::residualValues(*MassBalance_, relative_)
+    );
 
     residual_ = operation(MassBalanceInternal);
     return residual_;
@@ -124,7 +120,9 @@ void Foam::MassBalance::reset()
         makeMassBalanceRef();
     }
 
-    const_cast<volScalarField&>(*MassBalance_).storeOldTime();
+    volScalarField& massBalance = const_cast<volScalarField&>(*MassBalance_);
+    massBalance.oldTime();
+    massBalance.storeOldTime();
     residual_ = GREAT;
 }
 
