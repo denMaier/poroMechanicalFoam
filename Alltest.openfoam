@@ -1,0 +1,61 @@
+#!/bin/bash
+cd ${0%/*} || exit 1
+
+set -e
+
+OPENFOAM_DIR="${OPENFOAM_DIR:-/Volumes/OpenFOAM-v2512}"
+OPENFOAM_BASHRC="$OPENFOAM_DIR/etc/bashrc"
+
+if [ ! -f "$OPENFOAM_BASHRC" ]; then
+    echo "OpenFOAM bashrc not found: $OPENFOAM_BASHRC"
+    echo "Set OPENFOAM_DIR=/path/to/OpenFOAM-v2412-or-v2512 and rerun $0."
+    exit 1
+fi
+
+source "$OPENFOAM_BASHRC"
+
+if [[ "$WM_PROJECT_VERSION" != "v2412" && "$WM_PROJECT_VERSION" != "v2512" ]]; then
+    echo "Unsupported OpenFOAM version: WM_PROJECT_VERSION=$WM_PROJECT_VERSION"
+    echo "poroMechanicalFoam currently supports OpenFOAM v2412 and v2512."
+    exit 1
+fi
+
+if ! command -v wmake >/dev/null 2>&1; then
+    echo "wmake is not available after sourcing $OPENFOAM_BASHRC."
+    exit 1
+fi
+
+run_build=false
+run_unit=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --build)
+            run_build=true
+            ;;
+        --unit)
+            run_unit=true
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            echo "Usage: $0 [--build] [--unit]"
+            exit 1
+            ;;
+    esac
+done
+
+echo "OpenFOAM environment: $WM_PROJECT $WM_PROJECT_VERSION at $WM_PROJECT_DIR"
+./Alltest
+
+if [ "$run_build" = true ]; then
+    ./Allwmake
+else
+    echo "Build smoke skipped. Run $0 --build to compile with this OpenFOAM environment."
+fi
+
+if [ "$run_unit" = true ]; then
+    tests/openfoam/hydraulicModelUnit/Allrun
+    tests/openfoam/couplingTermsUnit/Allrun
+else
+    echo "OpenFOAM unit tests skipped. Run $0 --unit to build and run focused model tests."
+fi

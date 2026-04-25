@@ -51,9 +51,14 @@ namespace Foam
 
         scalar vanGenuchten::krFunc(const scalar p, const scalar Hk, const scalar mk)
         {
+            if (p >= 0)
+            {
+                return 1.0;
+            }
+
             return max
             (
-                neg(p) * sqrt(Hk) * pow(pow(1 - pow(Hk, 1.0 / mk), mk) - 1, 2) + pos(p),
+                sqrt(Hk) * pow(pow(1 - pow(Hk, 1.0 / mk), mk) - 1, 2),
                 ROOTVSMALL
             );
         }
@@ -66,8 +71,13 @@ namespace Foam
             const scalar alphaH
         )
         {
+            if (p >= 0)
+            {
+                return 1.0;
+            }
+
             scalar pTilda = max(mag(p),SMALL);
-            return neg(p) * pow(1.0 + pow(alphaH * mag(pTilda), nH), -mH) + pos(p);
+            return pow(1.0 + pow(alphaH * mag(pTilda), nH), -mH);
         }
 
         // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //

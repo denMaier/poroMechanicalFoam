@@ -31,6 +31,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "mechanicalModel.H"
 #include "iterationControl.H"
+#include "poroCouplingTerms.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -163,15 +164,7 @@ namespace Foam
         //  contribution is the required -q_relAcc.
         tmp<surfaceVectorField> poroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& a)
         {
-            tmp<surfaceVectorField> tq
-            (
-                new surfaceVectorField
-                (
-                    "q_relAcc",
-                    kf * fvc::interpolate(a/mag(poroFluid().g()))
-                )
-            );
-            return tq;
+            return poroCouplingTerms::relativeAccelerationFlux(kf, a, mag(poroFluid().g()));
         }
 
         // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -211,10 +204,7 @@ namespace Foam
                     // continuity as -div(q_relAcc).
                     return tmp<volScalarField>
                     (
-                        new volScalarField
-                        (
-                            nDot_() - fvc::div(poroFluidMesh().Sf() & q_relAcc_())
-                        )
+                        poroCouplingTerms::explicitCouplingSource(nDot_(), q_relAcc_()).ptr()
                     );
                 }
 

@@ -103,7 +103,8 @@ Foam::scalar Foam::MassBalance::calcResidual()
         makeMassBalanceRef();
     }
 
-    scalarField MassBalanceInternal = mag(MassBalance_->primitiveField());
+    tmp<scalarField> tMassBalanceInternal = mag(MassBalance_->primitiveField());
+    scalarField MassBalanceInternal(tMassBalanceInternal());
     if(relative_)
     {
         dimensionedScalar dimensionedSmall("", MassBalance_->dimensions(), SMALL);

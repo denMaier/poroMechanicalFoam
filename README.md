@@ -40,6 +40,39 @@ For user-facing usage instructions, see
 For repository structure, build targets, runtime architecture, and extension
 points, see the maintainer reference:
 [`docs/REPOSITORY_DOCUMENTATION.md`](docs/REPOSITORY_DOCUMENTATION.md).
+
+## Tests
+Run the lightweight repository test suite with:
+```
+./Alltest
+```
+
+These tests use Python's standard-library `unittest` runner and do not require a
+sourced OpenFOAM environment. They check build manifests, runtime-selection
+registration consistency, and case-template dictionary wiring.
+
+To verify the local OpenFOAM environment before a build, run:
+```
+./Alltest.openfoam
+```
+
+This sources `${OPENFOAM_DIR:-/Volumes/OpenFOAM-v2512}/etc/bashrc`, checks that
+`wmake` is available, and then runs the lightweight tests. To run focused
+OpenFOAM unit tests for hydraulic constitutive models, run:
+```
+./Alltest.openfoam --unit
+```
+
+The OpenFOAM unit tests compile small test executables on generated meshes. They
+instantiate the real runtime-selected hydraulic model classes and also exercise
+shared coupling-term code used by `poroSolidInterface`, `poroSolid`, and
+`varSatPoroSolid`: deformation-to-flow `nDot`, fixed-stress stabilization,
+solid-acceleration flux scaling, and the sign of the explicit acceleration
+source. To compile the full project through the same environment, run:
+```
+./Alltest.openfoam --build
+```
+
 ## Contributing
 We welcome contributions to poroMechanicalFoam! If you'd like to contribute, please follow these steps:
 1. Fork the repository

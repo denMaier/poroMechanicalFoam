@@ -1,6 +1,9 @@
 
 
 poroSolidInterfaces/poroSolidToFluidCouplingSource/poroSolidToFluidCouplingSource.C
+poroSolidInterfaces/poroCouplingTerms.C
+poroSolidInterfaces/poroCouplingRegistry.C
+poroSolidInterfaces/poroPressureUnits.C
 
 poroFluidModels/poroFluidModel.C
 poroFluidModels/poroFluid/poroFluid.C

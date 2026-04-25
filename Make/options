@@ -27,6 +27,7 @@ EXE_INC = \
     -I$(LIB_SRC)/sampling/lnInclude \
     -I$(LIB_SRC)/ODE/lnInclude \
     -I$(LIB_SRC)/fvOptions/lnInclude \
+    -IporoSolidInterfaces \
     -ImaterialModels/poroHydraulicModel/lnInclude \
     -I$(S4F_SRC)/solids4FoamModels/lnInclude
 

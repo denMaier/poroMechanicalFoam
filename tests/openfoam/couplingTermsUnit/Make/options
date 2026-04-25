@@ -1,0 +1,24 @@
+FOAM_EXTRA_CXXFLAGS += -std=c++17
+
+VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
+    -DOPENFOAMESIORFOUNDATION \
+    -DOPENFOAMESI \
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
+
+EXE_INC = \
+    $(VERSION_SPECIFIC_INC) \
+    -I../../../poroSolidInterfaces \
+    -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels \
+    -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/terzaghi \
+    -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/bishop \
+    -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/suctionCutOff \
+    -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/niemunis \
+    -I../../../materialModels/poroHydraulicModel/lnInclude \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude
+
+EXE_LIBS = \
+    -lfiniteVolume \
+    -lmeshTools

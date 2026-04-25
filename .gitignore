@@ -127,7 +127,18 @@ etc/pref.sh
 # make sure that this settings file is not used
 etc/bashrc.preset
 
-#Test-Harness generated stuff
+# Test-harness generated stuff
+tests/openfoam/materialModels/
+tests/openfoam/poroSolidInterfaces/
+tests/openfoam/**/Make/*Clang*/
+tests/openfoam/**/Make/*Gcc*/
+tests/openfoam/**/Make/*Intel*/
+tests/openfoam/**/Make/linux*/
+tests/openfoam/**/Make/darwin*/
+tests/openfoam/**/log.*
+tests/openfoam/**/processor*/
+tests/openfoam/**/postProcessing/
+tests/openfoam/**/VTK/
 
 # The following files are blacklisted because of a DMCA complaint by ANSYS.
 src/lduSolvers/tools/PriorityArray.C

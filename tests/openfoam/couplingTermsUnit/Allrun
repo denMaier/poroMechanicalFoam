@@ -1,0 +1,179 @@
+#!/bin/bash
+cd "${0%/*}" || exit 1
+
+set -e
+
+testCase="${TMPDIR:-/tmp}/poroMechanicalFoam-couplingTermsUnit-$$"
+trap 'rm -rf "$testCase"' EXIT
+
+mkdir -p "$testCase/system" "$testCase/constant/polyMesh"
+
+cat > "$testCase/system/controlDict" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object controlDict;
+}
+
+application couplingTermsUnit;
+startFrom startTime;
+startTime 0;
+stopAt endTime;
+endTime 0;
+deltaT 1;
+writeControl timeStep;
+writeInterval 1;
+EOF
+
+cat > "$testCase/system/fvSchemes" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object fvSchemes;
+}
+
+ddtSchemes
+{
+    default steadyState;
+}
+
+gradSchemes
+{
+    default Gauss linear;
+}
+
+divSchemes
+{
+    default none;
+    div(U) Gauss linear;
+    div(affineU) Gauss linear;
+}
+
+laplacianSchemes
+{
+    default Gauss linear corrected;
+}
+
+interpolationSchemes
+{
+    default linear;
+}
+
+snGradSchemes
+{
+    default corrected;
+}
+EOF
+
+cat > "$testCase/system/fvSolution" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object fvSolution;
+}
+EOF
+
+cat > "$testCase/constant/polyMesh/blockMeshDict" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object blockMeshDict;
+}
+
+scale 1;
+
+vertices
+(
+    (0 0 0)
+    (1 0 0)
+    (1 1 0)
+    (0 1 0)
+    (0 0 1)
+    (1 0 1)
+    (1 1 1)
+    (0 1 1)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (1 1 1) simpleGrading (1 1 1)
+);
+
+edges ();
+
+boundary
+(
+    walls
+    {
+        type wall;
+        faces
+        (
+            (0 4 7 3)
+            (1 2 6 5)
+            (0 1 5 4)
+            (3 7 6 2)
+            (0 3 2 1)
+            (4 5 6 7)
+        );
+    }
+);
+EOF
+
+echo "Building couplingTermsUnit"
+wmake
+
+echo "Creating coupling unit-test mesh: $testCase"
+blockMesh -case "$testCase" >/dev/null
+
+export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
+couplingTermsUnit -case "$testCase"
+
+set +e
+headMissingGammaOutput=$(couplingTermsUnit -case "$testCase" -head-missing-gamma 2>&1)
+headMissingGammaStatus=$?
+set -e
+
+if [ "$headMissingGammaStatus" -eq 0 ]; then
+    echo "Expected head-based pressure unit check without gamma_water to fail, but it succeeded."
+    exit 1
+fi
+
+case "$headMissingGammaOutput" in
+    *"Head-based variably saturated coupling requires a 'gamma_water' uniform field"*)
+        echo "PASS head pressure-unit missing gamma failure"
+        ;;
+    *)
+        echo "$headMissingGammaOutput"
+        echo "Head pressure-unit missing gamma failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
+
+set +e
+conflictOutput=$(couplingTermsUnit -case "$testCase" -registry-conflict 2>&1)
+conflictStatus=$?
+set -e
+
+if [ "$conflictStatus" -eq 0 ]; then
+    echo "Expected duplicate shared-registry field check to fail, but it succeeded."
+    exit 1
+fi
+
+case "$conflictOutput" in
+    *"Target registry already contains a different volScalarField named 'conflictingP'"*)
+        echo "PASS shared registry duplicate field failure"
+        ;;
+    *)
+        echo "$conflictOutput"
+        echo "Duplicate shared-registry field failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac

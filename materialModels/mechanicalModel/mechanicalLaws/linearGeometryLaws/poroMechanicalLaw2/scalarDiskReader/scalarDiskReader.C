@@ -251,7 +251,8 @@ namespace Foam
                     << "The scalar disk reader was enabled for field '" << scalarName_
                     << "', but no volScalarField with that name was found in the "
                     << "start-time directory." << nl
-                    << "Searched case directory: " << fieldRunTime.casePath() << nl
+                    << "Searched case directory: "
+                    << fieldRunTime.rootPath()/fieldRunTime.caseName() << nl
                     << "Searched time directory: " << fieldRunTime.timePath() << nl
                     << "Either provide the field at the start time or disable the "
                     << "disk reader for uncoupled runs."

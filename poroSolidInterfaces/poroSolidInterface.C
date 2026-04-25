@@ -30,6 +30,8 @@ License
 #include "fvMatrices.H"
 #include "fvc.H"
 #include "poroMechanicalLaw2.H"
+#include "poroCouplingTerms.H"
+#include "poroCouplingRegistry.H"
 
 namespace Foam
 {
@@ -67,26 +69,7 @@ Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::nDot
     const volVectorField& U
 ) const
 {
-    const tmp<volScalarField> tDivU(fvc::div(U));
-
-    tmp<volScalarField> tnDot
-    (
-        new volScalarField
-        (
-            IOobject
-            (
-                "nDot",
-                U.mesh().time().timeName(),
-                U.mesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                true
-            ),
-            b*tDivU()
-        )
-    );
-
-    return tnDot;
+    return poroCouplingTerms::nDot(b, U);
 }
 
 Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::fixedStressStabil
@@ -95,26 +78,7 @@ Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::fixedStressStabil
     const volScalarField& impK
 ) const
 {
-    tmp<volScalarField> tStabil
-    (
-        new volScalarField
-        (
-            "fixedStressSplitCoeff",
-            min
-            (
-                pow(b,2)
-                /
-                max
-                (
-                    impK,
-                    dimensionedScalar("0", impK.dimensions(), VGREAT)
-                ),
-                dimensionedScalar("0", dimless/impK.dimensions(), VSMALL)
-            )
-        )
-    );
-
-    return tStabil;
+    return poroCouplingTerms::fixedStressStabil(b, impK);
 }
 
 void Foam::poroSolidInterface::updateCouplingTerms
@@ -191,27 +155,13 @@ void Foam::poroSolidInterface::ensureSharedSolidFieldRegistered
     objectRegistry& solidRegistry =
         const_cast<objectRegistry&>(static_cast<const objectRegistry&>(solidMesh()));
 
-    if(solidRegistry.foundObject<volScalarField>(field.name()))
-    {
-        const volScalarField& registeredField =
-            solidRegistry.lookupObject<volScalarField>(field.name());
-
-        if(&registeredField != &field)
-        {
-            FatalErrorInFunction
-                << "Solid registry already contains a different volScalarField named '"
-                << field.name() << "' while trying to expose the fluid-owned field from '"
-                << ownerRegistryName << "'" << nl
-                << "Existing object db: " << registeredField.db().name() << nl
-                << "Requested object db: " << field.db().name()
-                << exit(FatalError);
-        }
-
-        return;
-    }
-
-    solidRegistry.checkIn(field);
-    sharedSolidRegistryFieldNames_.insert(field.name());
+    poroCouplingRegistry::ensureVolScalarFieldRegistered
+    (
+        solidRegistry,
+        field,
+        ownerRegistryName,
+        sharedSolidRegistryFieldNames_
+    );
 }
 
 void Foam::poroSolidInterface::updatePorosityFromSolidDisplacement()

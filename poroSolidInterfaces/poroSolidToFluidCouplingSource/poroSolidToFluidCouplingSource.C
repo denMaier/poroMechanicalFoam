@@ -33,6 +33,7 @@ License
 #include "Constant.H"
 #include "addToRunTimeSelectionTable.H"
 #include "poroSolidInterface.H"
+#include "poroCouplingTerms.H"
 
 
 // * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * * //
@@ -85,15 +86,27 @@ void Foam::fv::poroSolidToFluidCouplingSource::addSup
 {
     // Get poroSold base class, so we can get the coupling terms from it
     const auto& interface = mesh_.thisDb().parent().lookupObject<poroSolidInterface>(interfaceName_,true);
-    // we need 1/deltaT because the source should be per unit time. the fixed stress coefficient is not per unit time.
-    auto rDeltaT = 1.0/mesh_.time().deltaT();
+    const tmp<volScalarField> tImplicitCoupling(interface.implicitCouplingDtoP());
+    const tmp<volScalarField> tImplicitRate
+    (
+        poroCouplingTerms::implicitCouplingRate
+        (
+            tImplicitCoupling(),
+            mesh_.time().deltaT()
+        )
+    );
 
     // Fixed Stress coefficient, added to the diagonal (Sp part)
     // and RHS with last iteration values(Su part)
-    eqn += fvm::SuSp(rDeltaT*interface.implicitCouplingDtoP(),interface.pField());               
+    eqn += fvm::SuSp(tImplicitRate(), interface.pField());
 
     // Explicit coupling (doesnt depend on p, so no implicit parts possible)
-    eqn -= fvm::Su(interface.explicitCouplingDtoP(),interface.pField());
+    const tmp<volScalarField> tExplicitCoupling(interface.explicitCouplingDtoP());
+    const tmp<volScalarField> tExplicitRate
+    (
+        poroCouplingTerms::explicitCouplingRate(tExplicitCoupling())
+    );
+    eqn += fvm::Su(tExplicitRate(), interface.pField());
 }
 
 void Foam::fv::poroSolidToFluidCouplingSource::addSup

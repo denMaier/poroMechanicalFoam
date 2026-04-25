@@ -31,6 +31,8 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "mechanicalModel.H"
 #include "iterationControl.H"
+#include "poroCouplingTerms.H"
+#include "poroPressureUnits.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,28 +56,7 @@ namespace Foam
                 return;
             }
 
-            if(pField().dimensions() == dimLength)
-            {
-                if(!poroFluid().foundObject<UniformDimensionedField<vector>>("gamma_water"))
-                {
-                    FatalErrorInFunction
-                        << "Head-based variably saturated coupling requires a "
-                        << "'gamma_water' uniform field once the conversion factor "
-                        << "is actually needed"
-                        << exit(FatalError);
-                }
-
-                const dimensionedVector& gammaW =
-                    poroFluid().lookupObject<UniformDimensionedField<vector>>("gamma_water");
-                magGammaW_ = mag(gammaW).value();
-                magGammaW_.dimensions() = gammaW.dimensions();
-            }
-            else if(pField().dimensions() != dimPressure)
-            {
-                FatalErrorInFunction
-                    << "pore pressure field is neither in head nor in pressure dimensions"
-                    << exit(FatalError);
-            }
+            magGammaW_ = poroPressureUnits::pressureScale(pField().dimensions(), poroFluid());
 
             magGammaWInitialized_ = true;
         }
@@ -97,8 +78,8 @@ namespace Foam
         {
             if(sharedMesh())
             {
-                ensureSharedSolidFieldRegistered(poroFluidRef().p().ref(), poroFluidMesh().name());
-                ensureSharedSolidFieldRegistered(poroFluidRef().p_rgh().ref(), poroFluidMesh().name());
+                ensureSharedSolidFieldRegistered(poroFluidRef().p(), poroFluidMesh().name());
+                ensureSharedSolidFieldRegistered(poroFluidRef().p_rgh(), poroFluidMesh().name());
                 ensureSharedSolidFieldRegistered(const_cast<volScalarField&>(saturationField()), poroFluidMesh().name());
                 ensureSharedSolidFieldRegistered(const_cast<volScalarField&>(poroFluidRef().n()), poroFluidMesh().name());
             }
@@ -299,15 +280,7 @@ namespace Foam
         //  the required -q_relAcc.
         tmp<surfaceVectorField> varSatPoroSolid::q_relAcc(const surfaceScalarField& kf, const volVectorField& a)
         {
-            tmp<surfaceVectorField> tq
-            (
-                new surfaceVectorField
-                (
-                    "q_relAcc",
-                    kf * fvc::interpolate(a/mag(poroFluid().g()))
-                )
-            );
-            return tq;
+            return poroCouplingTerms::relativeAccelerationFlux(kf, a, mag(poroFluid().g()));
         }
 
         // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -354,10 +327,7 @@ namespace Foam
                 // as -div(q_relAcc).
                 return tmp<volScalarField>
                 (
-                    new volScalarField
-                    (
-                        nDot_() - fvc::div(poroFluidMesh().Sf() & q_relAcc_())
-                    )
+                    poroCouplingTerms::explicitCouplingSource(nDot_(), q_relAcc_()).ptr()
                 );
             }
 

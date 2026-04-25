@@ -1,0 +1,12 @@
+couplingTermsUnit.C
+../../../poroSolidInterfaces/poroCouplingTerms.C
+../../../poroSolidInterfaces/poroCouplingRegistry.C
+../../../poroSolidInterfaces/poroPressureUnits.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/effectiveStressModel.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/newEffectiveStressModel.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/terzaghi/terzaghi.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/bishop/bishop.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/suctionCutOff/suctionCutOff.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/niemunis/niemunis.C
+
+EXE = $(FOAM_USER_APPBIN)/couplingTermsUnit

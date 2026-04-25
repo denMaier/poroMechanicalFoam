@@ -1,0 +1,20 @@
+FOAM_EXTRA_CXXFLAGS += -std=c++17
+
+VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
+    -DOPENFOAMESIORFOUNDATION \
+    -DOPENFOAMESI \
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
+
+EXE_INC = \
+    $(VERSION_SPECIFIC_INC) \
+    -I../../../materialModels/poroHydraulicModel/lnInclude \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude
+
+EXE_LIBS = \
+    -L$(FOAM_USER_LIBBIN) \
+    -lporoHydraulicModels \
+    -lfiniteVolume \
+    -lmeshTools

@@ -52,6 +52,7 @@ namespace Foam
         const volScalarField &pField)
         : storageLaw(name, poroHydraulicProperties, pField),
           storageCoeffCoeffs_(poroHydraulicProperties.subDict(typeName + "Coeffs")),
+          name_(name),
           SsScalar_(storageCoeffCoeffs_.get<dimensionedScalar>("Ss")),
           SsField_()
     {
