@@ -1064,21 +1064,34 @@ void testVarSatMechanicalLawTerms(const fvMesh& mesh)
     checkNear("varSatMechanical effective zz includes pore stress", tEffective()[0].zz(), 324.0);
     checkNear("varSatMechanical effective shear unchanged", tEffective()[0].xy(), 10.0);
 
+    volSymmTensorField independentEffectiveStress
+    (
+        IOobject("independentEffectiveStressForMechanicalTerms", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedSymmTensor
+        (
+            "independentEffectiveStressForMechanicalTerms",
+            dimPressure,
+            symmTensor(130.0, 10.0, 20.0, 230.0, 30.0, 330.0)
+        ),
+        "zeroGradient"
+    );
+
     const tmp<volSymmTensorField> tTotal
     (
         varSatPoroMechanicalLawTerms::totalStress
         (
-            tEffective(),
+            independentEffectiveStress,
             b,
             chi,
             p
         )
     );
 
-    checkNear("varSatMechanical total xx removes pore stress", tTotal()[0].xx(), totalStress[0].xx());
-    checkNear("varSatMechanical total yy removes pore stress", tTotal()[0].yy(), totalStress[0].yy());
-    checkNear("varSatMechanical total zz removes pore stress", tTotal()[0].zz(), totalStress[0].zz());
-    checkNear("varSatMechanical total shear unchanged", tTotal()[0].xy(), totalStress[0].xy());
+    checkNear("varSatMechanical total xx removes pore stress", tTotal()[0].xx(), 106.0);
+    checkNear("varSatMechanical total yy removes pore stress", tTotal()[0].yy(), 206.0);
+    checkNear("varSatMechanical total zz removes pore stress", tTotal()[0].zz(), 306.0);
+    checkNear("varSatMechanical total shear unchanged", tTotal()[0].xy(), 10.0);
     checkTrue("varSatMechanical stress dimensions", tTotal().dimensions() == dimPressure);
 }
 }

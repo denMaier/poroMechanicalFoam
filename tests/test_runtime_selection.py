@@ -31,7 +31,7 @@ class RuntimeSelectionTests(unittest.TestCase):
 
         self.assertEqual([], missing_definitions)
 
-    def test_runtime_selected_classes_have_neighboring_header_typename(self) -> None:
+    def test_runtime_selected_classes_have_matching_header_typename(self) -> None:
         missing_headers: list[str] = []
         makefiles = [
             ROOT / "Make/files",
@@ -41,13 +41,33 @@ class RuntimeSelectionTests(unittest.TestCase):
         for makefile in makefiles:
             for source in active_makefile_sources(makefile):
                 text = source.read_text(errors="ignore")
-                if "addToRunTimeSelectionTable" not in text:
-                    continue
+                for _, class_name in REGISTRATION_RE.findall(text):
+                    headers = list(source.parent.glob("*.H"))
+                    matching_headers = [
+                        path
+                        for path in headers
+                        if re.search(
+                            rf"\bclass\s+{re.escape(class_name)}\b",
+                            path.read_text(errors="ignore"),
+                        )
+                    ]
 
-                headers = list(source.parent.glob("*.H"))
-                header_text = "\n".join(path.read_text(errors="ignore") for path in headers)
-                if "TypeName(" not in header_text:
-                    missing_headers.append(str(source.relative_to(ROOT)))
+                    if not matching_headers:
+                        missing_headers.append(
+                            f"{source.relative_to(ROOT)} registers {class_name} without a neighboring class header"
+                        )
+                        continue
+
+                    if not any(
+                        "TypeName(" in path.read_text(errors="ignore")
+                        for path in matching_headers
+                    ):
+                        locations = ", ".join(
+                            str(path.relative_to(ROOT)) for path in matching_headers
+                        )
+                        missing_headers.append(
+                            f"{source.relative_to(ROOT)} registers {class_name}; no TypeName in {locations}"
+                        )
 
         self.assertEqual([], missing_headers)
 

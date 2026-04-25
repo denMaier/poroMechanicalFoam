@@ -1,5 +1,6 @@
 #include "fvCFD.H"
 #include "fvc.H"
+#include "fvOptionList.H"
 #include "varSatPoroSolid.H"
 #include "variablySaturatedPoroFluid.H"
 
@@ -114,6 +115,31 @@ public:
         clearCouplingTerms();
     }
 
+    void afterFluid()
+    {
+        afterFluidSolve();
+    }
+
+    fvScalarMatrix fvOptionCouplingMatrix()
+    {
+        fvScalarMatrix eqn
+        (
+            poroFluidRef().pField(),
+            dimVolume/dimTime
+        );
+
+        for
+        (
+            fv::option& source
+          : static_cast<fv::optionList&>(poroFluidRef().fvOptions())
+        )
+        {
+            source.addSup(eqn, 0);
+        }
+
+        return eqn;
+    }
+
     void seedVelocityField(const scalar scale = 1.0)
     {
         volVectorField& U = solidRef().U();
@@ -133,6 +159,31 @@ public:
         }
 
         U.correctBoundaryConditions();
+    }
+
+    void seedAcceleratingDisplacementField(const scalar scale = 1.0)
+    {
+        volVectorField& D = solidRef().D();
+
+        setFieldToUniform(D, vector::zero);
+        D.oldTime();
+        D.storeOldTime();
+
+        forAll(D, cellI)
+        {
+            D[cellI] = scale*D.mesh().C()[cellI];
+        }
+
+        forAll(D.boundaryFieldRef(), patchI)
+        {
+            forAll(D.boundaryFieldRef()[patchI], faceI)
+            {
+                D.boundaryFieldRef()[patchI][faceI] =
+                    scale*D.mesh().Cf().boundaryField()[patchI][faceI];
+            }
+        }
+
+        D.correctBoundaryConditions();
     }
 };
 
@@ -338,6 +389,166 @@ void testVarSatSharedMeshCoupling(TestVarSatPoroSolid& coupling)
 
     coupling.clearTerms();
 }
+
+void testVarSatFvOptionTransfersInterfaceTerms(TestVarSatPoroSolid& coupling)
+{
+    coupling.prepare();
+    coupling.initializeHydraulicFields();
+
+    volScalarField& fluidS = const_cast<volScalarField&>(coupling.poroFluid().S());
+    setFieldToUniform(fluidS, 0.55);
+    coupling.seedVelocityField(1.0);
+
+    coupling.assembleTerms();
+
+    const fvScalarMatrix optionMatrix(coupling.fvOptionCouplingMatrix());
+    const tmp<volScalarField> tExplicit(coupling.explicitCouplingDtoP());
+    const tmp<volScalarField> tImplicit(coupling.implicitCouplingDtoP());
+    const scalar deltaT = coupling.poroFluid().mesh().time().deltaTValue();
+    const scalar expectedExplicitSource = 1.2375;
+    const scalar expectedImplicitDiagonal = 4.6875e-8;
+
+    checkNear
+    (
+        "fvOption diagonal is assembled implicit interface coupling over deltaT",
+        optionMatrix.diag()[0],
+        expectedImplicitDiagonal
+    );
+    checkNear
+    (
+        "fvOption source is assembled explicit interface coupling",
+        optionMatrix.source()[0],
+        expectedExplicitSource
+    );
+    checkNear
+    (
+        "interface implicit DTO matches independent fixture value",
+        tImplicit()[0]/deltaT,
+        expectedImplicitDiagonal
+    );
+    checkNear
+    (
+        "interface explicit DTO matches independent fixture value",
+        tExplicit()[0],
+        expectedExplicitSource
+    );
+    checkTrue
+    (
+        "fvOption transfer matrix keeps pressure equation dimensions",
+        optionMatrix.dimensions() == dimVolume/dimTime
+    );
+
+    setFieldToUniform(fluidS, 0.25);
+    coupling.assembleTerms();
+
+    const fvScalarMatrix optionMatrixUpdated(coupling.fvOptionCouplingMatrix());
+    const tmp<volScalarField> tExplicitUpdated(coupling.explicitCouplingDtoP());
+    const tmp<volScalarField> tImplicitUpdated(coupling.implicitCouplingDtoP());
+    const scalar expectedUpdatedExplicitSource = 0.5625;
+
+    checkNear
+    (
+        "fvOption transfer reflects reassembled explicit coupling",
+        optionMatrixUpdated.source()[0],
+        expectedUpdatedExplicitSource
+    );
+    checkNear
+    (
+        "reassembled explicit DTO matches independent fixture value",
+        tExplicitUpdated()[0],
+        expectedUpdatedExplicitSource
+    );
+    checkNotNear
+    (
+        "fvOption transfer source changes when saturation-weighted term changes",
+        optionMatrixUpdated.source()[0],
+        optionMatrix.source()[0]
+    );
+    checkNear
+    (
+        "fvOption transfer implicit diagonal remains saturation independent",
+        optionMatrixUpdated.diag()[0],
+        expectedImplicitDiagonal
+    );
+
+    coupling.clearTerms();
+}
+
+void testVarSatAccelerationTransferAndAfterFluidHook(TestVarSatPoroSolid& coupling)
+{
+    coupling.prepare();
+    coupling.initializeHydraulicFields();
+
+    volScalarField& fluidS = const_cast<volScalarField&>(coupling.poroFluid().S());
+    setFieldToUniform(fluidS, 0.60);
+    coupling.seedVelocityField(1.0);
+    coupling.seedAcceleratingDisplacementField(1.0);
+
+    const tmp<volScalarField> tDivU(fvc::div(coupling.solid().U()));
+    const scalar nDotOnly =
+        fluidS[0]*coupling.b()[0]*tDivU()[0];
+
+    coupling.assembleTerms();
+
+    const tmp<volScalarField> tExplicitWithAcceleration
+    (
+        coupling.explicitCouplingDtoP()
+    );
+    const tmp<volScalarField> tImplicitBeforeAfterFluid
+    (
+        coupling.implicitCouplingDtoP()
+    );
+
+    checkNotNear
+    (
+        "explicit DTO includes relative-acceleration source when D accelerates",
+        tExplicitWithAcceleration()[0],
+        nDotOnly
+    );
+
+    const fvScalarMatrix optionMatrix(coupling.fvOptionCouplingMatrix());
+    const scalar deltaT = coupling.poroFluid().mesh().time().deltaTValue();
+    const scalar expectedImplicitDiagonal = 4.6875e-8;
+
+    checkNear
+    (
+        "fvOption source transfers acceleration-corrected explicit DTO",
+        optionMatrix.source()[0],
+        tExplicitWithAcceleration()[0]
+    );
+    checkNear
+    (
+        "fvOption diagonal transfers implicit DTO over deltaT with acceleration present",
+        optionMatrix.diag()[0],
+        expectedImplicitDiagonal
+    );
+    checkNear
+    (
+        "implicit DTO with acceleration present matches independent fixture value",
+        tImplicitBeforeAfterFluid()[0]/deltaT,
+        expectedImplicitDiagonal
+    );
+
+    coupling.afterFluid();
+
+    const tmp<volScalarField> tExplicitAfterFluid(coupling.explicitCouplingDtoP());
+    const tmp<volScalarField> tImplicitAfterFluid(coupling.implicitCouplingDtoP());
+
+    checkNear
+    (
+        "afterFluidSolve clears transient acceleration and keeps nDot DTO",
+        tExplicitAfterFluid()[0],
+        nDotOnly
+    );
+    checkNear
+    (
+        "afterFluidSolve keeps implicit stabilization DTO available",
+        tImplicitAfterFluid()[0],
+        tImplicitBeforeAfterFluid()[0]
+    );
+
+    coupling.clearTerms();
+}
 }
 
 int main(int argc, char *argv[])
@@ -348,6 +559,8 @@ int main(int argc, char *argv[])
     TestVarSatPoroSolid coupling(runTime);
     testVarSatSharedMeshRegistration(coupling);
     testVarSatSharedMeshCoupling(coupling);
+    testVarSatFvOptionTransfersInterfaceTerms(coupling);
+    testVarSatAccelerationTransferAndAfterFluidHook(coupling);
 
     if (failures)
     {
