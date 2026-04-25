@@ -110,6 +110,9 @@ PlyParser_FoamFileParser_parsetab.py
 # ignore the persistent .build tag in the main directory
 /.build
 
+# transient test artifacts
+/.scratch/
+
 # ignore .timeStamp in the main directory
 /.timeStamp
 
@@ -137,6 +140,7 @@ tests/openfoam/**/Make/*Gcc*/
 tests/openfoam/**/Make/*Intel*/
 tests/openfoam/**/Make/linux*/
 tests/openfoam/**/Make/darwin*/
+tests/openfoam/**/Make/dummy/
 tests/openfoam/**/log.*
 tests/openfoam/**/processor*/
 tests/openfoam/**/postProcessing/

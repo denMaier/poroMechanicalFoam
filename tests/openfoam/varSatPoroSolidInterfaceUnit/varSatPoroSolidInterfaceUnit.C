@@ -71,6 +71,19 @@ void checkNotNear
     }
 }
 
+template<class Type>
+void setFieldToUniform
+(
+    GeometricField<Type, fvPatchField, volMesh>& fld,
+    const Type& value
+)
+{
+    fld.primitiveFieldRef() = value;
+    fld.boundaryFieldRef() = value;
+
+    fld.correctBoundaryConditions();
+}
+
 class TestVarSatPoroSolid
 :
     public varSatPoroSolid
@@ -100,134 +113,228 @@ public:
     {
         clearCouplingTerms();
     }
+
+    void seedVelocityField(const scalar scale = 1.0)
+    {
+        volVectorField& U = solidRef().U();
+
+        forAll(U, cellI)
+        {
+            U[cellI] = scale*U.mesh().C()[cellI];
+        }
+
+        forAll(U.boundaryFieldRef(), patchI)
+        {
+            forAll(U.boundaryFieldRef()[patchI], faceI)
+            {
+                U.boundaryFieldRef()[patchI][faceI] =
+                    scale*U.mesh().Cf().boundaryField()[patchI][faceI];
+            }
+        }
+
+        U.correctBoundaryConditions();
+    }
 };
 
-void setUniform(volScalarField& field, const scalar value)
+void testVarSatSharedMeshRegistration(TestVarSatPoroSolid& coupling)
 {
-    field.internalFieldRef() = value;
-
-    forAll(field.boundaryFieldRef(), patchI)
-    {
-        field.boundaryFieldRef()[patchI] = value;
-    }
-}
-
-void imposePositiveDivergence(volVectorField& U)
-{
-    U.internalFieldRef() = vector::zero;
-
-    forAll(U.boundaryFieldRef(), patchI)
-    {
-        vectorField& patchU = U.boundaryFieldRef()[patchI];
-        const vectorField& patchSf = U.mesh().Sf().boundaryField()[patchI];
-
-        forAll(patchU, faceI)
-        {
-            patchU[faceI] =
-                patchSf[faceI].x() > 0
-              ? vector(1, 0, 0)
-              : vector::zero;
-        }
-    }
-}
-
-void testVarSatSharedMesh(Time& runTime)
-{
-    TestVarSatPoroSolid coupling(runTime);
-    Info<< "poroFluid model has foundObject(p_rgh): "
-        << coupling.poroFluid().foundObject<volScalarField>("p_rgh") << endl;
-    Info<< "poroFluid mesh has S: "
-        << coupling.poroFluidMesh().foundObject<volScalarField>("S") << endl;
-    Info<< "poroFluid mesh has p: "
-        << coupling.poroFluidMesh().foundObject<volScalarField>("p") << endl;
-    Info<< "poroFluid mesh has p_rgh: "
-        << coupling.poroFluidMesh().foundObject<volScalarField>("p_rgh") << endl;
-    Info<< "poroFluid object names before explicit S() call: "
-        << coupling.poroFluid().p().db().sortedNames() << endl;
-
     checkTrue("varSatPoroSolid fixture uses shared mesh", coupling.sharedMesh());
-    checkTrue("varSatPoroSolid selected variably saturated fluid", coupling.poroFluid().name() == "varSatPoroFluid");
-    checkTrue("varSatPoroSolid default cellZone owns fixture cell", coupling.poroFluidMesh().cellZones().whichZone(0) == 0);
-    Info<< "CHECKPOINT: before varSat fluid cast" << endl;
-    const poroFluidModels::variablySaturatedPoroFluid* varSatFluidPtr =
+    checkTrue
+    (
+        "varSatPoroSolid selected variably saturated fluid",
+        coupling.poroFluid().name() == "varSatPoroFluid"
+    );
+    checkTrue("default cellZone exists", coupling.poroFluidMesh().cellZones().size() == 1);
+    checkTrue
+    (
+        "default cellZone owns fixture cell",
+        coupling.poroFluidMesh().cellZones().whichZone(0) == 0
+    );
+    checkNear("Biot coefficient from poroMechanicalLaw2", coupling.b()[0], 0.75);
+
+    const auto* varSatFluidPtr =
         dynamic_cast<const poroFluidModels::variablySaturatedPoroFluid*>
         (
             &coupling.poroFluid()
         );
-    Info<< "CHECKPOINT: after varSat fluid cast" << endl;
-    checkTrue("varSatPoroSolid exposes variably saturated fluid API", varSatFluidPtr);
-    Info<< "poroFluid db name: " << coupling.poroFluid().p().db().name() << endl;
-    Info<< "poroFluid db object names: "
-        << coupling.poroFluid().p().db().sortedNames() << endl;
-    Info<< "poroFluid DB direct foundObject<S> before API: "
-        << coupling.poroFluid().foundObject<volScalarField>("S") << endl;
-    Info<< "CHECKPOINT: after precondition checks" << endl;
+    checkTrue("poroFluid exposes variablySaturated API", varSatFluidPtr);
+
     if (!varSatFluidPtr)
     {
-        checkTrue("varSatPoroSolid coupling aborted due unsupported fluid type", false);
         return;
     }
 
     const volScalarField& coupledS = coupling.poroFluid().S();
-    const volScalarField* saturationPointerBefore = &coupledS;
+    const volScalarField& varSatFluidS = varSatFluidPtr->S();
+
     checkTrue
     (
-        "poroFluid API S() matches derived variablySaturatedS()",
-        &coupledS == &varSatFluidPtr->S()
+        "poroFluid API S() delegates to variablySaturated model",
+        &coupledS == &varSatFluidS
     );
-
-    volScalarField& S = const_cast<volScalarField&>(coupledS);
-    setUniform(S, 0.6);
-
-    volVectorField& U = coupling.solidRef().U();
-    imposePositiveDivergence(U);
 
     coupling.prepare();
     coupling.initializeHydraulicFields();
-    checkTrue
-    (
-        "varSatPoroSolid keeps a single registered S field on fluid side",
-        saturationPointerBefore == &coupling.poroFluid().S()
-    );
 
     checkTrue
     (
-        "varSatPoroSolid registers S on solid mesh",
-        coupling.solidMesh().foundObject<volScalarField>("S")
+        "shared p field is registered on solid mesh",
+        coupling.solidMesh().foundObject<volScalarField>("p")
     );
-    const bool solidHasS = coupling.solidMesh().foundObject<volScalarField>("S");
-    if (solidHasS)
-    {
-        checkTrue
-        (
-            "varSatPoroSolid shared S is fluid S instance",
-            &coupling.solidMesh().lookupObject<volScalarField>("S") == &S
-        );
-    }
     checkTrue
     (
-        "varSatPoroSolid registers n on solid mesh",
+        "shared p_rgh field is registered on solid mesh",
+        coupling.solidMesh().foundObject<volScalarField>("p_rgh")
+    );
+    checkTrue
+    (
+        "shared S field is registered on solid mesh",
+        coupling.solidMesh().foundObject<volScalarField>("S")
+    );
+    checkTrue
+    (
+        "shared n field is registered on solid mesh",
         coupling.solidMesh().foundObject<volScalarField>("n")
     );
 
+    checkTrue
+    (
+        "shared p points to the fluid p instance",
+        &coupling.solidMesh().lookupObject<volScalarField>("p")
+      == &coupling.poroFluid().p()
+    );
+    checkTrue
+    (
+        "shared p_rgh points to the fluid p_rgh instance",
+        &coupling.solidMesh().lookupObject<volScalarField>("p_rgh")
+      == &coupling.poroFluid().p_rgh()
+    );
+    checkTrue
+    (
+        "shared S points to the fluid S instance",
+        &coupling.solidMesh().lookupObject<volScalarField>("S")
+      == &coupling.poroFluid().S()
+    );
+
+    const volScalarField& firstSolidS =
+        coupling.solidMesh().lookupObject<volScalarField>("S");
+
+    coupling.initializeHydraulicFields();
+
+    const volScalarField& secondSolidS =
+        coupling.solidMesh().lookupObject<volScalarField>("S");
+
+    checkTrue
+    (
+        "re-registering shared hydraulic fields preserves object identity",
+        &firstSolidS == &secondSolidS
+    );
+
+    coupling.clearTerms();
+}
+
+void testVarSatSharedMeshCoupling(TestVarSatPoroSolid& coupling)
+{
+    coupling.prepare();
+    coupling.initializeHydraulicFields();
+
+    volScalarField& fluidS = const_cast<volScalarField&>(coupling.poroFluid().S());
+    setFieldToUniform(fluidS, 0.65);
+
+    coupling.seedVelocityField(1.0);
+    const volVectorField& U = coupling.solid().U();
     const tmp<volScalarField> tDivU(fvc::div(U));
-    checkTrue("varSatPoroSolid fixture has nonzero velocity divergence", mag(tDivU()[0]) > SMALL);
+    const scalar divU0 = tDivU()[0];
+    checkTrue("seeded velocity is dimensioned as velocity", U.dimensions() == dimVelocity);
+    checkTrue("seeded velocity has non-zero divergence", mag(divU0) > SMALL);
+    checkTrue("seeded velocity is returned through solid().U()", &U == &coupling.solid().U());
 
     coupling.assembleTerms();
 
-    const tmp<volScalarField> tExplicit(coupling.explicitCouplingDtoP());
-    const tmp<volScalarField> tImplicit(coupling.implicitCouplingDtoP());
-    const volScalarField impK(coupling.solid().mechanical().impK());
+    const tmp<volScalarField> tExplicit0(coupling.explicitCouplingDtoP());
+    const tmp<volScalarField> tImplicit0(coupling.implicitCouplingDtoP());
+    const tmp<volScalarField> tImpK(coupling.solid().mechanical().impK());
 
-    const scalar weightedExpected = S[0]*coupling.b()[0]*tDivU()[0];
-    const scalar unweightedExpected = coupling.b()[0]*tDivU()[0];
-    const scalar stabilExpected = sqr(coupling.b()[0])/impK[0];
-    const scalar saturationScaledStabil = sqr(S[0]*coupling.b()[0])/impK[0];
+    checkNear
+    (
+        "explicit coupling uses S*b weighted divergence",
+        tExplicit0()[0],
+        fluidS[0]*coupling.b()[0]*divU0
+    );
+    checkNotNear
+    (
+        "explicit coupling is not pure b weighted divergence",
+        tExplicit0()[0],
+        coupling.b()[0]*divU0
+    );
+    checkNear
+    (
+        "implicit coupling is b^2 / impK",
+        tImplicit0()[0],
+        sqr(coupling.b()[0])/tImpK()[0]
+    );
+    checkNotNear
+    (
+        "implicit coupling is not S*b^2 / impK",
+        tImplicit0()[0],
+        sqr(fluidS[0]*coupling.b()[0])/tImpK()[0]
+    );
+    checkTrue
+    (
+        "explicit coupling has nDot dimensions",
+        tExplicit0().dimensions() == dimless/dimTime
+    );
+    checkTrue
+    (
+        "implicit coupling has inverse pressure dimensions",
+        tImplicit0().dimensions() == inv(dimPressure)
+    );
 
-    checkNear("varSat explicit coupling uses S*b weighting", tExplicit()[0], weightedExpected);
-    checkNotNear("varSat explicit coupling is not unweighted b", tExplicit()[0], unweightedExpected);
-    checkNear("varSat implicit coupling keeps b based stabilization", tImplicit()[0], stabilExpected);
-    checkNotNear("varSat implicit coupling is not S*b stabilization", tImplicit()[0], saturationScaledStabil);
+    setFieldToUniform(fluidS, 0.20);
+    coupling.assembleTerms();
+
+    const tmp<volScalarField> tExplicit1(coupling.explicitCouplingDtoP());
+    const tmp<volScalarField> tImplicit1(coupling.implicitCouplingDtoP());
+
+    checkNear
+    (
+        "re-assembly updates explicit coupling with saturation",
+        tExplicit1()[0],
+        fluidS[0]*coupling.b()[0]*divU0
+    );
+    checkNear
+    (
+        "implicit coupling does not depend on saturation in this model",
+        tImplicit1()[0],
+        tImplicit0()[0]
+    );
+    checkNotNear
+    (
+        "re-assembly changed explicit coupling value",
+        tExplicit1()[0],
+        tExplicit0()[0]
+    );
+
+    coupling.clearTerms();
+    setFieldToUniform(fluidS, 0.65);
+    coupling.seedVelocityField(1.0);
+    coupling.assembleTerms();
+
+    const tmp<volScalarField> tExplicit2(coupling.explicitCouplingDtoP());
+    const tmp<volScalarField> tImplicit2(coupling.implicitCouplingDtoP());
+
+    checkNear
+    (
+        "clearTerms() allows explicit terms to reassemble",
+        tExplicit2()[0],
+        fluidS[0]*coupling.b()[0]*divU0
+    );
+    checkNear
+    (
+        "clearTerms() allows implicit terms to reassemble",
+        tImplicit2()[0],
+        tImplicit0()[0]
+    );
 
     coupling.clearTerms();
 }
@@ -238,7 +345,9 @@ int main(int argc, char *argv[])
     #include "setRootCase.H"
     #include "createTime.H"
 
-    testVarSatSharedMesh(runTime);
+    TestVarSatPoroSolid coupling(runTime);
+    testVarSatSharedMeshRegistration(coupling);
+    testVarSatSharedMeshCoupling(coupling);
 
     if (failures)
     {
