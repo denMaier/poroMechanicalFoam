@@ -1,0 +1,40 @@
+FOAM_EXTRA_CXXFLAGS += -std=c++17
+
+VERSION_SPECIFIC_INC = \
+    -DOPENFOAM_NOT_EXTEND \
+    -DOPENFOAM_COM \
+    -DOPENFOAMESIORFOUNDATION \
+    -DOPENFOAMESI \
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude/
+
+EXE_INC = \
+    $(VERSION_SPECIFIC_INC) \
+    -I../../.. \
+    -I../../../lnInclude \
+    -I../../../poroSolidInterfaces \
+    -I../../../poroSolidInterfaces/poroSolid \
+    -I../../../poroSolidInterfaces/varSatPoroSolid \
+    -I../../../poroFluidModels \
+    -I../../../iterationControls/iterationControl \
+    -I../../../iterationControls/iterationResidual \
+    -I../../../iterationControls/residualOperation \
+    -I../../../materialModels/poroHydraulicModel/lnInclude \
+    -I$(LIB_SRC)/finiteVolume/lnInclude \
+    -I$(LIB_SRC)/meshTools/lnInclude \
+    -I$(LIB_SRC)/dynamicFvMesh/lnInclude \
+    -I$(LIB_SRC)/sampling/lnInclude \
+    -I$(LIB_SRC)/ODE/lnInclude \
+    -I$(LIB_SRC)/fvOptions/lnInclude \
+    -I../../../external/solids4foam/src/blockCoupledSolids4FoamTools/lnInclude \
+    -I../../../external/solids4foam/src/solids4FoamModels/lnInclude
+
+EXE_LIBS = \
+    -L$(FOAM_USER_LIBBIN) \
+    -lporoModels \
+    -lporoHydraulicModels \
+    -lsolids4FoamModelsMinimal \
+    -lfiniteVolume \
+    -lmeshTools \
+    -ldynamicFvMesh \
+    -lsampling \
+    -lfvOptions

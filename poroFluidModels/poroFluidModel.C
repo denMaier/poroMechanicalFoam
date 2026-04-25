@@ -60,7 +60,7 @@ void poroFluidModel::makeIterCtrl()
 
 void poroFluidModel::addDefaultCellZone()
 {
-        if (cellZones().size() > 0)
+        if (mesh().cellZones().size() > 0)
         {
             return;
         }
@@ -68,45 +68,45 @@ void poroFluidModel::addDefaultCellZone()
         Info<< "No cellZones found. Creating new cellZone containing all cells." << endl;
 
         // Copy existing point zones
-        List<pointZone*> pointZonesCopy(pointZones().size());
+        List<pointZone*> pointZonesCopy(mesh().pointZones().size());
         forAll(pointZonesCopy, zoneI)
         {
             pointZonesCopy[zoneI] =
                 new pointZone
                 (
-                    pointZones()[zoneI],
-                    pointZones()[zoneI],
+                    mesh().pointZones()[zoneI],
+                    mesh().pointZones()[zoneI],
                     zoneI,
-                    pointZones()
+                    mesh().pointZones()
                 );
         }
 
         // Copy existing face zones
-        List<faceZone*> faceZonesCopy(faceZones().size());
+        List<faceZone*> faceZonesCopy(mesh().faceZones().size());
         forAll(faceZonesCopy, zoneI)
         {
             faceZonesCopy[zoneI] =
                 new faceZone
                 (
-                    faceZones()[zoneI],
-                    faceZones()[zoneI],
-                    faceZones()[zoneI].flipMap(),
+                    mesh().faceZones()[zoneI],
+                    mesh().faceZones()[zoneI],
+                    mesh().faceZones()[zoneI].flipMap(),
                     zoneI,
-                    faceZones()
+                    mesh().faceZones()
                 );
         }
 
         // Copy existing cell zones and append the default zone
-        List<cellZone*> cellZonesCopy(cellZones().size() + 1);
-        forAll(cellZones(), zoneI)
+        List<cellZone*> cellZonesCopy(mesh().cellZones().size() + 1);
+        forAll(mesh().cellZones(), zoneI)
         {
             cellZonesCopy[zoneI] =
                 new cellZone
                 (
-                    cellZones()[zoneI],
-                    cellZones()[zoneI],
+                    mesh().cellZones()[zoneI],
+                    mesh().cellZones()[zoneI],
                     zoneI,
-                    cellZones()
+                    mesh().cellZones()
                 );
         }
 
@@ -122,15 +122,16 @@ void poroFluidModel::addDefaultCellZone()
                 "defaultZone",
                 zoneAddressing,
                 cellZonesCopy.size() - 1,
-                cellZones()
+                mesh().cellZones()
             );
 
         // addZones expects empty zone meshes, so clear and restore them
-        pointZones().clear();
-        faceZones().clear();
-        cellZones().clear();
+        mesh().pointZones().clear();
+        mesh().faceZones().clear();
+        mesh().cellZones().clear();
 
-        addZones(pointZonesCopy, faceZonesCopy, cellZonesCopy);
+        mesh().addZones(pointZonesCopy, faceZonesCopy, cellZonesCopy);
+        mesh().cellZones().clearAddressing();
 
         Info<< "Created cellZone 'defaultZone' containing "
             << mesh().nCells() << " cells" << endl;
@@ -318,7 +319,7 @@ poroFluidModel::poroFluidModel
         }
     }
 
-    if (this->cellZones().size() == 0)
+    if (mesh().cellZones().size() == 0)
     {
         addDefaultCellZone();
     }
