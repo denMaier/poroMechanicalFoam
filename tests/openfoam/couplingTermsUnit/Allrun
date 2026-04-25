@@ -6,7 +6,7 @@ set -e
 testCase="${TMPDIR:-/tmp}/poroMechanicalFoam-couplingTermsUnit-$$"
 trap 'rm -rf "$testCase"' EXIT
 
-mkdir -p "$testCase/system" "$testCase/constant/polyMesh"
+mkdir -p "$testCase/system" "$testCase/constant/polyMesh" "$testCase/0"
 
 cat > "$testCase/system/controlDict" <<'EOF'
 FoamFile
@@ -133,6 +133,27 @@ wmake
 
 echo "Creating coupling unit-test mesh: $testCase"
 blockMesh -case "$testCase" >/dev/null
+
+cat > "$testCase/0/diskScalar" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volScalarField;
+    object diskScalar;
+}
+
+dimensions [1 -1 -2 0 0 0 0];
+internalField uniform 42;
+
+boundaryField
+{
+    walls
+    {
+        type zeroGradient;
+    }
+}
+EOF
 
 export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
 couplingTermsUnit -case "$testCase"

@@ -11,6 +11,7 @@
 #include "LinearSolverRes.H"
 #include "SolverPerformance.H"
 #include "MassBalanceTerms.H"
+#include "scalarDiskReader.H"
 
 using namespace Foam;
 
@@ -742,6 +743,22 @@ void testMassBalanceTerms(const fvMesh& mesh)
     checkNear("MassBalance zero relative residual stays zero", zeroRelativeResidual[0], 0.0);
 }
 
+void testScalarDiskReader(fvMesh& mesh)
+{
+    dictionary readerDict;
+    readerDict.add("scalarCaseDirectory", fileName("."));
+    readerDict.add("mapMethod", word("direct"));
+    readerDict.add("consistent", Switch(true));
+
+    scalarDiskReader reader("diskScalar", mesh, mesh, readerDict);
+
+    const tmp<volScalarField> tDiskScalar(reader.field());
+
+    checkNear("scalarDiskReader reads scalar field from disk", tDiskScalar()[0], 42.0);
+    checkTrue("scalarDiskReader preserves field dimensions", tDiskScalar().dimensions() == dimPressure);
+    checkTrue("scalarDiskReader marks field for restart writes", tDiskScalar().writeOpt() == IOobject::AUTO_WRITE);
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -1091,6 +1108,7 @@ int main(int argc, char *argv[])
     testIterationControlDictionary(mesh);
     testLinearSolverResiduals(mesh);
     testMassBalanceTerms(mesh);
+    testScalarDiskReader(mesh);
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);

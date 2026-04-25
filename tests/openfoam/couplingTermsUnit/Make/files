@@ -12,6 +12,7 @@ couplingTermsUnit.C
 ../../../iterationControls/iterationResidual/LinearSolverRes/LinearSolverRes.C
 ../../../iterationControls/iterationControl/iterationControl.C
 ../../../iterationControls/iterationResidual/MassBalance/MassBalanceTerms.C
+../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/poroMechanicalLaw2/scalarDiskReader/scalarDiskReader.C
 ../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/varSatPoroMechanicalLawTerms.C
 ../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/effectiveStressModel.C
 ../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/newEffectiveStressModel.C
