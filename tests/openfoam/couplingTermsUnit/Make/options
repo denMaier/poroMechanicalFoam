@@ -10,6 +10,11 @@ VERSION_SPECIFIC_INC = \
 EXE_INC = \
     $(VERSION_SPECIFIC_INC) \
     -I../../../poroSolidInterfaces \
+    -I../../../iterationControls/residualOperation \
+    -I../../../iterationControls/residualOperation/maxRes \
+    -I../../../iterationControls/residualOperation/L2 \
+    -I../../../iterationControls/residualOperation/RMS \
+    -I../../../iterationControls/residualOperation/sum \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/terzaghi \

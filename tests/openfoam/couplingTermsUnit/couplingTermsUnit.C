@@ -5,6 +5,7 @@
 #include "UniformDimensionedField.H"
 #include "effectiveStressModel.H"
 #include "varSatPoroMechanicalLawTerms.H"
+#include "residualOperation.H"
 
 using namespace Foam;
 
@@ -428,6 +429,38 @@ void testFvOptionMatrixAssembly(const fvMesh& mesh)
     checkTrue("fvOption matrix dimensions are volume per time", eqn.dimensions() == dimVol/dimTime);
 }
 
+void testResidualOperations()
+{
+    scalarField values(3);
+    values[0] = 3.0;
+    values[1] = 4.0;
+    values[2] = -12.0;
+
+    List<scalar> listValues(3);
+    listValues[0] = 3.0;
+    listValues[1] = 4.0;
+    listValues[2] = -12.0;
+
+    autoPtr<residualOperation> maxOp(residualOperation::New("max"));
+    autoPtr<residualOperation> sumOp(residualOperation::New("sum"));
+    autoPtr<residualOperation> l2Op(residualOperation::New("L2"));
+    autoPtr<residualOperation> rmsOp(residualOperation::New("RMS"));
+
+    checkNear("residualOperation max scalarField", maxOp->operation(values), 4.0);
+    checkNear("residualOperation max List", maxOp->operation(listValues), 4.0);
+    checkNear("residualOperation sum scalarField keeps signs", sumOp->operation(values), -5.0);
+    checkNear("residualOperation sum List keeps signs", sumOp->operation(listValues), -5.0);
+    checkNear("residualOperation L2 scalarField", l2Op->operation(values), 13.0);
+    checkNear("residualOperation L2 List", l2Op->operation(listValues), 13.0);
+    checkNear("residualOperation RMS scalarField", rmsOp->operation(values), Foam::sqrt(169.0/3.0));
+    checkNear("residualOperation RMS List", rmsOp->operation(listValues), Foam::sqrt(169.0/3.0));
+
+    scalarField emptyField(0);
+    List<scalar> emptyList(0);
+    checkNear("residualOperation RMS empty scalarField", rmsOp->operation(emptyField), 0.0);
+    checkNear("residualOperation RMS empty List", rmsOp->operation(emptyList), 0.0);
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -772,6 +805,7 @@ int main(int argc, char *argv[])
     testExplicitCouplingSourceSign(mesh);
     testFvOptionCouplingRates(mesh);
     testFvOptionMatrixAssembly(mesh);
+    testResidualOperations();
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);
