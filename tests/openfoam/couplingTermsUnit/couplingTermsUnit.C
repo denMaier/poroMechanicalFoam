@@ -8,6 +8,8 @@
 #include "residualOperation.H"
 #include "deltaVf.H"
 #include "iterationControl.H"
+#include "LinearSolverRes.H"
+#include "SolverPerformance.H"
 
 using namespace Foam;
 
@@ -614,6 +616,78 @@ void testIterationControlDictionary(fvMesh& mesh)
     );
 }
 
+void testLinearSolverResiduals(fvMesh& mesh)
+{
+    mesh.data().solverPerformanceDict().clear();
+
+    volScalarField scalarSolveField
+    (
+        IOobject("linearSolverScalar", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("linearSolverScalar", dimPressure, 1.0),
+        "zeroGradient"
+    );
+
+    List<SolverPerformance<scalar>> scalarPerformance(1);
+    scalarPerformance[0] =
+        SolverPerformance<scalar>
+        (
+            "unitSolver",
+            scalarSolveField.name(),
+            0.125,
+            1.0e-8,
+            3,
+            true,
+            false
+        );
+    mesh.data().solverPerformanceDict().set(scalarSolveField.name(), scalarPerformance);
+
+    ITstream scalarStream("linearSolver 1e-4");
+    LinearSolverRes scalarResidual(mesh.time(), scalarSolveField.name(), scalarStream, false);
+
+    checkNear("linearSolver scalar tolerance parse", scalarResidual.tolerance(), 1.0e-4);
+    checkNear("linearSolver scalar initial residual", scalarResidual.calcResidual(), 0.125);
+
+    volVectorField vectorSolveField
+    (
+        IOobject("linearSolverVector", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedVector("linearSolverVector", dimVelocity, vector::zero),
+        "zeroGradient"
+    );
+
+    List<SolverPerformance<vector>> vectorPerformance(1);
+    vectorPerformance[0] =
+        SolverPerformance<vector>
+        (
+            "unitSolver",
+            vectorSolveField.name(),
+            vector(0.05, 0.35, 0.2),
+            vector(1.0e-9, 2.0e-9, 3.0e-9),
+            Vector<label>(1, 2, 3),
+            true,
+            false
+        );
+    mesh.data().solverPerformanceDict().set(vectorSolveField.name(), vectorPerformance);
+
+    ITstream vectorStream("linearSolver show");
+    autoPtr<iterationResidual> vectorResidual
+    (
+        iterationResidual::New
+        (
+            mesh.time(),
+            vectorSolveField.name(),
+            vectorStream,
+            false
+        )
+    );
+
+    checkNear("linearSolver show tolerance disables convergence check", vectorResidual->tolerance(), -1.0);
+    checkNear("linearSolver vector residual uses max component", vectorResidual->calcResidual(), 0.35);
+
+    mesh.data().solverPerformanceDict().clear();
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -961,6 +1035,7 @@ int main(int argc, char *argv[])
     testResidualOperations();
     testDeltaVfResiduals(mesh);
     testIterationControlDictionary(mesh);
+    testLinearSolverResiduals(mesh);
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);
