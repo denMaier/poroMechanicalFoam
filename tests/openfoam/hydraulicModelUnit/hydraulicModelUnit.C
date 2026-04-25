@@ -3,6 +3,7 @@
 #include "conductivityModel.H"
 #include "storageLaw.H"
 #include "poroHydraulicModel.H"
+#include "varSatPoroHydraulicModel.H"
 
 using namespace Foam;
 
@@ -293,6 +294,36 @@ void testPoroHydraulicModelZoneAssembly(fvMesh& mesh, volScalarField& p)
     checkTrue("poroHydraulicModel zone constants do not update Ss", !model.updatesSs());
     checkTrue("poroHydraulicModel zone constants do not update k", !model.updatesK());
 }
+
+void testVarSatPoroHydraulicModelZoneAssembly(volScalarField& p)
+{
+    varSatPoroHydraulicModel model
+    (
+        p,
+        dimensionedVector("g", dimAcceleration, vector(0, -9.81, 0))
+    );
+
+    const tmp<volScalarField> tS(model.S(p));
+    checkNear("varSatPoroHydraulicModel zoneA saturated S", tS()[0], 1.0);
+    checkNear("varSatPoroHydraulicModel zoneB vanGenuchten S", tS()[1], 0.949716855408764);
+    checkTrue("varSatPoroHydraulicModel zones use different S laws", tS()[0] > tS()[1]);
+
+    const tmp<volScalarField> tkr(model.kr(p));
+    checkNear("varSatPoroHydraulicModel zoneA saturated kr", tkr()[0], 1.0);
+    checkNear("varSatPoroHydraulicModel zoneB vanGenuchten kr", tkr()[1], 0.809925029846204);
+
+    const tmp<volScalarField> tC(model.C(p));
+    checkNear("varSatPoroHydraulicModel zoneA saturated C", tC()[0], 0.0);
+    checkNear("varSatPoroHydraulicModel zoneB vanGenuchten C", tC()[1], 4.24433993710635e-06);
+
+    const tmp<volScalarField> tpStar(model.pStar());
+    checkTrue("varSatPoroHydraulicModel zoneA saturated pStar is below zoneB", tpStar()[0] < tpStar()[1]);
+    checkNear("varSatPoroHydraulicModel zoneB vanGenuchten pStar", tpStar()[1], -4807.49856769136);
+
+    const tmp<volScalarField> tkEff(model.kEff(p));
+    checkNear("varSatPoroHydraulicModel zoneA kEff", tkEff()[0], 2e-6);
+    checkNear("varSatPoroHydraulicModel zoneB kEff", tkEff()[1], 6.47940023876963e-6);
+}
 }
 
 int main(int argc, char *argv[])
@@ -352,6 +383,7 @@ int main(int argc, char *argv[])
     testMontenegroStorage(montenegroStorage());
 
     testPoroHydraulicModelZoneAssembly(mesh, p);
+    testVarSatPoroHydraulicModelZoneAssembly(p);
 
     if (failures)
     {

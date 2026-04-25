@@ -195,6 +195,7 @@ zoneA
     n n [0 0 0 0 0 0 0] 0.25;
     storageLaw storageCoeff;
     conductivityLaw constant;
+    saturationLaw saturated;
 
     storageCoeffCoeffs
     {
@@ -209,6 +210,7 @@ zoneB
     n n [0 0 0 0 0 0 0] 0.45;
     storageLaw storageCoeff;
     conductivityLaw constant;
+    saturationLaw vanGenuchten;
 
     storageCoeffCoeffs
     {
@@ -216,6 +218,14 @@ zoneB
     }
 
     k k [0 1 -1 0 0 0 0] 8e-6;
+
+    vanGenuchtenCoeffs
+    {
+        n n [0 0 0 0 0 0 0] 1.5;
+        S_r S_r [0 0 0 0 0 0 0] 0.1;
+        S_0 S_0 [0 0 0 0 0 0 0] 0.95;
+        alpha alpha [-1 1 2 0 0 0 0] 1e-4;
+    }
 }
 EOF
 

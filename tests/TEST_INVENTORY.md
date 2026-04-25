@@ -88,6 +88,10 @@ Tested code:
   - real two-cell, two-zone OpenFOAM mesh created through `topoSet`.
   - zone-specific `n`, `Ss`, and `k` are assembled onto the expected cells.
   - constant zone laws report no state-dependent storage or conductivity update.
+- `varSatPoroHydraulicModel` material-zone assembly:
+  - zone-specific saturation laws are selected from the same disk-backed zones.
+  - saturated and van Genuchten zones assemble distinct `S`, `kr`, `C`,
+    `pStar`, and `kEff` values.
 
 Low-value or tautological candidates:
 
@@ -254,6 +258,8 @@ Low-value or tautological candidates:
   be consumed.
 - Two-zone `poroHydraulicModel` assembly from disk-backed cellZones, including
   a regression check for named zone dictionary lookup.
+- Two-zone `varSatPoroHydraulicModel` assembly with different saturation laws
+  per zone.
 - Disk reread-on-time-index-change, invalid map-method rejection, and
   field-registration idempotence checks.
 
