@@ -201,6 +201,27 @@ case "$missingDiskReaderOutput" in
 esac
 
 set +e
+invalidMapMethodOutput=$(couplingTermsUnit -case "$testCase" -disk-reader-invalid-map-method 2>&1)
+invalidMapMethodStatus=$?
+set -e
+
+if [ "$invalidMapMethodStatus" -eq 0 ]; then
+    echo "Expected scalar disk reader invalid map-method check to fail, but it succeeded."
+    exit 1
+fi
+
+case "$invalidMapMethodOutput" in
+    *"Unknown map method 'notAMapMethod' for scalar field 'diskScalar'"*)
+        echo "PASS scalar disk reader invalid map-method failure"
+        ;;
+    *)
+        echo "$invalidMapMethodOutput"
+        echo "Scalar disk reader invalid map-method failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
+
+set +e
 headMissingGammaOutput=$(couplingTermsUnit -case "$testCase" -head-missing-gamma 2>&1)
 headMissingGammaStatus=$?
 set -e

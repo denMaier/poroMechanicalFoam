@@ -230,6 +230,7 @@ Tested behavior:
 - Runs the normal unit executable path.
 - Verifies expected fatal diagnostics for:
   - missing scalar disk reader start field.
+  - invalid scalar disk reader `mapMethod`.
   - missing `gamma_water` for head-based pressure units.
   - duplicate shared-registry field registration.
 
@@ -253,7 +254,8 @@ Low-value or tautological candidates:
   be consumed.
 - Two-zone `poroHydraulicModel` assembly from disk-backed cellZones, including
   a regression check for named zone dictionary lookup.
-- Disk reread-on-time-index-change and field-registration idempotence checks.
+- Disk reread-on-time-index-change, invalid map-method rejection, and
+  field-registration idempotence checks.
 
 ## Suggested Cleanup Priority
 

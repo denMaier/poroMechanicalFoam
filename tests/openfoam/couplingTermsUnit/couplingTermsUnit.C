@@ -780,6 +780,16 @@ void runScalarDiskReaderMissingStart(fvMesh& mesh)
     scalarDiskReader reader("missingDiskScalar", mesh, mesh, readerDict);
 }
 
+void runScalarDiskReaderInvalidMapMethod(fvMesh& mesh)
+{
+    dictionary readerDict;
+    readerDict.add("scalarCaseDirectory", fileName("."));
+    readerDict.add("mapMethod", word("notAMapMethod"));
+    readerDict.add("consistent", Switch(true));
+
+    scalarDiskReader reader("diskScalar", mesh, mesh, readerDict);
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -1113,6 +1123,11 @@ int main(int argc, char *argv[])
         "disk-reader-missing-start",
         "Run the expected scalar disk reader missing-start-field failure path"
     );
+    argList::addBoolOption
+    (
+        "disk-reader-invalid-map-method",
+        "Run the expected scalar disk reader invalid map-method failure path"
+    );
 
     #include "setRootCase.H"
     #include "createTime.H"
@@ -1123,6 +1138,14 @@ int main(int argc, char *argv[])
         runScalarDiskReaderMissingStart(mesh);
         FatalErrorInFunction
             << "disk reader missing start test unexpectedly completed"
+            << exit(FatalError);
+    }
+
+    if (args.found("disk-reader-invalid-map-method"))
+    {
+        runScalarDiskReaderInvalidMapMethod(mesh);
+        FatalErrorInFunction
+            << "disk reader invalid map method test unexpectedly completed"
             << exit(FatalError);
     }
 
