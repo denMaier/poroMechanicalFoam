@@ -370,6 +370,18 @@ namespace Foam
                 return false;
             }
 
+            //- Return saturation field when supported by the concrete fluid model.
+            //  Saturated models inherit this method through
+            //  variablySaturatedPoroFluid.
+            virtual const volScalarField& S() const
+            {
+                FatalErrorInFunction
+                    << "Saturation field is not available for this poroFluid model ("
+                    << name_ << ")"
+                    << exit(FatalError);
+                return p_;
+            }
+
             //- calculate the L2-Norm of a scalarfield x
             scalar L2Norm(volScalarField x) const;
         };

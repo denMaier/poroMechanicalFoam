@@ -33,6 +33,7 @@ License
 #include "iterationControl.H"
 #include "poroCouplingTerms.H"
 #include "poroPressureUnits.H"
+#include "variablySaturatedPoroFluid.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -63,15 +64,7 @@ namespace Foam
 
         const volScalarField& varSatPoroSolid::saturationField() const
         {
-            if(!poroFluid().foundObject<volScalarField>("S"))
-            {
-                FatalErrorInFunction
-                    << "variably saturated coupling requires a saturation field 'S' "
-                    << "once saturation is actually used"
-                    << exit(FatalError);
-            }
-
-            return poroFluid().lookupObject<volScalarField>("S");
+            return poroFluid().S();
         }
 
         void varSatPoroSolid::initializeSolidHydraulicFields()

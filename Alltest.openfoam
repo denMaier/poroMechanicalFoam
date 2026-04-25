@@ -57,6 +57,7 @@ if [ "$run_unit" = true ]; then
     tests/openfoam/hydraulicModelUnit/Allrun
     tests/openfoam/couplingTermsUnit/Allrun
     tests/openfoam/poroSolidInterfaceUnit/Allrun
+    tests/openfoam/varSatPoroSolidInterfaceUnit/Allrun
 else
     echo "OpenFOAM unit tests skipped. Run $0 --unit to build and run focused model tests."
 fi

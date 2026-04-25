@@ -115,6 +115,30 @@ namespace Foam
             //- Allocate the saturation field on first use.
             void makeS();
 
+            //- Copy a fully assembled saturation field into the registered S
+            //  object without renaming or re-registering it in the registry.
+            void setS(const tmp<volScalarField>& sat)
+            {
+                volScalarField& SRef = S();
+                const volScalarField& satRef = sat();
+
+                SRef.internalFieldRef() = satRef.internalField();
+
+                forAll(SRef.boundaryFieldRef(), patchI)
+                {
+                    SRef.boundaryFieldRef()[patchI] = satRef.boundaryField()[patchI];
+                }
+
+                SRef.correctBoundaryConditions();
+            }
+
+            //- Recompute saturation from pressure and write it into the registered
+            //- saturation field.
+            void updateS(const volScalarField& pressure)
+            {
+                setS(poroHydraulic().S(pressure));
+            }
+
             //- Construct the runtime-selected Richards linearization scheme.
             void makeRichardsLinearization();
 
@@ -177,7 +201,7 @@ namespace Foam
             // Special Acess
 
             //- Const access to the pore-fluid saturation field.
-            const volScalarField& S() const
+            virtual const volScalarField& S() const override
             {
                 if (!SPtr_.valid())
                 {

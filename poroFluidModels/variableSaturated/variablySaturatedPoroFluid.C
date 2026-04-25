@@ -41,26 +41,26 @@ namespace Foam
 
         // * * * * * * * * * * * * * * Protected Members Functions * * * * * * * * * * * * * //
 
-        void variablySaturatedPoroFluid::makeS()
-        {
-            SPtr_.reset
+void variablySaturatedPoroFluid::makeS()
+{
+    SPtr_.reset
+    (
+        new volScalarField
+        (
+            IOobject
             (
-                new volScalarField
-                (
-                        IOobject
-                        (
-                            "S", 
-                            pField().time().timeName(),
-                            pField().db(),
-                            IOobject::NO_READ,
-                            IOobject::AUTO_WRITE
-                        ),
-                        pField().mesh(),
-                        dimensionedScalar(dimless,0.0),
-                        "zeroGradient"
-                )
-            );
-        }
+                "S",
+                pField().time().timeName(),
+                *this,
+                IOobject::NO_READ,
+                IOobject::AUTO_WRITE
+            ),
+            pField().mesh(),
+            dimensionedScalar(dimless,0.0),
+            "zeroGradient"
+        )
+    );
+}
 
         void variablySaturatedPoroFluid::makeRichardsLinearization()
         {   

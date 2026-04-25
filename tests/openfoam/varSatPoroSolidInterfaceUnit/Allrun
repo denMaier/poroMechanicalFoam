@@ -1,0 +1,416 @@
+#!/bin/bash
+cd "${0%/*}" || exit 1
+
+set -e
+
+testCase="${TMPDIR:-/tmp}/poroMechanicalFoam-varSatPoroSolidInterfaceUnit-$$"
+trap 'rm -rf "$testCase"' EXIT
+
+mkdir -p \
+    "$testCase/system/solid" \
+    "$testCase/system/poroFluid" \
+    "$testCase/constant/solid" \
+    "$testCase/constant/poroFluid" \
+    "$testCase/0/solid" \
+    "$testCase/0/poroFluid"
+
+cat > "$testCase/system/controlDict" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object controlDict;
+}
+
+application varSatPoroSolidInterfaceUnit;
+startFrom startTime;
+startTime 0;
+stopAt endTime;
+endTime 0;
+deltaT 1;
+writeControl timeStep;
+writeInterval 1;
+
+solid
+{
+    region solid;
+}
+
+poroFluid
+{
+    region poroFluid;
+}
+EOF
+
+cat > "$testCase/system/solid/fvSchemes" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object fvSchemes;
+}
+
+ddtSchemes
+{
+    default Euler;
+    ddt(C,p_rgh) Euler;
+}
+
+d2dt2Schemes
+{
+    default Euler;
+    d2dt2(D) Euler;
+}
+
+gradSchemes
+{
+    default Gauss linear;
+}
+
+divSchemes
+{
+    default none;
+    div(sigma) Gauss linear;
+    div(U) Gauss linear;
+}
+
+laplacianSchemes
+{
+    default Gauss linear corrected;
+    laplacian(DD,D) Gauss linear corrected;
+}
+
+interpolationSchemes
+{
+    default linear;
+}
+
+snGradSchemes
+{
+    default corrected;
+}
+EOF
+
+cp "$testCase/system/solid/fvSchemes" "$testCase/system/fvSchemes"
+cp "$testCase/system/solid/fvSchemes" "$testCase/system/poroFluid/fvSchemes"
+
+cat > "$testCase/system/solid/fvSolution" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object fvSolution;
+}
+
+solvers
+{
+    D
+    {
+        solver PBiCGStab;
+        preconditioner DILU;
+        tolerance 1e-12;
+        relTol 0;
+    }
+
+    p_rgh
+    {
+        solver PBiCGStab;
+        preconditioner DILU;
+        tolerance 1e-12;
+        relTol 0;
+    }
+}
+
+relaxationFactors
+{
+    fields
+    {
+        D 1;
+        p_rgh 1;
+    }
+}
+EOF
+
+cp "$testCase/system/solid/fvSolution" "$testCase/system/fvSolution"
+cp "$testCase/system/solid/fvSolution" "$testCase/system/poroFluid/fvSolution"
+
+cat > "$testCase/system/solid/blockMeshDict" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object blockMeshDict;
+}
+
+scale 1;
+
+vertices
+(
+    (0 0 0)
+    (1 0 0)
+    (1 1 0)
+    (0 1 0)
+    (0 0 1)
+    (1 0 1)
+    (1 1 1)
+    (0 1 1)
+);
+
+blocks
+(
+    hex (0 1 2 3 4 5 6 7) (1 1 1) simpleGrading (1 1 1)
+);
+
+edges ();
+
+boundary
+(
+    walls
+    {
+        type wall;
+        faces
+        (
+            (0 4 7 3)
+            (1 2 6 5)
+            (0 1 5 4)
+            (3 7 6 2)
+            (0 3 2 1)
+            (4 5 6 7)
+        );
+    }
+);
+EOF
+
+cat > "$testCase/constant/poroCouplingProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroCouplingProperties;
+}
+
+poroSolidInterface varSatPoroSolid;
+sharedMesh true;
+porosityConstant true;
+
+varSatPoroSolidCoeffs
+{
+    enabled true;
+    iterations 1;
+    infoFrequency 1;
+
+    convergence
+    {
+        p_rgh max 1e-12;
+        D max 1e-12;
+    }
+}
+EOF
+
+cat > "$testCase/constant/physicsProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object physicsProperties;
+}
+
+physicsModel varSatPoroSolid;
+EOF
+
+cat > "$testCase/constant/solid/solidProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object solidProperties;
+}
+
+solidModel unsLinearGeometry;
+
+unsLinearGeometryCoeffs
+{
+    nCorrectors 1;
+    minCorrectors 1;
+    solutionTolerance 1e-12;
+    alternativeTolerance 1e-12;
+    materialTolerance 1e-12;
+}
+EOF
+
+cat > "$testCase/constant/solid/mechanicalProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object mechanicalProperties;
+}
+
+planeStress false;
+
+mechanical
+(
+    soil
+    {
+        type poroMechanicalLaw2;
+        biotCoeff biotCoeff [0 0 0 0 0 0 0] 0.75;
+        pressureFieldName p;
+
+        effectiveStressMechanicalLaw
+        {
+            type linearElastic;
+            rho rho [1 -3 0 0 0 0 0] 2000;
+            E E [1 -1 -2 0 0 0 0] 1e7;
+            nu nu [0 0 0 0 0 0 0] 0.25;
+        }
+    }
+);
+EOF
+
+cat > "$testCase/constant/solid/g" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class uniformDimensionedVectorField;
+    object g;
+}
+
+dimensions [0 1 -2 0 0 0 0];
+value (0 -9.81 0);
+EOF
+
+cat > "$testCase/constant/poroFluid/poroFluidProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroFluidProperties;
+}
+
+poroFluidModel varSatPoroFluid;
+solutionAlgorithm Standard;
+
+varSatPoroFluidCoeffs
+{
+    enabled true;
+    iterations 1;
+    infoFrequency 1;
+
+    convergence
+    {
+        p_rgh max 1e-12;
+    }
+}
+EOF
+
+cat > "$testCase/constant/poroFluid/poroHydraulicProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroHydraulicProperties;
+}
+
+rho rho [1 -3 0 0 0 0 0] 1000;
+href href [0 1 0 0 0 0 0] 0;
+n n [0 0 0 0 0 0 0] 0.35;
+storageLaw storageCoeff;
+conductivityLaw constant;
+saturationLaw saturated;
+
+storageCoeffCoeffs
+{
+    Ss Ss [-1 1 2 0 0 0 0] 1e-5;
+}
+
+k k [0 1 -1 0 0 0 0] 1e-5;
+EOF
+
+echo "Building varSatPoroSolidInterfaceUnit"
+wmake
+
+echo "Creating varSatPoroSolidInterface unit-test mesh: $testCase"
+blockMesh -case "$testCase" -region solid >/dev/null
+cp -R "$testCase/constant/solid/polyMesh" "$testCase/constant/poroFluid/polyMesh"
+
+cat > "$testCase/0/solid/D" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volVectorField;
+    object D;
+}
+
+dimensions [0 1 0 0 0 0 0];
+internalField uniform (0 0 0);
+
+boundaryField
+{
+    walls
+    {
+        type fixedValue;
+        value uniform (0 0 0);
+    }
+}
+EOF
+
+cat > "$testCase/0/poroFluid/p_rgh" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volScalarField;
+    object p_rgh;
+}
+
+dimensions [1 -1 -2 0 0 0 0];
+internalField uniform 1000;
+
+boundaryField
+{
+    walls
+    {
+        type zeroGradient;
+    }
+}
+EOF
+
+cat > "$testCase/0/poroFluid/S" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volScalarField;
+    object S;
+}
+
+dimensions [0 0 0 0 0 0 0];
+internalField uniform 1;
+
+boundaryField
+{
+    walls
+    {
+        type zeroGradient;
+    }
+}
+EOF
+
+cp "$testCase/0/poroFluid/p_rgh" "$testCase/0/solid/p_rgh"
+
+openfoamArchLib="${WM_PROJECT_DIR}/platforms/$WM_OPTIONS/lib"
+export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$openfoamArchLib:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$openfoamArchLib:$WM_PROJECT_DIR/env/lib:${LD_LIBRARY_PATH:-}"
+varSatPoroSolidInterfaceUnit -case "$testCase"

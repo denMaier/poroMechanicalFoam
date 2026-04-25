@@ -208,7 +208,7 @@ tmp<volScalarField> varSatPoroHydraulicModel::S(const volScalarField &p) const
     (
         new volScalarField
         (
-            assembledScratchFieldIOobject("S"),
+            assembledScratchFieldIOobject("S_tmp"),
             mesh(),
             dimensionedScalar(dimless, 0.0)
         )

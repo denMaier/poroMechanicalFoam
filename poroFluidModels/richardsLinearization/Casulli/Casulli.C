@@ -35,6 +35,21 @@ License
 
 namespace Foam
 {
+namespace
+{
+    inline void setFieldFromTmp(volScalarField& dst, const tmp<volScalarField>& src)
+    {
+        const volScalarField& srcRef = src();
+        dst.internalFieldRef() = srcRef.internalField();
+
+        forAll(dst.boundaryFieldRef(), patchI)
+        {
+            dst.boundaryFieldRef()[patchI] = srcRef.boundaryField()[patchI];
+        }
+
+        dst.correctBoundaryConditions();
+    }
+}
 
     namespace richardsLinearizations
     {
@@ -114,7 +129,7 @@ namespace Foam
 
             Q(totalP,P_());
 
-            S() = poroHydraulic().S(totalP);
+            setFieldFromTmp(S(), poroHydraulic().S(totalP));
 
             S1(totalP,S());
 
@@ -143,7 +158,7 @@ namespace Foam
         bool Casulli::checkConvergedAndUpdate(volScalarField &totalP, volScalarField &pField)
         {
             volScalarField S1_Prev("S1Prev",S1_());
-            S() = poroHydraulic().S(totalP);
+            setFieldFromTmp(S(), poroHydraulic().S(totalP));
             S1(totalP,S());
             scalar rint = L2Norm((P_() * (pPrevInt_() - pField) - (S1_Prev - S1_()))().primitiveField()); // Residual as in Casulli
             if (rint < r_max_ || intCorr_ > nCasInt_)
@@ -215,8 +230,7 @@ namespace Foam
         pStar_.correctBoundaryConditions();
         C_pStar_.primitiveFieldRef() = poroHydraulic().C(pStar_);
         C_pStar_.correctBoundaryConditions();
-        S_pStar_.primitiveFieldRef() = poroHydraulic().S(pStar_);
-        S_pStar_.correctBoundaryConditions();
+        setFieldFromTmp(S_pStar_, poroHydraulic().S(pStar_));
     };
 
   void Casulli::P(const volScalarField &pField, const volScalarField &C)

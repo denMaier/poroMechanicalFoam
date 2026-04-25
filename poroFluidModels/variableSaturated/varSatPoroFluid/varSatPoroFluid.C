@@ -116,7 +116,7 @@ namespace Foam
 
             // Initialize through S() so the field is registered in the
             // objectRegistry for coupled solid/material-law lookups.
-            S() = poroHydraulic().S(p());
+            updateS(p());
 
             // Initialize iteration control
             iterCtrl();
@@ -162,7 +162,7 @@ namespace Foam
             // Update total pore pressure
             p() = p_rgh() + poroHydraulic().p_Hyd();
             // Update saturation
-            S() = poroHydraulic().S(p());
+            updateS(p());
             // Update the effective hydraulic conductivity
             kEffbyGammaf() = poroHydraulic().kEfff(p()) / poroHydraulic().magGamma();
             // Check if poroHydraulicModel changes storage
@@ -288,7 +288,7 @@ namespace Foam
                 ///////////////////- Update the Coeffs and secondary fields ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 
                 // Update Saturation
-                S() = poroHydraulic().S(p());
+            updateS(p());
 
                 // If this is a steady state calculation, dont relax kEff (leads to wrong solutions)
                 // In any way update kEff

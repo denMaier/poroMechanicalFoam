@@ -128,6 +128,8 @@ etc/pref.sh
 etc/bashrc.preset
 
 # Test-harness generated stuff
+/.openfoam-test/
+/.openfoam-test-wm/
 tests/openfoam/materialModels/
 tests/openfoam/poroSolidInterfaces/
 tests/openfoam/**/Make/*Clang*/
@@ -139,6 +141,8 @@ tests/openfoam/**/log.*
 tests/openfoam/**/processor*/
 tests/openfoam/**/postProcessing/
 tests/openfoam/**/VTK/
+tests/openfoam/**/.openfoam-test/
+tests/openfoam/**/.openfoam-test-wm/
 
 # The following files are blacklisted because of a DMCA complaint by ANSYS.
 src/lduSolvers/tools/PriorityArray.C
