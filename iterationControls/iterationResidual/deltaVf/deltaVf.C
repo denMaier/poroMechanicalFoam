@@ -47,6 +47,40 @@ namespace
          || registry.foundObject<Foam::surfaceVectorField>(name)
         );
     }
+
+    Foam::scalarField surfaceValuesWithBoundaries
+    (
+        const Foam::surfaceScalarField& field
+    )
+    {
+        Foam::label nValues = field.primitiveField().size();
+
+        forAll(field.boundaryField(), patchI)
+        {
+            nValues += field.boundaryField()[patchI].size();
+        }
+
+        Foam::scalarField values(nValues);
+        Foam::label valueI = 0;
+
+        forAll(field.primitiveField(), faceI)
+        {
+            values[valueI++] = field.primitiveField()[faceI];
+        }
+
+        forAll(field.boundaryField(), patchI)
+        {
+            const Foam::fvsPatchScalarField& patchField =
+                field.boundaryField()[patchI];
+
+            forAll(patchField, faceI)
+            {
+                values[valueI++] = patchField[faceI];
+            }
+        }
+
+        return values;
+    }
 }
 
 bool Foam::deltaVf::fieldExists
@@ -550,7 +584,7 @@ Foam::scalar Foam::deltaVf::calcResidual()
             deltaSf_.ref() = mag(sf() - sf().prevIter());
         }
 
-        residual_ = operation(deltaSf_().primitiveField());
+        residual_ = operation(surfaceValuesWithBoundaries(deltaSf_()));
         const_cast<surfaceScalarField&>(sf()).storePrevIter();
         prevIterStored_ = true;
 

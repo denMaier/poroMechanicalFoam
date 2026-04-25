@@ -544,6 +544,22 @@ void testDeltaVfResiduals(fvMesh& mesh)
     trackedVector = dimensionedVector("trackedVectorDelta", dimVelocity, vector(0.0, 0.0, 12.0));
 
     checkNear("deltaVf vector residual tracks magnitude delta", vectorResidual.calcResidual(), 7.0);
+
+    surfaceScalarField trackedSurface
+    (
+        IOobject("trackedSurfaceDelta", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("trackedSurfaceDelta", dimVelocity, 0.25)
+    );
+
+    ITstream surfaceStream("max 1e-12");
+    deltaVf surfaceResidual(mesh.time(), trackedSurface.name(), surfaceStream, false);
+
+    checkNear("deltaVf first surface residual stores baseline", surfaceResidual.calcResidual(), 0.0);
+
+    trackedSurface = dimensionedScalar("trackedSurfaceDelta", dimVelocity, 1.5);
+
+    checkNear("deltaVf surface scalar residual tracks delta", surfaceResidual.calcResidual(), 1.25);
 }
 
 void testIterationControlDictionary(fvMesh& mesh)
