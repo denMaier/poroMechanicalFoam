@@ -770,6 +770,16 @@ void testScalarDiskReader(fvMesh& mesh)
     runTime.setTime(oldTimeValue, oldTimeIndex);
 }
 
+void runScalarDiskReaderMissingStart(fvMesh& mesh)
+{
+    dictionary readerDict;
+    readerDict.add("scalarCaseDirectory", fileName("."));
+    readerDict.add("mapMethod", word("direct"));
+    readerDict.add("consistent", Switch(true));
+
+    scalarDiskReader reader("missingDiskScalar", mesh, mesh, readerDict);
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -1085,10 +1095,23 @@ int main(int argc, char *argv[])
         "head-missing-gamma",
         "Run the expected head-based pressure-unit failure path"
     );
+    argList::addBoolOption
+    (
+        "disk-reader-missing-start",
+        "Run the expected scalar disk reader missing-start-field failure path"
+    );
 
     #include "setRootCase.H"
     #include "createTime.H"
     #include "createMesh.H"
+
+    if (args.found("disk-reader-missing-start"))
+    {
+        runScalarDiskReaderMissingStart(mesh);
+        FatalErrorInFunction
+            << "disk reader missing start test unexpectedly completed"
+            << exit(FatalError);
+    }
 
     if (args.found("head-missing-gamma"))
     {

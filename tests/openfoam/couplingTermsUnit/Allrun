@@ -180,6 +180,27 @@ export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib
 couplingTermsUnit -case "$testCase"
 
 set +e
+missingDiskReaderOutput=$(couplingTermsUnit -case "$testCase" -disk-reader-missing-start 2>&1)
+missingDiskReaderStatus=$?
+set -e
+
+if [ "$missingDiskReaderStatus" -eq 0 ]; then
+    echo "Expected scalar disk reader missing start field check to fail, but it succeeded."
+    exit 1
+fi
+
+case "$missingDiskReaderOutput" in
+    *"The scalar disk reader was enabled for field 'missingDiskScalar'"*)
+        echo "PASS scalar disk reader missing start field failure"
+        ;;
+    *)
+        echo "$missingDiskReaderOutput"
+        echo "Scalar disk reader missing start field failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
+
+set +e
 headMissingGammaOutput=$(couplingTermsUnit -case "$testCase" -head-missing-gamma 2>&1)
 headMissingGammaStatus=$?
 set -e
