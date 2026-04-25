@@ -6,6 +6,7 @@
 #include "effectiveStressModel.H"
 #include "varSatPoroMechanicalLawTerms.H"
 #include "residualOperation.H"
+#include "deltaVf.H"
 
 using namespace Foam;
 
@@ -52,6 +53,19 @@ void checkTrue(const word& name, const bool condition)
     {
         Info<< "PASS " << name << nl;
     }
+}
+
+bool containsWord(const wordList& words, const word& value)
+{
+    forAll(words, wordI)
+    {
+        if (words[wordI] == value)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 template<class GeoField>
@@ -461,6 +475,73 @@ void testResidualOperations()
     checkNear("residualOperation RMS empty List", rmsOp->operation(emptyList), 0.0);
 }
 
+void testDeltaVfResiduals(fvMesh& mesh)
+{
+    volScalarField trackedAbs
+    (
+        IOobject("trackedAbsDelta", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("trackedAbsDelta", dimLength, 2.0),
+        "zeroGradient"
+    );
+
+    ITstream absStream("max 1e-12");
+    deltaVf absResidual(mesh.time(), trackedAbs.name(), absStream, false);
+
+    checkTrue("deltaVf finds registered scalar field", deltaVf::fieldExists(mesh.time(), trackedAbs.name()));
+    checkTrue
+    (
+        "deltaVf candidates include scalar field",
+        containsWord(deltaVf::candidateFieldNames(mesh.time()), trackedAbs.name())
+    );
+    checkTrue("deltaVf rejects missing field", !deltaVf::fieldExists(mesh.time(), "missingDeltaField"));
+
+    checkNear("deltaVf first scalar residual stores baseline", absResidual.calcResidual(), 0.0);
+
+    trackedAbs = dimensionedScalar("trackedAbsDelta", dimLength, 5.5);
+
+    checkNear("deltaVf scalar absolute max delta", absResidual.calcResidual(), 3.5);
+
+    volScalarField trackedRel
+    (
+        IOobject("trackedRelDelta", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("trackedRelDelta", dimPressure, 2.0),
+        "zeroGradient"
+    );
+
+    ITstream relStream("max rel 1e-12");
+    deltaVf relResidual(mesh.time(), trackedRel.name(), relStream, false);
+
+    checkNear("deltaVf first relative residual stores baseline", relResidual.calcResidual(), 0.0);
+
+    trackedRel = dimensionedScalar("trackedRelDelta", dimPressure, 4.0);
+
+    checkNear
+    (
+        "deltaVf relative delta uses current magnitude denominator",
+        relResidual.calcResidual(),
+        0.5
+    );
+
+    volVectorField trackedVector
+    (
+        IOobject("trackedVectorDelta", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedVector("trackedVectorDelta", dimVelocity, vector(3.0, 4.0, 0.0)),
+        "zeroGradient"
+    );
+
+    ITstream vectorStream("max 1e-12");
+    deltaVf vectorResidual(mesh.time(), trackedVector.name(), vectorStream, false);
+
+    checkNear("deltaVf first vector residual stores baseline", vectorResidual.calcResidual(), 0.0);
+
+    trackedVector = dimensionedVector("trackedVectorDelta", dimVelocity, vector(0.0, 0.0, 12.0));
+
+    checkNear("deltaVf vector residual tracks magnitude delta", vectorResidual.calcResidual(), 7.0);
+}
+
 void testSharedRegistryRegistration(fvMesh& mesh)
 {
     objectRegistry& registry =
@@ -806,6 +887,7 @@ int main(int argc, char *argv[])
     testFvOptionCouplingRates(mesh);
     testFvOptionMatrixAssembly(mesh);
     testResidualOperations();
+    testDeltaVfResiduals(mesh);
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);
