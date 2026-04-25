@@ -92,6 +92,10 @@ Tested code:
   - zone-specific saturation laws are selected from the same disk-backed zones.
   - saturated and van Genuchten zones assemble distinct `S`, `kr`, `C`,
     `pStar`, and `kEff` values.
+- `Allrun` fatal-path coverage:
+  - missing `storageLaw` selector in a zone fails with the intended diagnostic.
+  - missing `saturationLaw` selector in a variably saturated zone fails with
+    the intended diagnostic.
 
 Low-value or tautological candidates:
 
@@ -260,6 +264,8 @@ Low-value or tautological candidates:
   a regression check for named zone dictionary lookup.
 - Two-zone `varSatPoroHydraulicModel` assembly with different saturation laws
   per zone.
+- Hydraulic property selector fatal-path checks for missing storage and
+  saturation law keys.
 - Disk reread-on-time-index-change, invalid map-method rejection, and
   field-registration idempotence checks.
 

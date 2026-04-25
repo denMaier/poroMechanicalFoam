@@ -231,3 +231,123 @@ EOF
 
 export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
 hydraulicModelUnit -case "$testCase"
+
+cat > "$testCase/constant/poroHydraulicProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroHydraulicProperties;
+}
+
+rho rho [1 -3 0 0 0 0 0] 1000;
+href href [0 1 0 0 0 0 0] 0;
+
+zoneA
+{
+    n n [0 0 0 0 0 0 0] 0.25;
+    conductivityLaw constant;
+    saturationLaw saturated;
+    k k [0 1 -1 0 0 0 0] 2e-6;
+}
+
+zoneB
+{
+    n n [0 0 0 0 0 0 0] 0.45;
+    storageLaw storageCoeff;
+    conductivityLaw constant;
+    saturationLaw saturated;
+
+    storageCoeffCoeffs
+    {
+        Ss Ss [-1 1 2 0 0 0 0] 4e-8;
+    }
+
+    k k [0 1 -1 0 0 0 0] 8e-6;
+}
+EOF
+
+set +e
+missingStorageOutput=$(hydraulicModelUnit -case "$testCase" 2>&1)
+missingStorageStatus=$?
+set -e
+
+if [ "$missingStorageStatus" -eq 0 ]; then
+    echo "Expected missing storage-law selector check to fail, but it succeeded."
+    exit 1
+fi
+
+case "$missingStorageOutput" in
+    *"Zone 'zoneA' does not define required selector key 'storageLaw'"*)
+        echo "PASS poroHydraulicModel missing storage-law selector failure"
+        ;;
+    *)
+        echo "$missingStorageOutput"
+        echo "Missing storage-law selector failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
+
+cat > "$testCase/constant/poroHydraulicProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroHydraulicProperties;
+}
+
+rho rho [1 -3 0 0 0 0 0] 1000;
+href href [0 1 0 0 0 0 0] 0;
+
+zoneA
+{
+    n n [0 0 0 0 0 0 0] 0.25;
+    storageLaw storageCoeff;
+    conductivityLaw constant;
+
+    storageCoeffCoeffs
+    {
+        Ss Ss [-1 1 2 0 0 0 0] 1e-8;
+    }
+
+    k k [0 1 -1 0 0 0 0] 2e-6;
+}
+
+zoneB
+{
+    n n [0 0 0 0 0 0 0] 0.45;
+    storageLaw storageCoeff;
+    conductivityLaw constant;
+    saturationLaw saturated;
+
+    storageCoeffCoeffs
+    {
+        Ss Ss [-1 1 2 0 0 0 0] 4e-8;
+    }
+
+    k k [0 1 -1 0 0 0 0] 8e-6;
+}
+EOF
+
+set +e
+missingSaturationOutput=$(hydraulicModelUnit -case "$testCase" 2>&1)
+missingSaturationStatus=$?
+set -e
+
+if [ "$missingSaturationStatus" -eq 0 ]; then
+    echo "Expected missing saturation-law selector check to fail, but it succeeded."
+    exit 1
+fi
+
+case "$missingSaturationOutput" in
+    *"Zone 'zoneA' does not define required selector key 'saturationLaw'"*)
+        echo "PASS varSatPoroHydraulicModel missing saturation-law selector failure"
+        ;;
+    *)
+        echo "$missingSaturationOutput"
+        echo "Missing saturation-law selector failure did not emit the expected diagnostic."
+        exit 1
+        ;;
+esac
