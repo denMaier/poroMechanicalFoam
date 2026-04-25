@@ -757,6 +757,17 @@ void testScalarDiskReader(fvMesh& mesh)
     checkNear("scalarDiskReader reads scalar field from disk", tDiskScalar()[0], 42.0);
     checkTrue("scalarDiskReader preserves field dimensions", tDiskScalar().dimensions() == dimPressure);
     checkTrue("scalarDiskReader marks field for restart writes", tDiskScalar().writeOpt() == IOobject::AUTO_WRITE);
+
+    Time& runTime = const_cast<Time&>(mesh.time());
+    const scalar oldTimeValue = runTime.value();
+    const label oldTimeIndex = runTime.timeIndex();
+
+    runTime.setTime(1.0, oldTimeIndex + 1);
+    const tmp<volScalarField> tRereadScalar(reader.field());
+
+    checkNear("scalarDiskReader rereads when time index changes", tRereadScalar()[0], 84.0);
+
+    runTime.setTime(oldTimeValue, oldTimeIndex);
 }
 
 void testSharedRegistryRegistration(fvMesh& mesh)

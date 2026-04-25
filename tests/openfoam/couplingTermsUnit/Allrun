@@ -6,7 +6,7 @@ set -e
 testCase="${TMPDIR:-/tmp}/poroMechanicalFoam-couplingTermsUnit-$$"
 trap 'rm -rf "$testCase"' EXIT
 
-mkdir -p "$testCase/system" "$testCase/constant/polyMesh" "$testCase/0"
+mkdir -p "$testCase/system" "$testCase/constant/polyMesh" "$testCase/0" "$testCase/1"
 
 cat > "$testCase/system/controlDict" <<'EOF'
 FoamFile
@@ -145,6 +145,27 @@ FoamFile
 
 dimensions [1 -1 -2 0 0 0 0];
 internalField uniform 42;
+
+boundaryField
+{
+    walls
+    {
+        type zeroGradient;
+    }
+}
+EOF
+
+cat > "$testCase/1/diskScalar" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class volScalarField;
+    object diskScalar;
+}
+
+dimensions [1 -1 -2 0 0 0 0];
+internalField uniform 84;
 
 boundaryField
 {
