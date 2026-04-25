@@ -88,7 +88,7 @@ varSatPoroHydraulicModel::varSatPoroHydraulicModel(
     // vary by material region in the same way as storage and conductivity.
     forAll(pField.mesh().cellZones(),iZone)
     {
-        const word& zoneName = pField.mesh().cellZones().names()[iZone];
+        const word& zoneName = pField.mesh().cellZones()[iZone].name();
         const dictionary& zoneSubDict =
              poroHydraulicProperties().optionalSubDict
                       (

@@ -177,7 +177,7 @@ poroHydraulicModel::poroHydraulicModel
     // every hydraulic region is represented by a cellZone with its own sub-dict.
     forAll(pField.mesh().cellZones(),zoneI)
     {
-        const word& zoneName = pField.mesh().cellZones().names()[zoneI];
+        const word& zoneName = pField.mesh().cellZones()[zoneI].name();
         const dictionary& zoneSubDict =
              poroHydraulicProperties_.optionalSubDict 
                       (
@@ -283,10 +283,11 @@ tmp<volScalarField> poroHydraulicModel::n0() const
 
         forAll(cellZones,iZone)
         {
+            const word& zoneName = cellZones[iZone].name();
             const dictionary& zoneSubDict =
                     poroHydraulicProperties().optionalSubDict 
                     (
-                        cellZones.names()[iZone]
+                        zoneName
                     );
             nList.set
             (

@@ -84,6 +84,10 @@ Tested code:
     trend, `updatesSs`.
   - `skemptonB`: specific storage, static behavior, positivity.
   - `montenegro`: above-entry storage and cutoff behavior, `updatesSs`.
+- `poroHydraulicModel` material-zone assembly:
+  - real two-cell, two-zone OpenFOAM mesh created through `topoSet`.
+  - zone-specific `n`, `Ss`, and `k` are assembled onto the expected cells.
+  - constant zone laws report no state-dependent storage or conductivity update.
 
 Low-value or tautological candidates:
 
@@ -247,6 +251,8 @@ Low-value or tautological candidates:
   model.
 - Fatal-path checks that unassembled explicit and implicit coupling DTOs cannot
   be consumed.
+- Two-zone `poroHydraulicModel` assembly from disk-backed cellZones, including
+  a regression check for named zone dictionary lookup.
 - Disk reread-on-time-index-change and field-registration idempotence checks.
 
 ## Suggested Cleanup Priority

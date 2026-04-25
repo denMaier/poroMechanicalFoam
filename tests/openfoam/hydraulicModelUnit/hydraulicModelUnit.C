@@ -2,6 +2,7 @@
 #include "saturationLaw.H"
 #include "conductivityModel.H"
 #include "storageLaw.H"
+#include "poroHydraulicModel.H"
 
 using namespace Foam;
 
@@ -265,6 +266,33 @@ void testMontenegroStorage(storageLaw& law)
     checkNear("montenegroStorage.Ss below p_e cut-off", law.Ss(0.37, -15000.0, 0), 0.0);
     checkTrue("montenegroStorage updates storage", law.updatesSs());
 }
+
+void testPoroHydraulicModelZoneAssembly(fvMesh& mesh, volScalarField& p)
+{
+    checkTrue("poroHydraulicModel fixture has two hydraulic zones", mesh.cellZones().size() == 2);
+    checkTrue("poroHydraulicModel fixture has zoneA", mesh.cellZones().findZoneID("zoneA") >= 0);
+    checkTrue("poroHydraulicModel fixture has zoneB", mesh.cellZones().findZoneID("zoneB") >= 0);
+
+    poroHydraulicModel model
+    (
+        p,
+        dimensionedVector("g", dimAcceleration, vector(0, -9.81, 0))
+    );
+
+    const tmp<volScalarField> tn0(model.n0());
+    checkNear("poroHydraulicModel zoneA n0", tn0()[0], 0.25);
+    checkNear("poroHydraulicModel zoneB n0", tn0()[1], 0.45);
+
+    const tmp<volScalarField> tSs(model.Ss(tn0(), p));
+    checkNear("poroHydraulicModel zoneA Ss", tSs()[0], 1e-8);
+    checkNear("poroHydraulicModel zoneB Ss", tSs()[1], 4e-8);
+
+    const tmp<volScalarField> tk(model.k());
+    checkNear("poroHydraulicModel zoneA k", tk()[0], 2e-6);
+    checkNear("poroHydraulicModel zoneB k", tk()[1], 8e-6);
+    checkTrue("poroHydraulicModel zone constants do not update Ss", !model.updatesSs());
+    checkTrue("poroHydraulicModel zone constants do not update k", !model.updatesK());
+}
 }
 
 int main(int argc, char *argv[])
@@ -322,6 +350,8 @@ int main(int argc, char *argv[])
 
     autoPtr<storageLaw> montenegroStorage = makeMontenegroStorage(p);
     testMontenegroStorage(montenegroStorage());
+
+    testPoroHydraulicModelZoneAssembly(mesh, p);
 
     if (failures)
     {

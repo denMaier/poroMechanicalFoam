@@ -103,7 +103,7 @@ vertices
 
 blocks
 (
-    hex (0 1 2 3 4 5 6 7) (1 1 1) simpleGrading (1 1 1)
+    hex (0 1 2 3 4 5 6 7) (2 1 1) simpleGrading (1 1 1)
 );
 
 edges ();
@@ -126,6 +126,48 @@ boundary
 );
 EOF
 
+cat > "$testCase/system/topoSetDict" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object topoSetDict;
+}
+
+actions
+(
+    {
+        name zoneASet;
+        type cellSet;
+        action new;
+        source boxToCell;
+        box (0 -1 -1) (0.5 2 2);
+    }
+    {
+        name zoneA;
+        type cellZoneSet;
+        action new;
+        source setToCellZone;
+        set zoneASet;
+    }
+    {
+        name zoneBSet;
+        type cellSet;
+        action new;
+        source boxToCell;
+        box (0.5 -1 -1) (1.1 2 2);
+    }
+    {
+        name zoneB;
+        type cellZoneSet;
+        action new;
+        source setToCellZone;
+        set zoneBSet;
+    }
+);
+EOF
+
 echo "Building poroHydraulicModels for unit tests"
 wmake "$repoRoot/materialModels/poroHydraulicModel"
 
@@ -134,6 +176,48 @@ wmake
 
 echo "Creating unit-test mesh: $testCase"
 blockMesh -case "$testCase" >/dev/null
+topoSet -case "$testCase" >/dev/null
+
+cat > "$testCase/constant/poroHydraulicProperties" <<'EOF'
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroHydraulicProperties;
+}
+
+rho rho [1 -3 0 0 0 0 0] 1000;
+href href [0 1 0 0 0 0 0] 0;
+
+zoneA
+{
+    n n [0 0 0 0 0 0 0] 0.25;
+    storageLaw storageCoeff;
+    conductivityLaw constant;
+
+    storageCoeffCoeffs
+    {
+        Ss Ss [-1 1 2 0 0 0 0] 1e-8;
+    }
+
+    k k [0 1 -1 0 0 0 0] 2e-6;
+}
+
+zoneB
+{
+    n n [0 0 0 0 0 0 0] 0.45;
+    storageLaw storageCoeff;
+    conductivityLaw constant;
+
+    storageCoeffCoeffs
+    {
+        Ss Ss [-1 1 2 0 0 0 0] 4e-8;
+    }
+
+    k k [0 1 -1 0 0 0 0] 8e-6;
+}
+EOF
 
 export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
 hydraulicModelUnit -case "$testCase"
