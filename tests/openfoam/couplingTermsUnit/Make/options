@@ -10,6 +10,7 @@ VERSION_SPECIFIC_INC = \
 EXE_INC = \
     $(VERSION_SPECIFIC_INC) \
     -I../../../poroSolidInterfaces \
+    -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/terzaghi \
     -I../../../materialModels/mechanicalModel/mechanicalLaws/linearGeometryLaws/varSatPoroMechanicalLaw/effectiveStressModels/bishop \

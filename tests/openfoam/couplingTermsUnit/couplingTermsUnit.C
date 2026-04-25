@@ -4,6 +4,7 @@
 #include "poroPressureUnits.H"
 #include "UniformDimensionedField.H"
 #include "effectiveStressModel.H"
+#include "varSatPoroMechanicalLawTerms.H"
 
 using namespace Foam;
 
@@ -628,6 +629,106 @@ void testEffectiveStressModels(const fvMesh& mesh)
     checkTrue("effectiveStress chi is dimensionless", tBishop().dimensions() == dimless);
     checkNear("effectiveStress bishop boundary chi equals saturation", tBishop().boundaryField()[0][0], 0.6);
 }
+
+void testVarSatMechanicalLawTerms(const fvMesh& mesh)
+{
+    const dimensionedScalar saturatedDensity("rhoSaturated", dimDensity, 2000.0);
+
+    volScalarField S
+    (
+        IOobject("SForMechanicalTerms", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("SForMechanicalTerms", dimless, 0.6),
+        "zeroGradient"
+    );
+
+    volScalarField n
+    (
+        IOobject("nForMechanicalTerms", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("nForMechanicalTerms", dimless, 0.25),
+        "zeroGradient"
+    );
+
+    const dimensionedScalar rhoWater("rhoWater", dimDensity, 1000.0);
+    const tmp<volScalarField> tRho
+    (
+        varSatPoroMechanicalLawTerms::mixtureDensity
+        (
+            saturatedDensity,
+            S,
+            n,
+            rhoWater
+        )
+    );
+
+    checkNear("varSatMechanical density golden", tRho()[0], 1900.0);
+    checkTrue("varSatMechanical density dimensions", tRho().dimensions() == dimDensity);
+    checkNear("varSatMechanical density boundary", tRho().boundaryField()[0][0], 1900.0);
+
+    volSymmTensorField totalStress
+    (
+        IOobject("totalStressForMechanicalTerms", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedSymmTensor
+        (
+            "totalStressForMechanicalTerms",
+            dimPressure,
+            symmTensor(100.0, 10.0, 20.0, 200.0, 30.0, 300.0)
+        ),
+        "zeroGradient"
+    );
+
+    volScalarField chi
+    (
+        IOobject("chiForMechanicalTerms", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("chiForMechanicalTerms", dimless, 0.6),
+        "zeroGradient"
+    );
+
+    volScalarField p
+    (
+        IOobject("pForMechanicalTerms", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("pForMechanicalTerms", dimPressure, 50.0),
+        "zeroGradient"
+    );
+
+    const dimensionedScalar b("biotForMechanicalTerms", dimless, 0.8);
+    const tmp<volSymmTensorField> tEffective
+    (
+        varSatPoroMechanicalLawTerms::initialEffectiveStress
+        (
+            totalStress,
+            b,
+            chi,
+            p
+        )
+    );
+
+    checkNear("varSatMechanical effective xx includes pore stress", tEffective()[0].xx(), 124.0);
+    checkNear("varSatMechanical effective yy includes pore stress", tEffective()[0].yy(), 224.0);
+    checkNear("varSatMechanical effective zz includes pore stress", tEffective()[0].zz(), 324.0);
+    checkNear("varSatMechanical effective shear unchanged", tEffective()[0].xy(), 10.0);
+
+    const tmp<volSymmTensorField> tTotal
+    (
+        varSatPoroMechanicalLawTerms::totalStress
+        (
+            tEffective(),
+            b,
+            chi,
+            p
+        )
+    );
+
+    checkNear("varSatMechanical total xx removes pore stress", tTotal()[0].xx(), totalStress[0].xx());
+    checkNear("varSatMechanical total yy removes pore stress", tTotal()[0].yy(), totalStress[0].yy());
+    checkNear("varSatMechanical total zz removes pore stress", tTotal()[0].zz(), totalStress[0].zz());
+    checkNear("varSatMechanical total shear unchanged", tTotal()[0].xy(), totalStress[0].xy());
+    checkTrue("varSatMechanical stress dimensions", tTotal().dimensions() == dimPressure);
+}
 }
 
 int main(int argc, char *argv[])
@@ -674,6 +775,7 @@ int main(int argc, char *argv[])
     testSharedRegistryRegistration(mesh);
     testPressureUnitScale(mesh);
     testEffectiveStressModels(mesh);
+    testVarSatMechanicalLawTerms(mesh);
 
     if (failures)
     {

@@ -29,6 +29,7 @@ License
 #include "mechanicalModel.H"
 #include "varSatPoroHydraulicModel.H"
 #include "solidModel.H"
+#include "varSatPoroMechanicalLawTerms.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -60,7 +61,13 @@ bool Foam::varSatPoroMechanicalLaw::checkSigmaEffReady(const volSymmTensorField&
                 IOobject::NO_READ,
                 IOobject::AUTO_WRITE
             ),
-           sigma + b_ * chi *(p)*symmTensor(I)
+            varSatPoroMechanicalLawTerms::initialEffectiveStress
+            (
+                sigma,
+                b_,
+                chi,
+                p
+            )()
         }
     );
 
@@ -84,7 +91,13 @@ bool Foam::varSatPoroMechanicalLaw::checkSigmaEffReady(const surfaceSymmTensorFi
                 IOobject::NO_READ,
                 IOobject::AUTO_WRITE
             ),
-           sigma + b_*chi*(p)*symmTensor(I)
+            varSatPoroMechanicalLawTerms::initialEffectiveStress
+            (
+                sigma,
+                b_,
+                chi,
+                p
+            )()
         }
     );
     return true;
@@ -199,19 +212,14 @@ Foam::tmp<Foam::volScalarField> Foam::varSatPoroMechanicalLaw::rho() const
     }
     const volScalarField& nRef = tnRef();
 
-    tmp<volScalarField> rho_total(
-        new volScalarField
+    tmp<volScalarField> rho_total
+    (
+        varSatPoroMechanicalLawTerms::mixtureDensity
         (
-            IOobject
-            (
-                "rho",
-                mesh().time().timeName(),
-                mesh(),
-                IOobject::READ_IF_PRESENT,
-                IOobject::NO_WRITE
-            ),
-            rhoScalar()-(1-SRef)*nRef*rhow,
-            "zeroGradient"
+            rhoScalar(),
+            SRef,
+            nRef,
+            rhow
         )
     );
 
@@ -269,7 +277,13 @@ void Foam::varSatPoroMechanicalLaw::correct(volSymmTensorField& sigma)
     // Calculate the total stress as the sum of the effective stress and the
     // pore-pressure
 
-    sigma = sigmaEff_() - b_*chiRef()*pRef*symmTensor(I);
+    sigma = varSatPoroMechanicalLawTerms::totalStress
+    (
+        sigmaEff_(),
+        b_,
+        chiRef(),
+        pRef
+    );
 }
 
 
@@ -325,7 +339,13 @@ void Foam::varSatPoroMechanicalLaw::correct(surfaceSymmTensorField& sigma)
 
     // Calculate the total stress as the sum of the effective stress and the
     // pore-pressure
-    sigma = sigmaEfff_() - b_*chif*(pf)*symmTensor(I);
+    sigma = varSatPoroMechanicalLawTerms::totalStress
+    (
+        sigmaEfff_(),
+        b_,
+        chif,
+        pf
+    );
 }
 
 
