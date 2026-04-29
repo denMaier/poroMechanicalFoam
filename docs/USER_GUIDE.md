@@ -459,6 +459,8 @@ Custom types for hydraulic patches (apply to `p_rgh` or `pHead`):
 | `standingWaveTheory` | Oscillating wave loading |
 | `emptyingTank` | Transient tank-draining head condition |
 
+`fixedPoroFlux` accepts an optional `minKeff` entry to floor the face conductivity used when converting flux to gradient. This avoids singular gradients when the effective conductivity collapses toward zero; if omitted, the floor defaults to `SMALL`.
+
 ### Solid boundary conditions
 
 Custom types for mechanical patches:

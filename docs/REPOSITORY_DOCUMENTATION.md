@@ -397,6 +397,8 @@ Custom hydraulic patch field types under `poroFluidModels/poroHydraulicFvPatchFi
 - `standingWaveTheory`
 - `timeDependentOutletWall`
 
+`fixedPoroFlux` supports an optional `minKeff` dictionary entry that floors the face conductivity used in the flux-to-gradient conversion, preventing singular gradients when the hydraulic conductivity vanishes locally.
+
 There is also an older `limitedHeadInfiltration` implementation in `oldLimitedHead/`.
 
 ### Poro-solid / solid patch fields
