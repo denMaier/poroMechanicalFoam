@@ -41,7 +41,8 @@ Foam::fixedPoroFluxFvPatchScalarField::fixedPoroFluxFvPatchScalarField(
       flux_(p.size(), pTraits<scalar>::zero),
       fluxSeries_(),
       isHead_(false),
-      HMCoupled(dynamicFvMesh::defaultRegion)
+      HMCoupled(dynamicFvMesh::defaultRegion),
+      minKeff_(SMALL)
 {
 }
 
@@ -53,7 +54,8 @@ Foam::fixedPoroFluxFvPatchScalarField::fixedPoroFluxFvPatchScalarField(
       flux_(p.size(), 0.0),
       fluxSeries_(PatchFunction1<scalar>::New(p.patch(), "flux", dict)),
       isHead_(false),
-      HMCoupled(dynamicFvMesh::defaultRegion)
+      HMCoupled(dynamicFvMesh::defaultRegion),
+      minKeff_(max(dict.lookupOrDefault<scalar>("minKeff", SMALL), SMALL))
 {
     if(iF.dimensions()==dimLength)
     {isHead_ = true;}
@@ -76,7 +78,8 @@ Foam::fixedPoroFluxFvPatchScalarField::fixedPoroFluxFvPatchScalarField(
       flux_(ptf.flux_),
       fluxSeries_(ptf.fluxSeries_.clone(this->patch().patch())),
       isHead_(ptf.isHead_),
-      HMCoupled(ptf.HMCoupled)
+      HMCoupled(ptf.HMCoupled),
+      minKeff_(ptf.minKeff_)
 {
 }
 
@@ -86,7 +89,8 @@ Foam::fixedPoroFluxFvPatchScalarField::fixedPoroFluxFvPatchScalarField(
       flux_(ptf.flux_),
       fluxSeries_(ptf.fluxSeries_.clone(this->patch().patch())),
       isHead_(ptf.isHead_),
-      HMCoupled(ptf.HMCoupled)
+      HMCoupled(ptf.HMCoupled),
+      minKeff_(ptf.minKeff_)
 {
 }
 
@@ -97,7 +101,8 @@ Foam::fixedPoroFluxFvPatchScalarField::fixedPoroFluxFvPatchScalarField(
       flux_(ptf.flux_),
       fluxSeries_(ptf.fluxSeries_.clone(this->patch().patch())),
       isHead_(ptf.isHead_),
-      HMCoupled(ptf.HMCoupled)
+      HMCoupled(ptf.HMCoupled),
+      minKeff_(ptf.minKeff_)
 {
 }
 
@@ -115,25 +120,25 @@ void Foam::fixedPoroFluxFvPatchScalarField::updateCoeffs()
         //     << headSeries_(this->db().time().timeOutputValue())
         //      << endl;
 
-if(isHead_)
-{
-    const scalarField& k_eff_ = 
-        this->patch().patchField<surfaceScalarField, scalar>(
-            this->db().time().subRegistry(HMCoupled).lookupObject<surfaceScalarField>("kEfff")
+    if(isHead_)
+    {
+        const scalarField& k_eff_ =
+            this->patch().patchField<surfaceScalarField, scalar>(
+                this->db().time().subRegistry(HMCoupled).lookupObject<surfaceScalarField>("kEfff")
             );
-    const UniformDimensionedField<vector> &gamma = this->db().time().subRegistry(HMCoupled).lookupObject<UniformDimensionedField<vector>>("gamma_water");
-    const tmp<scalarField> nTmp(
-        patch().nf() & vector(gamma.value()).normalise()
-    );
-    const scalarField& n_ = nTmp();
-    gradient() = (flux_) / max(k_eff_,SMALL) + n_;
-}
-else
-{
-    const scalarField& k_eff_ = 
-        this->patch().patchField<surfaceScalarField, scalar>(this->db().time().subRegistry(HMCoupled).lookupObject<surfaceScalarField>("kEffbyGammaf"));
-    gradient() = (flux_ / k_eff_);
-}
+        const UniformDimensionedField<vector> &gamma = this->db().time().subRegistry(HMCoupled).lookupObject<UniformDimensionedField<vector>>("gamma_water");
+        const tmp<scalarField> nTmp(
+            patch().nf() & vector(gamma.value()).normalise()
+        );
+        const scalarField& n_ = nTmp();
+        gradient() = flux_ / max(k_eff_, minKeff_) + n_;
+    }
+    else
+    {
+        const scalarField& k_eff_ =
+            this->patch().patchField<surfaceScalarField, scalar>(this->db().time().subRegistry(HMCoupled).lookupObject<surfaceScalarField>("kEffbyGammaf"));
+        gradient() = flux_ / max(k_eff_, minKeff_);
+    }
 
     //Info << "Flux on Patch " << patch().name() << ": " << flux_ << " gradZ: " << n_ << " Gradient: " << (flux_/(k_*kr_))-n_ << endl;
 
@@ -144,6 +149,7 @@ void Foam::fixedPoroFluxFvPatchScalarField::write(Ostream &os) const
 {
     fvPatchScalarField::write(os);
     fluxSeries_().writeData(os);
+    os.writeKeyword("minKeff") << minKeff_ << token::END_STATEMENT << nl;
     writeEntry("value", os);
     //gradient().writeEntry("gradient", os);
 }

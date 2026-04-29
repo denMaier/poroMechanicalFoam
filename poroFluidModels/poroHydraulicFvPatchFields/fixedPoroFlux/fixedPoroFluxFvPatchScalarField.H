@@ -65,6 +65,9 @@ class fixedPoroFluxFvPatchScalarField
     //- where to look for fields when hydro-mechanically coupled
     word HMCoupled;
 
+    //- Minimum face conductivity used when converting flux to gradient.
+    scalar minKeff_;
+
 public:
 
     //- Runtime type information
