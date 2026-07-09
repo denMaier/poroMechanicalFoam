@@ -424,6 +424,8 @@ The deformation-to-flow coupling enters the fluid equations through:
 
 This is implemented as an `fvOption`. It looks up the active `poroSolidInterface` and asks it for explicit and implicit deformation-to-pressure source contributions. This keeps the fluid equation assembly generic while allowing each poro-solid formulation to define its own coupling term.
 
+The implicit fixed-stress contribution is assembled against `pCouplingRef`, a pressure snapshot stored once at the start of each outer coupling iteration. It must not use the pressure field's `prevIter()` slot: the fluid solvers refresh that slot at the top of every fluid iteration for relaxation and nonlinear source terms, so using it here would make the fixed-stress term vanish as the fluid sub-loop converges.
+
 ## Function Objects
 
 The repository adds the following function objects:
@@ -468,6 +470,8 @@ This infrastructure is used by:
 - the coupled poro-solid outer loop
 - nonlinear variably saturated fluid solves
 - adaptive stopping based on residuals configured in dictionaries
+
+When `writeResidualField` is enabled, residual working-field names are scoped by the owning iteration-control name, for example `Pressure-Displacement_delta(p_rgh)Residual`. This avoids registry collisions when nested iteration controls track the same field.
 
 ## Applications and Utilities
 

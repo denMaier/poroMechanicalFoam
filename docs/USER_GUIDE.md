@@ -316,6 +316,10 @@ For non-conforming meshes, use `mapMethod mapNearest`, set `consistent no`, and 
 
 For variably saturated coupling (`varSatPoroSolid`), also set `porosityConstant false` and `porosityConstantExplicit true` (explicit porosity update from deformation).
 
+The fixed-stress pressure reference is stored once per outer coupling iteration as `pCouplingRef`. Do not reinterpret the fluid field's `prevIter()` state as that coupling reference: the fluid solver updates `prevIter()` on every inner fluid iteration for relaxation and nonlinear source terms.
+
+If `writeResidualField` is enabled for nested iteration controls, residual fields are written with the loop name prefixed, such as `Pressure-Displacement_delta(p_rgh)Residual`, so post-processing scripts should not assume the older unscoped names.
+
 ---
 
 ## `constant/mechanicalProperties`
