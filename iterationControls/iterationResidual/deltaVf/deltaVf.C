@@ -576,19 +576,28 @@ Foam::scalar Foam::deltaVf::calcResidual()
             dimensionedScalar dimensionedSmall("",dimensions_(),SMALL);
             deltaSf_.ref() =
                 pos(mag(sf() - sf().prevIter()) - dimensionedSmall)
-              * mag(sf() - sf().prevIter())
+              * (sf() - sf().prevIter())
               / max(mag(sf()), dimensionedSmall);
         }
         else
         {
-            deltaSf_.ref() = mag(sf() - sf().prevIter());
+            deltaSf_.ref() = sf() - sf().prevIter();
         }
 
-        residual_ = operation(surfaceValuesWithBoundaries(deltaSf_()));
+        scalarField residualValues(surfaceValuesWithBoundaries(deltaSf_()));
+        forAll(residualValues, valueI)
+        {
+            residualValues[valueI] = mag(residualValues[valueI]);
+        }
+        residual_ = operation(residualValues);
         const_cast<surfaceScalarField&>(sf()).storePrevIter();
         prevIterStored_ = true;
 
-        if(!writeField_)
+        if(writeField_)
+        {
+            deltaSf_().write();
+        }
+        else
         {
             deltaSf_.clear();
         }
@@ -622,19 +631,28 @@ Foam::scalar Foam::deltaVf::calcResidual()
             dimensionedScalar dimensionedSmall("",dimensions_(),SMALL);
             deltaVf_.ref() =
                 pos(mag(vf() - vf().prevIter())-dimensionedSmall)
-              * mag(vf() - vf().prevIter())
+              * (vf() - vf().prevIter())
               / (max(mag(vf()),dimensionedSmall));
         }
         else
         {
-            deltaVf_.ref() =  mag(vf() - vf().prevIter());
+            deltaVf_.ref() = vf() - vf().prevIter();
         }
 
-        residual_ = operation(deltaVf_().primitiveField());
+        scalarField residualValues(deltaVf_().primitiveField());
+        forAll(residualValues, valueI)
+        {
+            residualValues[valueI] = mag(residualValues[valueI]);
+        }
+        residual_ = operation(residualValues);
         const_cast<volScalarField&>(vf()).storePrevIter();
         prevIterStored_ = true;
 
-        if(!writeField_)
+        if(writeField_)
+        {
+            deltaVf_().write();
+        }
+        else
         {
             deltaVf_.clear();
         }
