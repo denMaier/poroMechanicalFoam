@@ -33,6 +33,7 @@ License
 #include "poroCouplingTerms.H"
 #include "poroCouplingRegistry.H"
 #include "compatibilityFunctions.H"
+#include <fstream>
 
 namespace Foam
 {
@@ -144,10 +145,6 @@ void Foam::poroSolidInterface::printFixedStressDiagnostic
     );
 
     const scalarField& V = p.mesh().V();
-    const scalarField optionDiagByV(fixedStressOption.diag()/V);
-    const scalarField optionSourceByV(fixedStressOption.source()/V);
-    const scalarField finalDiagByV(-fixedStressOption.diag()/V);
-    const scalarField finalSourceByV(-fixedStressOption.source()/V);
     const scalarField finalResidualByV
     (
         (
@@ -156,43 +153,45 @@ void Foam::poroSolidInterface::printFixedStressDiagnostic
         )/V
     );
 
-    const volScalarField deltaP("fixedStressDeltaP", p - pCouplingRef());
-    const volScalarField expectedResidual
-    (
-        "fixedStressExpectedResidual",
-        (tImplicitCoupling()/runTime().deltaT())*deltaP
-    );
+    if (stage == "after pressure solve" && Pstream::master())
+    {
+        const fileName csvPath(runTime().path()/"fixedStressDiagnostic.csv");
 
-    Info<< "Fixed-stress matrix diagnostic (" << stage << ") at time "
-        << runTime().timeName() << nl
-        << "  option diag/V min/avg/max: "
-        << gMin(optionDiagByV) << " / "
-        << average(optionDiagByV) << " / "
-        << gMax(optionDiagByV) << nl
-        << "  option source/V min/avg/max: "
-        << gMin(optionSourceByV) << " / "
-        << average(optionSourceByV) << " / "
-        << gMax(optionSourceByV) << nl
-        << "  final diag/V min/avg/max after lhs==fvOptions: "
-        << gMin(finalDiagByV) << " / "
-        << average(finalDiagByV) << " / "
-        << gMax(finalDiagByV) << nl
-        << "  final source/V min/avg/max after lhs==fvOptions: "
-        << gMin(finalSourceByV) << " / "
-        << average(finalSourceByV) << " / "
-        << gMax(finalSourceByV) << nl
-        << "  input delta(p)=p-pCouplingRef min/avg/max: "
-        << gMin(deltaP.primitiveField()) << " / "
-        << average(deltaP.primitiveField()) << " / "
-        << gMax(deltaP.primitiveField()) << nl
-        << "  exact final residual/V min/avg/max: "
+        std::ifstream existing(csvPath.c_str());
+        const bool writeHeader = !existing.good();
+        existing.close();
+
+        std::ofstream csv(csvPath.c_str(), std::ios::app);
+        if (writeHeader)
+        {
+            csv
+                << "time,outer-iteration,inner-iteration,"
+                << "fixed-stress-min-contribution,"
+                << "fixed-stress-avg-contribution,"
+                << "fixed-stress-max-contribution\n";
+        }
+
+        const label outerIteration = iterCtrl_.valid()
+          ? iterCtrl_().index() + 1
+          : -1;
+        const label innerIteration =
+            const_cast<poroSolidInterface&>(*this)
+           .poroFluidRef().iterCtrl().index();
+
+        csv
+            << runTime().timeName() << ','
+            << outerIteration << ','
+            << innerIteration << ','
+            << gMin(finalResidualByV) << ','
+            << average(finalResidualByV) << ','
+            << gMax(finalResidualByV) << '\n';
+    }
+
+    Info<< "Fixed-stress contribution (" << stage << ") at time "
+        << runTime().timeName() << " min/avg/max: "
         << gMin(finalResidualByV) << " / "
         << average(finalResidualByV) << " / "
-        << gMax(finalResidualByV) << nl
-        << "  expected (L/dt)*delta(p_rgh) min/avg/max: "
-        << gMin(expectedResidual.primitiveField()) << " / "
-        << average(expectedResidual.primitiveField()) << " / "
-        << gMax(expectedResidual.primitiveField()) << endl;
+        << gMax(finalResidualByV) << endl;
 }
 
 void Foam::poroSolidInterface::printExplicitCouplingDiagnostic
@@ -333,6 +332,29 @@ const Foam::volScalarField& Foam::poroSolidInterface::pCouplingRef() const
     }
 
     return pCouplingRef_();
+}
+
+void Foam::poroSolidInterface::storeCouplingPressureReferenceAsPrevIter()
+{
+    volScalarField& p = poroFluidRef().pField();
+
+    volScalarField pCurrent
+    (
+        IOobject
+        (
+            "pCouplingResidualCurrent",
+            runTime().timeName(),
+            p.db(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        p
+    );
+
+    p = pCouplingRef();
+    p.storePrevIter();
+    p = pCurrent;
 }
 
 void Foam::poroSolidInterface::addPressureEquationTerms
@@ -846,6 +868,11 @@ bool Foam::poroSolidInterface::evolveCouplingLoop()
 
         beforeSolidSolve();
         solidRef().evolve();
+
+        // The fluid sub-loop uses the pressure field's single prevIter slot
+        // for relaxation/nonlinear sources. Restore it to the same reference
+        // used by fixed-stress before the outer coupling convergence check.
+        storeCouplingPressureReferenceAsPrevIter();
     }
     while(couplingControl().loop());
 

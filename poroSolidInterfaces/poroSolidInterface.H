@@ -178,6 +178,11 @@ namespace Foam
         //  terms are assembled.
         void storeCouplingPressureReference();
 
+        //- Make the pressure field's prevIter() match pCouplingRef for the
+        //  outer coupling residual check. Fluid solvers may overwrite the
+        //  same prevIter slot during inner iterations.
+        void storeCouplingPressureReferenceAsPrevIter();
+
         //- Print the exact matrix contribution used by the fixed-stress term.
         void printFixedStressDiagnostic
         (

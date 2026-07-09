@@ -111,6 +111,16 @@ public:
         assembleCouplingTerms();
     }
 
+    void storePressureReference()
+    {
+        storeCouplingPressureReference();
+    }
+
+    void alignPressureResidualReference()
+    {
+        storeCouplingPressureReferenceAsPrevIter();
+    }
+
     void clearTerms()
     {
         clearCouplingTerms();
@@ -478,6 +488,47 @@ void testVarSatFvOptionTransfersInterfaceTerms(TestVarSatPoroSolid& coupling)
     coupling.clearTerms();
 }
 
+void testOuterPressureResidualUsesCouplingReference(TestVarSatPoroSolid& coupling)
+{
+    coupling.prepare();
+    coupling.initializeHydraulicFields();
+
+    volScalarField& p = coupling.poroFluidRef().pField();
+
+    setFieldToUniform(p, 1000.0);
+    coupling.storePressureReference();
+
+    setFieldToUniform(p, 1010.0);
+    p.storePrevIter();
+
+    checkNear
+    (
+        "simulated inner fluid loop leaves pressure prevIter at current p",
+        p[0] - p.prevIter()[0],
+        0.0
+    );
+
+    coupling.alignPressureResidualReference();
+
+    checkNear
+    (
+        "outer pressure residual sees p minus pCouplingRef",
+        p[0] - p.prevIter()[0],
+        10.0
+    );
+    checkNear
+    (
+        "aligning outer pressure residual does not change p",
+        p[0],
+        1010.0
+    );
+
+    setFieldToUniform(p, 1000.0);
+    p.storePrevIter();
+
+    coupling.clearTerms();
+}
+
 void testVarSatAccelerationTransferAndAfterFluidHook(TestVarSatPoroSolid& coupling)
 {
     coupling.prepare();
@@ -592,6 +643,7 @@ int main(int argc, char *argv[])
     testVarSatSharedMeshRegistration(coupling);
     testVarSatSharedMeshCoupling(coupling);
     testVarSatFvOptionTransfersInterfaceTerms(coupling);
+    testOuterPressureResidualUsesCouplingReference(coupling);
     testVarSatAccelerationTransferAndAfterFluidHook(coupling);
 
     if (failures)
