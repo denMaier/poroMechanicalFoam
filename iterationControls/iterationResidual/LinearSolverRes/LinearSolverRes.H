@@ -61,6 +61,7 @@ class LinearSolverRes
 {
     // Private Member Functions
         word fieldName_;
+        word regionName_;
         const fvMesh* meshPtr_;
 
         void findMesh();

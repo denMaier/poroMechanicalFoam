@@ -666,6 +666,21 @@ void testLinearSolverResiduals(fvMesh& mesh)
     checkNear("linearSolver scalar tolerance parse", scalarResidual.tolerance(), 1.0e-4);
     checkNear("linearSolver scalar initial residual", scalarResidual.calcResidual(), 0.125);
 
+    ITstream scalarRegionStream
+    (
+        "linearSolver " + mesh.name() + " 2e-4"
+    );
+    LinearSolverRes scalarRegionResidual
+    (
+        mesh.time(),
+        scalarSolveField.name(),
+        scalarRegionStream,
+        false
+    );
+
+    checkNear("linearSolver region tolerance parse", scalarRegionResidual.tolerance(), 2.0e-4);
+    checkNear("linearSolver region initial residual", scalarRegionResidual.calcResidual(), 0.125);
+
     volVectorField vectorSolveField
     (
         IOobject("linearSolverVector", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),

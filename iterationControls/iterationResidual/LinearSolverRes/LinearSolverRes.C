@@ -29,6 +29,21 @@ License
 
 namespace
 {
+    bool hasSupportedField
+    (
+        const Foam::fvMesh& mesh,
+        const Foam::word& fieldName
+    )
+    {
+        return
+        (
+            mesh.foundObject<Foam::volScalarField>(fieldName)
+         || mesh.foundObject<Foam::volVectorField>(fieldName)
+         || mesh.foundObject<Foam::volSymmTensorField>(fieldName)
+         || mesh.foundObject<Foam::volTensorField>(fieldName)
+        );
+    }
+
     Foam::scalar parseLinearSolverTolerance
     (
         const Foam::word& fieldName,
@@ -56,11 +71,12 @@ namespace
             return -1.0;
         }
 
-        if (stream.size() != 2)
+        if (stream.size() != 2 && stream.size() != 3)
         {
             FatalErrorInFunction
                 << "linearSolver convergence entry for field '" << fieldName
-                << "' must be 'linearSolver <tolerance|show>'."
+                << "' must be "
+                << "'linearSolver [region] <tolerance|show>'."
                 << Foam::exit(Foam::FatalError);
         }
 
@@ -80,6 +96,29 @@ namespace
             << Foam::exit(Foam::FatalError);
 
         return -1.0;
+    }
+
+    Foam::word parseLinearSolverRegion
+    (
+        const Foam::word& fieldName,
+        const Foam::ITstream& stream
+    )
+    {
+        if (stream.size() != 3)
+        {
+            return Foam::word::null;
+        }
+
+        if (!stream[1].isWord())
+        {
+            FatalErrorInFunction
+                << "linearSolver convergence entry for field '" << fieldName
+                << "' uses the optional region form, but the region token is "
+                << "not a word."
+                << Foam::exit(Foam::FatalError);
+        }
+
+        return stream[1].wordToken();
     }
 
     template<class GeoField, class ValueType>
@@ -138,22 +177,49 @@ namespace Foam{
 void Foam::LinearSolverRes::findMesh()
 {
     HashTable<const fvMesh*> meshes = runTime().lookupClass<const fvMesh>();
+    wordList meshNames;
+    bool requestedRegionFound = false;
 
     forAllConstIters(meshes, meshIter)
     {
         const fvMesh& regionMesh = *(meshIter.val());
+        meshNames.append(regionMesh.name());
 
-        if
-        (
-            regionMesh.foundObject<volScalarField>(fieldName_)
-         || regionMesh.foundObject<volVectorField>(fieldName_)
-         || regionMesh.foundObject<volSymmTensorField>(fieldName_)
-         || regionMesh.foundObject<volTensorField>(fieldName_)
-        )
+        if (regionName_.size())
+        {
+            if (regionMesh.name() != regionName_)
+            {
+                continue;
+            }
+
+            requestedRegionFound = true;
+        }
+
+        if (hasSupportedField(regionMesh, fieldName_))
         {
             meshPtr_ = &regionMesh;
             return;
         }
+    }
+
+    if (regionName_.size())
+    {
+        if (requestedRegionFound)
+        {
+            FatalErrorInFunction
+                << "No supported volume field named '" << fieldName_
+                << "' was found on requested mesh region '" << regionName_
+                << "' for linearSolver convergence." << nl
+                << "Available mesh regions are " << meshNames << "."
+                << exit(FatalError);
+        }
+
+        FatalErrorInFunction
+            << "Requested mesh region '" << regionName_
+            << "' was not found for linearSolver convergence of field '"
+            << fieldName_ << "'." << nl
+            << "Available mesh regions are " << meshNames << "."
+            << exit(FatalError);
     }
 
     FatalErrorInFunction
@@ -182,6 +248,7 @@ Foam::LinearSolverRes::LinearSolverRes
         false
     ),
     fieldName_(name),
+    regionName_(parseLinearSolverRegion(name, stream)),
     meshPtr_(nullptr)
 {
 }
