@@ -107,6 +107,7 @@ public:
 
     void assembleTerms()
     {
+        storeCouplingPressureReference();
         assembleCouplingTerms();
     }
 
@@ -320,9 +321,9 @@ void testVarSatSharedMeshCoupling(TestVarSatPoroSolid& coupling)
     );
     checkNear
     (
-        "implicit coupling is b^2 / impK",
+        "implicit coupling is scaled b^2 / impK",
         tImplicit0()[0],
-        sqr(coupling.b()[0])/tImpK()[0]
+        1.5*sqr(coupling.b()[0])/tImpK()[0]
     );
     checkNotNear
     (
@@ -406,25 +407,26 @@ void testVarSatFvOptionTransfersInterfaceTerms(TestVarSatPoroSolid& coupling)
     const tmp<volScalarField> tImplicit(coupling.implicitCouplingDtoP());
     const scalar deltaT = coupling.poroFluid().mesh().time().deltaTValue();
     const scalar expectedExplicitSource = 1.2375;
-    const scalar expectedImplicitDiagonal = 4.6875e-8;
+    const scalar expectedImplicitRate = 7.03125e-8;
+    const scalar expectedOptionSource = expectedExplicitSource - 7.03125e-5;
 
     checkNear
     (
         "fvOption diagonal is assembled implicit interface coupling over deltaT",
         optionMatrix.diag()[0],
-        expectedImplicitDiagonal
+        -expectedImplicitRate
     );
     checkNear
     (
-        "fvOption source is assembled explicit interface coupling",
+        "fvOption source is assembled explicit coupling minus pressure reference",
         optionMatrix.source()[0],
-        expectedExplicitSource
+        expectedOptionSource
     );
     checkNear
     (
         "interface implicit DTO matches independent fixture value",
         tImplicit()[0]/deltaT,
-        expectedImplicitDiagonal
+        expectedImplicitRate
     );
     checkNear
     (
@@ -445,12 +447,14 @@ void testVarSatFvOptionTransfersInterfaceTerms(TestVarSatPoroSolid& coupling)
     const tmp<volScalarField> tExplicitUpdated(coupling.explicitCouplingDtoP());
     const tmp<volScalarField> tImplicitUpdated(coupling.implicitCouplingDtoP());
     const scalar expectedUpdatedExplicitSource = 0.5625;
+    const scalar expectedUpdatedOptionSource =
+        expectedUpdatedExplicitSource - 7.03125e-5;
 
     checkNear
     (
         "fvOption transfer reflects reassembled explicit coupling",
         optionMatrixUpdated.source()[0],
-        expectedUpdatedExplicitSource
+        expectedUpdatedOptionSource
     );
     checkNear
     (
@@ -468,7 +472,7 @@ void testVarSatFvOptionTransfersInterfaceTerms(TestVarSatPoroSolid& coupling)
     (
         "fvOption transfer implicit diagonal remains saturation independent",
         optionMatrixUpdated.diag()[0],
-        expectedImplicitDiagonal
+        -expectedImplicitRate
     );
 
     coupling.clearTerms();
@@ -508,25 +512,25 @@ void testVarSatAccelerationTransferAndAfterFluidHook(TestVarSatPoroSolid& coupli
 
     const fvScalarMatrix optionMatrix(coupling.fvOptionCouplingMatrix());
     const scalar deltaT = coupling.poroFluid().mesh().time().deltaTValue();
-    const scalar expectedImplicitDiagonal = 4.6875e-8;
+    const scalar expectedImplicitRate = 7.03125e-8;
 
     checkNear
     (
-        "fvOption source transfers acceleration-corrected explicit DTO",
+        "fvOption source transfers acceleration-corrected explicit DTO minus pressure reference",
         optionMatrix.source()[0],
-        tExplicitWithAcceleration()[0]
+        tExplicitWithAcceleration()[0] - 7.03125e-5
     );
     checkNear
     (
         "fvOption diagonal transfers implicit DTO over deltaT with acceleration present",
         optionMatrix.diag()[0],
-        expectedImplicitDiagonal
+        -expectedImplicitRate
     );
     checkNear
     (
         "implicit DTO with acceleration present matches independent fixture value",
         tImplicitBeforeAfterFluid()[0]/deltaT,
-        expectedImplicitDiagonal
+        expectedImplicitRate
     );
 
     coupling.afterFluid();

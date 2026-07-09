@@ -424,7 +424,7 @@ void Foam::deltaVf::makeVfScalar()
         new volScalarField(
         IOobject
         (
-         residualFieldName,
+         scopedFieldName(residualFieldName),
          runTime().timeName(),
          db_(),
         IOobject::NO_READ,
@@ -456,7 +456,7 @@ void Foam::deltaVf::makeSfScalar()
         (
             IOobject
             (
-                residualFieldName,
+                scopedFieldName(residualFieldName),
                 runTime().timeName(),
                 db_(),
                 IOobject::NO_READ,
@@ -474,7 +474,7 @@ void Foam::deltaVf::makeDeltaVf()
         new volScalarField(
         IOobject
         (
-         name()+"Residual",
+         scopedFieldName(name()+"Residual"),
          runTime().timeName(),
          vf_().db(),
         IOobject::NO_READ,
@@ -494,7 +494,7 @@ void Foam::deltaVf::makeDeltaSf()
         (
             IOobject
             (
-                name()+"Residual",
+                scopedFieldName(name()+"Residual"),
                 runTime().timeName(),
                 sf_().db(),
                 IOobject::NO_READ,
@@ -516,12 +516,14 @@ Foam::deltaVf::deltaVf
     const Time& runTime,
     const word name,
     const ITstream stream,
-    const bool writeField
+    const bool writeField,
+    const word& loopName
 )
 :
     iterationResidual(runTime, "delta("+name+")", stream, writeField),
     writeField_(writeField),
     variableName_(name),
+    loopName_(loopName),
     sqrt32_(sqrt(3.0/2.0)),
     db_(),
     mesh_(),

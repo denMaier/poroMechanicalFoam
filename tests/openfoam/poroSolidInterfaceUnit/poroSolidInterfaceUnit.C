@@ -62,6 +62,7 @@ public:
 
     void assembleTerms()
     {
+        storeCouplingPressureReference();
         assembleCouplingTerms();
     }
 
@@ -114,7 +115,7 @@ void testSaturatedSharedMesh(Time& runTime)
     checkTrue("poroSolid explicit coupling has volume source dimensions", tExplicit().dimensions() == dimless/dimTime);
     checkTrue("poroSolid implicit coupling has inverse pressure dimensions", tImplicit().dimensions() == inv(dimPressure));
     checkNear("poroSolid explicit coupling is zero for uniform D", tExplicit()[0], 0.0);
-    checkNear("poroSolid implicit coupling uses b squared over impK", tImplicit()[0], sqr(coupling.b()[0])/impK[0]);
+    checkNear("poroSolid implicit coupling uses scaled b squared over impK", tImplicit()[0], 1.5*sqr(coupling.b()[0])/impK[0]);
 
     coupling.clearTerms();
 }

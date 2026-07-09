@@ -69,6 +69,7 @@ SourceFiles
 #include "meshToMesh.H"
 #include "iterationControl.H"
 #include "HashSet.H"
+#include "fvMatrices.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -96,6 +97,12 @@ namespace Foam
         //- Optional: if porosity not constant: implicit or explicit treatment?
         const Switch porosityConstantExplicit_;
 
+        //- Scale factor for the fixed-stress stabilization coefficient.
+        const scalar fixedStressStabilScale_;
+
+        //- Print fixed-stress matrix diagnostics when assembling pEqn terms.
+        const Switch fixedStressDiagnostic_;
+
         //- Solid solver
         autoPtr<solidModel> solid_;
 
@@ -115,6 +122,13 @@ namespace Foam
 
         //- Internal work done by solid
         autoPtr<volScalarField> intWork_;
+
+        //- Snapshot of the fluid pressure taken once per coupling iteration,
+        //  when the coupling terms are assembled. The fixed-stress term
+        //  (L/dt)*(p - pCouplingRef) relaxes against this reference. It is
+        //  deliberately independent of pField().prevIter(), which the fluid
+        //  models re-store every fluid iteration for relaxation.
+        autoPtr<volScalarField> pCouplingRef_;
 
         //- Names of fluid-owned fields borrowed into the solid registry.
         HashSet<word> sharedSolidRegistryFieldNames_;
@@ -157,6 +171,25 @@ namespace Foam
             const volVectorField& U,
             autoPtr<volScalarField>& nDot,
             autoPtr<volScalarField>& fixedStressStabil
+        ) const;
+
+        //- Snapshot the current fluid pressure as the fixed-stress reference.
+        //  Called once per coupling iteration, right before the coupling
+        //  terms are assembled.
+        void storeCouplingPressureReference();
+
+        //- Print the exact matrix contribution used by the fixed-stress term.
+        void printFixedStressDiagnostic
+        (
+            const word& stage,
+            const dimensionSet& matrixDimensions
+        ) const;
+
+        //- Print the explicit deformation-to-pressure source contribution.
+        void printExplicitCouplingDiagnostic
+        (
+            const word& stage,
+            const dimensionSet& matrixDimensions
         ) const;
 
         //- map fluid pressure fields to the solid mesh fields
@@ -347,6 +380,13 @@ namespace Foam
             }
             return iterCtrl_();
         }
+
+        //- Return the pressure snapshot of the current coupling iteration.
+        //  Fatal error if the coupling loop has not stored it yet.
+        const volScalarField& pCouplingRef() const;
+
+        //- Add deformation-coupling and stabilization terms to the pressure equation.
+        virtual void addPressureEquationTerms(fvMatrix<scalar>& eqn) const;
 
         //- return reference to meshtoMesh interpolator
         const meshToMesh &solidToPoroFluid() const {

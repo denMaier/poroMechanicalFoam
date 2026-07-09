@@ -67,10 +67,19 @@ namespace poroCouplingTerms
         const volScalarField& explicitSource
     );
 
+    //- Add the fixed-stress and explicit deformation coupling contributions
+    //  to the pressure equation. pRef is the pressure reference the
+    //  fixed-stress term relaxes against: it must be the pressure at which
+    //  the coupling terms (implicitCoupling/explicitCoupling) were
+    //  assembled, i.e. a snapshot taken once per coupling iteration. Do NOT
+    //  pass pField.prevIter() here: that slot is re-stored every fluid
+    //  iteration for relaxation, which would make the fixed-stress term
+    //  vanish as the fluid sub-loop converges.
     void addCouplingSource
     (
         fvMatrix<scalar>& eqn,
         const volScalarField& pField,
+        const volScalarField& pRef,
         const volScalarField& implicitCoupling,
         const volScalarField& explicitCoupling,
         const dimensionedScalar& deltaT

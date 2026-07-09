@@ -42,10 +42,8 @@ namespace Foam
         poroTractionFvPatchVectorField(
             const fvPatch &p,
             const DimensionedField<vector, volMesh> &iF)
-        : fixedGradientFvPatchVectorField(p, iF),
+        : solidTractionFvPatchVectorField(p, iF),
           totalTraction_(),
-          traction_(p.size(), vector::zero),
-          pressure_(p.size(), 0.0),
           tractionSeries_(),
           pressureSeries_(),
           secondOrder_(false),
@@ -62,10 +60,8 @@ namespace Foam
             const fvPatch &p,
             const DimensionedField<vector, volMesh> &iF,
             const dictionary &dict)
-        : fixedGradientFvPatchVectorField(p, iF),
+        : solidTractionFvPatchVectorField(p, iF),
           totalTraction_(dict.lookupOrDefault<Switch>("total", true)),
-          traction_(p.size(), vector::zero),
-          pressure_(p.size(), 0.0),
           tractionSeries_(PatchFunction1<vector>::New(p.patch(), "traction", dict)),
           pressureSeries_(PatchFunction1<scalar>::New(p.patch(), "pressure", dict)),
           secondOrder_(dict.lookupOrDefault<Switch>("secondOrder", false)),
@@ -127,10 +123,8 @@ namespace Foam
             const fvPatch &p,
             const DimensionedField<vector, volMesh> &iF,
             const fvPatchFieldMapper &mapper)
-        : fixedGradientFvPatchVectorField(stpvf, p, iF, mapper),
+        : solidTractionFvPatchVectorField(stpvf, p, iF, mapper),
           totalTraction_(stpvf.totalTraction_),
-          traction_(stpvf.traction_, mapper),
-          pressure_(stpvf.pressure_, mapper),
           tractionSeries_(stpvf.tractionSeries_.clone(this->patch().patch())),
           pressureSeries_(stpvf.pressureSeries_.clone(this->patch().patch())),
           secondOrder_(stpvf.secondOrder_),
@@ -143,10 +137,8 @@ namespace Foam
     poroTractionFvPatchVectorField::
         poroTractionFvPatchVectorField(
             const poroTractionFvPatchVectorField &stpvf)
-        : fixedGradientFvPatchVectorField(stpvf),
+        : solidTractionFvPatchVectorField(stpvf),
           totalTraction_(stpvf.totalTraction_),
-          traction_(stpvf.traction_),
-          pressure_(stpvf.pressure_),
           tractionSeries_(stpvf.tractionSeries_.clone(this->patch().patch())),
           pressureSeries_(stpvf.pressureSeries_.clone(this->patch().patch())),
           secondOrder_(stpvf.secondOrder_),
@@ -160,10 +152,8 @@ namespace Foam
         poroTractionFvPatchVectorField(
             const poroTractionFvPatchVectorField &stpvf,
             const DimensionedField<vector, volMesh> &iF)
-        : fixedGradientFvPatchVectorField(stpvf, iF),
+        : solidTractionFvPatchVectorField(stpvf, iF),
           totalTraction_(stpvf.totalTraction_),
-          traction_(stpvf.traction_),
-          pressure_(stpvf.pressure_),
           tractionSeries_(stpvf.tractionSeries_.clone(this->patch().patch())),
           pressureSeries_(stpvf.pressureSeries_.clone(this->patch().patch())),
           secondOrder_(stpvf.secondOrder_),
@@ -178,10 +168,7 @@ namespace Foam
     void poroTractionFvPatchVectorField::autoMap(
         const fvPatchFieldMapper &m)
     {
-        fixedGradientFvPatchVectorField::autoMap(m);
-
-        traction_.autoMap(m);
-        pressure_.autoMap(m);
+        solidTractionFvPatchVectorField::autoMap(m);
     }
 
     // Reverse-map the given fvPatchField onto this fvPatchField
@@ -189,13 +176,7 @@ namespace Foam
         const fvPatchVectorField &ptf,
         const labelList &addr)
     {
-        fixedGradientFvPatchVectorField::rmap(ptf, addr);
-
-        const poroTractionFvPatchVectorField &dmptf =
-            refCast<const poroTractionFvPatchVectorField>(ptf);
-
-        traction_.rmap(dmptf.traction_, addr);
-        pressure_.rmap(dmptf.pressure_, addr);
+        solidTractionFvPatchVectorField::rmap(ptf, addr);
     }
 
     // Update the coefficients associated with the patch field
@@ -207,11 +188,11 @@ namespace Foam
             return;
         }
 
-        traction_ = tractionSeries_->value(this->db().time().timeOutputValue());
-        pressure_ = pressureSeries_->value(this->db().time().timeOutputValue());
+        traction() = tractionSeries_->value(this->db().time().timeOutputValue());
+        pressure() = pressureSeries_->value(this->db().time().timeOutputValue());
 
 
-        scalarField effPressure(pressure_);
+        scalarField effPressure(pressure());
 
      if(!totalTraction_)
      {
@@ -220,24 +201,27 @@ namespace Foam
         {
             const fvPatchField<scalar> &p_ =
                     this->patch().patchField<volScalarField, scalar>(this->db().lookupObject<volScalarField>("p_rgh"));
-                effPressure = pressure_ + p_;
+                effPressure = pressure() + p_;
         }
         else
         {
         const fvPatchField<scalar> &p_ =
                     this->patch().patchField<volScalarField, scalar>(this->db().lookupObject<volScalarField>("p"));
 
-                effPressure = pressure_ + p_;
+                effPressure = pressure() + p_;
         }
      }
-        // Lookup the solidModel object
+        pressure() = effPressure;
+
+        // Keep the inherited traction()/pressure() values in sync for solid
+        // models that enforce solidTraction boundaries explicitly, but do not
+        // call solidTraction::updateCoeffs(): it may refresh those values from
+        // its own fields/series before computing the gradient.
         const solidModel &solMod = lookupSolidModel(patch().boundaryMesh().mesh());
 
-        // Set surface-normal gradient on the patch corresponding to the desired
-        // traction
         gradient() =
             relaxFac_ * solMod.tractionBoundarySnGrad(
-                            traction_, effPressure, patch()) +
+                            traction(), pressure(), patch()) +
             (1.0 - relaxFac_) * gradient();
 
         fixedGradientFvPatchVectorField::updateCoeffs();
@@ -286,31 +270,17 @@ namespace Foam
 
     void poroTractionFvPatchVectorField::write(Ostream &os) const
     {
-        // Bug-fix: courtesy of Michael@UW at https://www.cfd-online.com/Forums/
-        // openfoam-cc-toolkits-fluid-structure-interaction/221892-solved-paraview
-        // -cant-read-solids-files-duplicate-entries-keyword-value.html#post762325
-        // fixedGradientFvPatchVectorField::write(os);
-        fvPatchVectorField::write(os);
-
-        tractionSeries_->writeData(os);
-
-        pressureSeries_->writeData(os);
+        solidTractionFvPatchVectorField::write(os);
 
         os.writeKeyword("total")
             << totalTraction_ << token::END_STATEMENT << nl;
-        os.writeKeyword("secondOrder")
-            << secondOrder_ << token::END_STATEMENT << nl;
         os.writeKeyword("limitCoeff")
             << limitCoeff_ << token::END_STATEMENT << nl;
-        os.writeKeyword("relaxationFactor")
-            << relaxFac_ << token::END_STATEMENT << nl;
         if(totalTraction_)
         {
         os.writeKeyword("buoyancyImplicit")
             << buoyancyImplicit_ << token::END_STATEMENT << nl;
         }
-
-        writeEntry("value", os);
 
     }
 

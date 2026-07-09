@@ -174,7 +174,8 @@ void Foam::iterationControl::read(dictionary& dict)
                 time_,
                 dataDictEntry.keyword(),
                 dataDictEntry.stream(),
-                writeResidualField_
+                writeResidualField_,
+                name_
             )
         );
     }

@@ -122,7 +122,14 @@ namespace Foam
                 const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
 
                 updateCouplingTerms(b(), impK, solid().U(), nDot_, fixedStressStabil_);
-                q_relAcc_.reset(q_relAcc(tkf(), tSolidA()).ptr());
+                if (lookupOrDefault<Switch>("includeRelativeAcceleration", true))
+                {
+                    q_relAcc_.reset(q_relAcc(tkf(), tSolidA()).ptr());
+                }
+                else
+                {
+                    q_relAcc_.clear();
+                }
             }
             else
             {
@@ -135,7 +142,14 @@ namespace Foam
                 tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));
 
                 updateCouplingTerms(b(), tmpImpK(), UFluidMesh(), nDot_, fixedStressStabil_);
-                q_relAcc_.reset(q_relAcc(tkf(), aFluidMesh()).ptr());
+                if (lookupOrDefault<Switch>("includeRelativeAcceleration", true))
+                {
+                    q_relAcc_.reset(q_relAcc(tkf(), aFluidMesh()).ptr());
+                }
+                else
+                {
+                    q_relAcc_.clear();
+                }
 
                 tmpImpK.clear();
                 aFluidMesh.clear();
@@ -145,6 +159,7 @@ namespace Foam
 
         void poroSolid::afterFluidSolve()
         {
+            poroSolidInterface::afterFluidSolve();
             q_relAcc_.clear();
         }
 
@@ -170,9 +185,10 @@ namespace Foam
         // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
         poroSolid::poroSolid(
+            const word& type,
             Time &runTime,
             const word &region)
-            : poroSolidInterface(typeName, runTime, region),
+            : poroSolidInterface(type, runTime, region),
               fixedStressStabil_(), // Pointer to stabilization term
               nDot_(), // Pointer to porosity change per unit time (exchange term)
               q_relAcc_(), // Pointer to rel. Acceleration term (exchange term)
@@ -185,6 +201,12 @@ namespace Foam
                 Warning() << "'varSatPoroFluid/Head' should be used with 'varSatPoroSolid'" << endl;
             }
         }
+
+        poroSolid::poroSolid(
+            Time &runTime,
+            const word &region)
+            : poroSolid(typeName, runTime, region)
+        {}
 
         // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 

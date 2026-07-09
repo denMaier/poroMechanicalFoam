@@ -145,7 +145,8 @@ Foam::autoPtr<Foam::iterationResidual> Foam::iterationResidual::New(
             const Time& runTime,
             const word name,
             const ITstream stream,
-            const bool writeField)
+            const bool writeField,
+            const word& loopName)
 {
     Info << "Initializing iteration control: " << nl;
 
@@ -202,7 +203,7 @@ Foam::autoPtr<Foam::iterationResidual> Foam::iterationResidual::New(
 
         return autoPtr<Foam::iterationResidual>
         (
-            new Foam::deltaVf(runTime, name, stream, writeField)
+            new Foam::deltaVf(runTime, name, stream, writeField, loopName)
         );
     }
 

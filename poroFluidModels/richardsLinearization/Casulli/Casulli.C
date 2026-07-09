@@ -133,11 +133,7 @@ namespace
 
             S1(totalP,S());
 
-	          S1_.ref().storePrevIter();
-
             S2(totalP,S1_());
-
-	          S2_.ref().storePrevIter();
 
             f1_.reset(new volScalarField("f1",S1_() - P_() * pField));
 

@@ -18,6 +18,7 @@ poroFluidModels/poroHydraulicFvPatchFields/limitedHeadInfiltration/limitedHeadIn
 
 poroSolidInterfaces/poroSolidInterface.C
 poroSolidInterfaces/poroSolid/poroSolid.C
+poroSolidInterfaces/poroSolidStab/poroSolidStab.C
 poroSolidInterfaces/varSatPoroSolid/varSatPoroSolid.C
 
 solidModels/seismicLinGeomSolid/seismicLinGeomSolid.C

@@ -96,12 +96,17 @@ public:
 
         // Selectors
 
-        //- Return a reference to the selected poroFluid model
+        //- Return a reference to the selected iteration residual.
+        //  loopName is the name of the owning iterationControl; residual
+        //  types that register working fields use it to scope their field
+        //  names, so nested controls tracking the same field do not
+        //  collide in the object registry.
         static autoPtr<iterationResidual> New(
             const Time& runTime,
             const word name,
             const ITstream stream,
-            const bool writeField);
+            const bool writeField,
+            const word& loopName = word::null);
 
         // Constructors
 

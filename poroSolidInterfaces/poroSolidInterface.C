@@ -32,6 +32,7 @@ License
 #include "poroMechanicalLaw2.H"
 #include "poroCouplingTerms.H"
 #include "poroCouplingRegistry.H"
+#include "compatibilityFunctions.H"
 
 namespace Foam
 {
@@ -78,7 +79,9 @@ Foam::tmp<Foam::volScalarField> Foam::poroSolidInterface::fixedStressStabil
     const volScalarField& impK
 ) const
 {
-    return poroCouplingTerms::fixedStressStabil(b, impK);
+    tmp<volScalarField> tStabil(poroCouplingTerms::fixedStressStabil(b, impK));
+    tmpRef(tStabil) *= fixedStressStabilScale_;
+    return tStabil;
 }
 
 void Foam::poroSolidInterface::updateCouplingTerms
@@ -98,6 +101,262 @@ void Foam::poroSolidInterface::updateCouplingTerms
         U,
         nDotField,
         fixedStressStabilField
+    );
+
+    fixedStressStabilField.ref() *= fixedStressStabilScale_;
+}
+
+void Foam::poroSolidInterface::printFixedStressDiagnostic
+(
+    const word& stage,
+    const dimensionSet& matrixDimensions
+) const
+{
+    const tmp<volScalarField> tImplicitCoupling(implicitCouplingDtoP());
+    const tmp<volScalarField> tExplicitCoupling(explicitCouplingDtoP());
+
+    const volScalarField& p = pField();
+
+    volScalarField zeroExplicitCoupling
+    (
+        IOobject
+        (
+            "zeroExplicitCoupling",
+            runTime().timeName(),
+            p.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        p.mesh(),
+        dimensionedScalar("zero", tExplicitCoupling().dimensions(), 0.0)
+    );
+
+    fvScalarMatrix fixedStressOption(p, matrixDimensions);
+
+    poroCouplingTerms::addCouplingSource
+    (
+        fixedStressOption,
+        p,
+        pCouplingRef(),
+        tImplicitCoupling(),
+        zeroExplicitCoupling,
+        runTime().deltaT()
+    );
+
+    const scalarField& V = p.mesh().V();
+    const scalarField optionDiagByV(fixedStressOption.diag()/V);
+    const scalarField optionSourceByV(fixedStressOption.source()/V);
+    const scalarField finalDiagByV(-fixedStressOption.diag()/V);
+    const scalarField finalSourceByV(-fixedStressOption.source()/V);
+    const scalarField finalResidualByV
+    (
+        (
+            -fixedStressOption.diag()*p.primitiveField()
+          + fixedStressOption.source()
+        )/V
+    );
+
+    const volScalarField deltaP("fixedStressDeltaP", p - pCouplingRef());
+    const volScalarField expectedResidual
+    (
+        "fixedStressExpectedResidual",
+        (tImplicitCoupling()/runTime().deltaT())*deltaP
+    );
+
+    Info<< "Fixed-stress matrix diagnostic (" << stage << ") at time "
+        << runTime().timeName() << nl
+        << "  option diag/V min/avg/max: "
+        << gMin(optionDiagByV) << " / "
+        << average(optionDiagByV) << " / "
+        << gMax(optionDiagByV) << nl
+        << "  option source/V min/avg/max: "
+        << gMin(optionSourceByV) << " / "
+        << average(optionSourceByV) << " / "
+        << gMax(optionSourceByV) << nl
+        << "  final diag/V min/avg/max after lhs==fvOptions: "
+        << gMin(finalDiagByV) << " / "
+        << average(finalDiagByV) << " / "
+        << gMax(finalDiagByV) << nl
+        << "  final source/V min/avg/max after lhs==fvOptions: "
+        << gMin(finalSourceByV) << " / "
+        << average(finalSourceByV) << " / "
+        << gMax(finalSourceByV) << nl
+        << "  input delta(p)=p-pCouplingRef min/avg/max: "
+        << gMin(deltaP.primitiveField()) << " / "
+        << average(deltaP.primitiveField()) << " / "
+        << gMax(deltaP.primitiveField()) << nl
+        << "  exact final residual/V min/avg/max: "
+        << gMin(finalResidualByV) << " / "
+        << average(finalResidualByV) << " / "
+        << gMax(finalResidualByV) << nl
+        << "  expected (L/dt)*delta(p_rgh) min/avg/max: "
+        << gMin(expectedResidual.primitiveField()) << " / "
+        << average(expectedResidual.primitiveField()) << " / "
+        << gMax(expectedResidual.primitiveField()) << endl;
+}
+
+void Foam::poroSolidInterface::printExplicitCouplingDiagnostic
+(
+    const word& stage,
+    const dimensionSet& matrixDimensions
+) const
+{
+    const tmp<volScalarField> tImplicitCoupling(implicitCouplingDtoP());
+    const tmp<volScalarField> tExplicitCoupling(explicitCouplingDtoP());
+
+    const volScalarField& p = pField();
+
+    volScalarField zeroImplicitCoupling
+    (
+        IOobject
+        (
+            "zeroImplicitCoupling",
+            runTime().timeName(),
+            p.mesh(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        p.mesh(),
+        dimensionedScalar("zero", tImplicitCoupling().dimensions(), 0.0)
+    );
+
+    fvScalarMatrix explicitOption(p, matrixDimensions);
+
+    poroCouplingTerms::addCouplingSource
+    (
+        explicitOption,
+        p,
+        pCouplingRef(),
+        zeroImplicitCoupling,
+        tExplicitCoupling(),
+        runTime().deltaT()
+    );
+
+    const scalarField& V = p.mesh().V();
+    const scalarField optionDiagByV(explicitOption.diag()/V);
+    const scalarField optionSourceByV(explicitOption.source()/V);
+    const scalarField finalDiagByV(-explicitOption.diag()/V);
+    const scalarField finalSourceByV(-explicitOption.source()/V);
+
+    Info<< "Explicit coupling diagnostic (" << stage << ") at time "
+        << runTime().timeName() << nl
+        << "  explicit source nDot/with corrections min/avg/max: "
+        << gMin(tExplicitCoupling().primitiveField()) << " / "
+        << average(tExplicitCoupling().primitiveField()) << " / "
+        << gMax(tExplicitCoupling().primitiveField()) << nl
+        << "  option diag/V min/avg/max: "
+        << gMin(optionDiagByV) << " / "
+        << average(optionDiagByV) << " / "
+        << gMax(optionDiagByV) << nl
+        << "  option source/V min/avg/max: "
+        << gMin(optionSourceByV) << " / "
+        << average(optionSourceByV) << " / "
+        << gMax(optionSourceByV) << nl
+        << "  final diag/V min/avg/max after lhs==fvOptions: "
+        << gMin(finalDiagByV) << " / "
+        << average(finalDiagByV) << " / "
+        << gMax(finalDiagByV) << nl
+        << "  final source/V min/avg/max after lhs==fvOptions: "
+        << gMin(finalSourceByV) << " / "
+        << average(finalSourceByV) << " / "
+        << gMax(finalSourceByV) << nl;
+
+    if (p.mesh().objectRegistry::foundObject<volScalarField>("nDot"))
+    {
+        const volScalarField& nDotField =
+            p.mesh().objectRegistry::lookupObject<volScalarField>("nDot");
+
+        const volScalarField divUFromNDot
+        (
+            "divUFromNDot",
+            nDotField
+          / max
+            (
+                b(),
+                dimensionedScalar("smallBiot", dimless, SMALL)
+            )
+        );
+
+        Info<< "  nDot=b*div(U) min/avg/max: "
+            << gMin(nDotField.primitiveField()) << " / "
+            << average(nDotField.primitiveField()) << " / "
+            << gMax(nDotField.primitiveField()) << nl
+            << "  div(U) inferred from nDot/b min/avg/max: "
+            << gMin(divUFromNDot.primitiveField()) << " / "
+            << average(divUFromNDot.primitiveField()) << " / "
+            << gMax(divUFromNDot.primitiveField()) << endl;
+    }
+    else
+    {
+        Info<< "  nDot field not registered on the fluid mesh" << endl;
+    }
+}
+
+void Foam::poroSolidInterface::storeCouplingPressureReference()
+{
+    const volScalarField& p = pField();
+
+    if (!pCouplingRef_.valid())
+    {
+        pCouplingRef_.reset
+        (
+            new volScalarField
+            (
+                IOobject
+                (
+                    "pCouplingRef",
+                    runTime().timeName(),
+                    p.db(),
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE
+                ),
+                p
+            )
+        );
+    }
+    else
+    {
+        pCouplingRef_.ref() = p;
+    }
+}
+
+const Foam::volScalarField& Foam::poroSolidInterface::pCouplingRef() const
+{
+    if (!pCouplingRef_.valid())
+    {
+        FatalErrorInFunction
+            << "The coupling pressure reference has not been stored yet. "
+            << "storeCouplingPressureReference() runs at the start of each "
+            << "coupling iteration; coupling terms cannot be assembled "
+            << "outside the coupling loop."
+            << exit(FatalError);
+    }
+
+    return pCouplingRef_();
+}
+
+void Foam::poroSolidInterface::addPressureEquationTerms
+(
+    fvMatrix<scalar>& eqn
+) const
+{
+    const tmp<volScalarField> tImplicitCoupling(implicitCouplingDtoP());
+    const tmp<volScalarField> tExplicitCoupling(explicitCouplingDtoP());
+
+    if (fixedStressDiagnostic_)
+    {
+        printFixedStressDiagnostic("before pressure solve", eqn.dimensions());
+        printExplicitCouplingDiagnostic("before pressure solve", eqn.dimensions());
+    }
+
+    poroCouplingTerms::addCouplingSource
+    (
+        eqn,
+        pField(),
+        pCouplingRef(),
+        tImplicitCoupling(),
+        tExplicitCoupling(),
+        runTime().deltaT()
     );
 }
 
@@ -332,12 +591,19 @@ Foam::poroSolidInterface::poroSolidInterface(
       ? Switch(true)
       : lookupOrAddDefault<Switch>(
               "porosityConstantExplicit", true)),
+      fixedStressStabilScale_(
+          lookupOrAddDefault<scalar>(
+              "fixedStressStabilScale", 1.5)),
+      fixedStressDiagnostic_(
+          lookupOrAddDefault<Switch>(
+              "fixedStressDiagnostic", false)),
       solid_(),
       poroFluid_(),
       b_(),
       solidToPoroFluid_(),
       iterCtrl_(),
-      intWork_()
+      intWork_(),
+      pCouplingRef_()
 
 {
     solid_ = solidModel::New(runTime, "solid");
@@ -425,6 +691,8 @@ Foam::poroSolidInterface::poroSolidInterface(
 
     makePoroFluidCouplingSource();
     Info << "Mesh is shared between Fields: " << sharedMesh_ << endl;
+    Info << "Fixed-stress stabilization scale: "
+         << fixedStressStabilScale_ << endl;
 }
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
@@ -432,6 +700,19 @@ Foam::poroSolidInterface::poroSolidInterface(
 
 Foam::poroSolidInterface::~poroSolidInterface()
 {
+    if(sharedMesh() && solid_.valid())
+    {
+        objectRegistry& solidRegistry =
+            const_cast<objectRegistry&>
+            (
+                static_cast<const objectRegistry&>(solidMesh())
+            );
+
+        forAllConstIter(HashSet<word>, sharedSolidRegistryFieldNames_, iter)
+        {
+            solidRegistry.checkOut(iter.key());
+        }
+    }
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -511,7 +792,13 @@ void Foam::poroSolidInterface::afterPorosityUpdate()
 {}
 
 void Foam::poroSolidInterface::afterFluidSolve()
-{}
+{
+    if (fixedStressDiagnostic_)
+    {
+        printFixedStressDiagnostic("after pressure solve", dimVolume/dimTime);
+        printExplicitCouplingDiagnostic("after pressure solve", dimVolume/dimTime);
+    }
+}
 
 void Foam::poroSolidInterface::beforeSolidSolve()
 {}
@@ -538,6 +825,10 @@ bool Foam::poroSolidInterface::evolveCouplingLoop()
 
     do
     {
+        // Freeze the fixed-stress pressure reference together with the
+        // coupling terms for this coupling iteration
+        storeCouplingPressureReference();
+
         assembleCouplingTerms();
 
         if(!porosityConstantExplicit())

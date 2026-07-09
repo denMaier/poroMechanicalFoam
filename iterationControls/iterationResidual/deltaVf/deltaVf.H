@@ -60,6 +60,11 @@ class deltaVf
     // Private Member Functions
         Switch writeField_;
         word variableName_;
+
+        //- Name of the owning iteration-control loop; used to scope the
+        //  names of the registered working/residual fields so that nested
+        //  controls tracking the same field do not collide in the registry
+        word loopName_;
         scalar sqrt32_;
         refPtr<objectRegistry> db_;
         refPtr<fvMesh> mesh_;
@@ -102,6 +107,16 @@ class deltaVf
             return sf_.ref();
         }
 
+        //- Prefix baseName with the loop name (if any) to make the
+        //  registered field name unique per iteration control
+        word scopedFieldName(const word& baseName) const
+        {
+            return
+                loopName_.empty()
+              ? baseName
+              : word(loopName_ + "_" + baseName);
+        }
+
         void firstLookup();
         void lookupAndMakeScalar();
         void makeVfScalar();
@@ -130,7 +145,8 @@ public:
             const Time& runTime,
             const word name,
             const ITstream stream,
-            const bool writeField
+            const bool writeField,
+            const word& loopName = word::null
         );
 
 

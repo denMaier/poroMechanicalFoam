@@ -125,6 +125,11 @@ namespace Foam
         protected:
             // Protected member functions
 
+            poroSolid(
+                const word& type,
+                Time &runTime,
+                const word &region = "poroFluid");
+
             virtual void prepareCouplingLoop();
 
             //- Lazily register or allocate hydraulic fields required on the solid side.

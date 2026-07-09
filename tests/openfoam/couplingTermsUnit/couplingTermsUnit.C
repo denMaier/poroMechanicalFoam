@@ -431,6 +431,19 @@ void testFvOptionMatrixAssembly(const fvMesh& mesh)
         "zeroGradient"
     );
 
+    // The fixed-stress reference is passed explicitly and deliberately
+    // differs from p: the term must relax against the coupling-iteration
+    // snapshot, not against p or p.prevIter(). Note that p.storePrevIter()
+    // is intentionally never called here — addCouplingSource must not
+    // touch the prevIter slot.
+    volScalarField pRef
+    (
+        IOobject("matrixAssemblyPRef", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("matrixAssemblyPRef", dimPressure, 5.0),
+        "zeroGradient"
+    );
+
     fvScalarMatrix eqn(p, dimVol/dimTime);
     const dimensionedScalar deltaT("matrixDeltaT", dimTime, 0.25);
 
@@ -438,13 +451,14 @@ void testFvOptionMatrixAssembly(const fvMesh& mesh)
     (
         eqn,
         p,
+        pRef,
         implicitCoeff,
         explicitSource,
         deltaT
     );
 
-    checkNear("fvOption matrix diagonal gets implicit rate", eqn.diag()[0], 3.2e-6);
-    checkNear("fvOption matrix source gets negative explicit rate", eqn.source()[0], 1.75);
+    checkNear("fvOption matrix diagonal gets negative implicit rate", eqn.diag()[0], -3.2e-6);
+    checkNear("fvOption matrix source gets explicit minus fixed-stress compensation", eqn.source()[0], 1.749984);
     checkTrue("fvOption matrix dimensions are volume per time", eqn.dimensions() == dimVol/dimTime);
 }
 
@@ -857,6 +871,11 @@ void testSharedRegistryRegistration(fvMesh& mesh)
         );
 
     checkTrue("shared registry registration is idempotent", !insertedAgain);
+
+    forAllConstIter(HashSet<word>, borrowedNames, iter)
+    {
+        registry.checkOut(iter.key());
+    }
 }
 
 void runSharedRegistryConflict(fvMesh& mesh)

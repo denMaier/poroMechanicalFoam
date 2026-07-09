@@ -49,7 +49,7 @@ SourceFiles
 #include "foamTime.H"
 #endif
 #include "fvPatchFields.H"
-#include "fixedGradientFvPatchFields.H"
+#include "solidTractionFvPatchVectorField.H"
 #include "Switch.H"
 #include "PatchFunction1.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -62,19 +62,13 @@ namespace Foam
     \*---------------------------------------------------------------------------*/
 
     class poroTractionFvPatchVectorField
-        : public fixedGradientFvPatchVectorField
+        : public solidTractionFvPatchVectorField
     {
 
         // Private Data
 
         //- total (true) or effective (false) traction/pressure
         const bool totalTraction_;
-
-        //- Traction
-        vectorField traction_;
-
-        //- Pressure
-        scalarField pressure_;
 
         //- Traction time series
         autoPtr<PatchFunction1<vector>> tractionSeries_;
@@ -146,26 +140,6 @@ namespace Foam
         // Member functions
 
         // Access
-
-        virtual const vectorField &traction() const
-        {
-            return traction_;
-        }
-
-        virtual vectorField &traction()
-        {
-            return traction_;
-        }
-
-        virtual const scalarField &pressure() const
-        {
-            return pressure_;
-        }
-
-        virtual scalarField &pressure()
-        {
-            return pressure_;
-        }
 
         // Mapping functions
 

@@ -174,6 +174,7 @@ void Foam::poroCouplingTerms::addCouplingSource
 (
     fvMatrix<scalar>& eqn,
     const volScalarField& pField,
+    const volScalarField& pRef,
     const volScalarField& implicitCoupling,
     const volScalarField& explicitCoupling,
     const dimensionedScalar& deltaT
@@ -184,7 +185,13 @@ void Foam::poroCouplingTerms::addCouplingSource
         implicitCouplingRate(implicitCoupling, deltaT)
     );
 
-    eqn += fvm::SuSp(tImplicitRate(), pField);
+    // This matrix is returned through fvOptions() on the RHS of the
+    // pressure equation, so it is subtracted when `lhs == fvOptions(...)`
+    // is assembled.  Build the opposite sign here to add
+    // (L/dt)*(p - pRef) as positive storage in the final pEqn, where pRef
+    // is the pressure at the last coupling-term assembly (see header).
+    eqn -= fvm::Sp(tImplicitRate(), pField);
+    eqn += fvm::Su(tImplicitRate()*pRef, pField);
 
     const tmp<volScalarField> tExplicitRate
     (

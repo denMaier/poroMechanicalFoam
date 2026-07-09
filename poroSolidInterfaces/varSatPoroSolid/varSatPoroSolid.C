@@ -241,6 +241,7 @@ namespace Foam
 
         void varSatPoroSolid::afterFluidSolve()
         {
+            poroSolidInterface::afterFluidSolve();
             q_relAcc_.clear();
         }
 

@@ -86,17 +86,7 @@ void Foam::fv::poroSolidToFluidCouplingSource::addSup
 {
     // Get poroSold base class, so we can get the coupling terms from it
     const auto& interface = mesh_.thisDb().parent().lookupObject<poroSolidInterface>(interfaceName_,true);
-    const tmp<volScalarField> tImplicitCoupling(interface.implicitCouplingDtoP());
-    const tmp<volScalarField> tExplicitCoupling(interface.explicitCouplingDtoP());
-
-    poroCouplingTerms::addCouplingSource
-    (
-        eqn,
-        interface.pField(),
-        tImplicitCoupling(),
-        tExplicitCoupling(),
-        mesh_.time().deltaT()
-    );
+    interface.addPressureEquationTerms(eqn);
 }
 
 void Foam::fv::poroSolidToFluidCouplingSource::addSup
