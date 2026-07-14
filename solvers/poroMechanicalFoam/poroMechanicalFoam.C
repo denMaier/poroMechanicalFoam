@@ -107,16 +107,8 @@ int main(int argc, char *argv[])
     }
 
     ///-------  Starting the time loop!  ---------///
-    while (runTime.run())
+    while (runTime.loop())
     {
-        // Update deltaT, if desired, before moving to the next step
-        if (adjustTimeStep){
-            physics().setDeltaT(runTime);
-        }
-        
-        // Advancing the time
-        runTime++;
-
         Info<< "Time = " << runTime.timeName() << nl << endl;
 
         // Solve the mathematical model
@@ -132,6 +124,14 @@ int main(int argc, char *argv[])
         {
             // Write all registered and AUTO_WRITE marked fields to disk
             physics().writeFields(runTime);
+        }
+
+        // Update deltaT, if desired, for the next time step.  This keeps
+        // normal function objects such as setTimeStep in the pre-increment
+        // phase, where they can still override the model estimate.
+        if (adjustTimeStep)
+        {
+            physics().setDeltaT(runTime);
         }
 
         Info<< "ExecutionTime = " << runTime.elapsedCpuTime() << " s"
