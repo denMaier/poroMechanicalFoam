@@ -426,6 +426,16 @@ This is implemented as an `fvOption`. It looks up the active `poroSolidInterface
 
 The implicit fixed-stress contribution is assembled against `pCouplingRef`, a pressure snapshot stored once at the start of each outer coupling iteration. It must not use the pressure field's `prevIter()` slot: the fluid solvers refresh that slot at the top of every fluid iteration for relaxation and nonlinear source terms, so using it here would make the fixed-stress term vanish as the fluid sub-loop converges.
 
+Its current-time coefficient is obtained from the solid kinematic temporal
+operator. All currently supported solid models reconstruct velocity with
+`fvc::ddt(D)`, so fixed stress follows the solid mesh's `ddt(D)` selection
+without forcing the pressure-storage scheme to match. Only the ddt matrix
+diagonal is used: time-history terms cancel in
+`A_t (p - pCouplingRef)`, and the auxiliary reference field is never
+differentiated. A future velocity-primary solid formulation must override the
+time-matrix hook with its displacement-update/integration operator; `ddt(U)`
+would be acceleration.
+
 ## Function Objects
 
 The repository adds the following function objects:

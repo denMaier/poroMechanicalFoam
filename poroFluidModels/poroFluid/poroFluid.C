@@ -44,7 +44,7 @@ namespace Foam
 
             defineTypeNameAndDebug(poroFluid, 0);
             addToRunTimeSelectionTable(poroFluidModel, poroFluid, dictionary);
-            
+
 
             // * * * * * * * * * * * * * Private Memeber Functions * * * * * * * * * * * //
 
@@ -94,9 +94,18 @@ namespace Foam
                           IOobject::AUTO_WRITE
                       ),
                       poroHydraulic().kf() / poroHydraulic().magGamma()
+                  ),
+                  pressureEquationDiagnostic_
+                  (
+                      poroFluidDict().lookupOrDefault<Switch>
+                      (
+                          "pressureEquationDiagnostic",
+                          false
+                      )
                   )
             {
                 pRGHisRequired();
+
                 //Info << runTime().constant() << nl << runTime().caseConstant() <<endl;
                 phi() = (-kbyGammaf_ * mesh().magSf() * fvc::snGrad(p_rgh()));
                 Info << "Done generating poroFluidModel" << endl;
@@ -116,6 +125,7 @@ namespace Foam
 
             bool poroFluid::evolve()
             {
+                resetLinearSolverResiduals();
 
                 // Initialize performance tracking
 
@@ -147,15 +157,57 @@ namespace Foam
                         - fvm::laplacian(kbyGammaf_, p_rgh())  //- Pressure Fluxes
                         == fvOptions()(Ss_,p_rgh())
                     );
-                    
+
                     fvOptions().constrain(pEqn);
 
+                    scalar preSolveMax = 0.0;
+                    scalar preSolveRms = 0.0;
+                    if (pressureEquationDiagnostic_)
+                    {
+                        const scalarField residual(pEqn.residual());
+                        const scalar totalVolume = gSum(mesh().V());
+                        preSolveMax = gMax(mag(residual));
+                        preSolveRms = Foam::sqrt
+                        (
+                            gSum(mesh().V()*sqr(residual))/totalVolume
+                        );
+                    }
+
                     solverPerfp = pEqn.solve();
+                    recordLinearSolverResidual(solverPerfp);
+
+                    if
+                    (
+                        pressureEquationDiagnostic_
+                     && solverPerfp.nIterations() > 0
+                    )
+                    {
+                        const scalarField residual(pEqn.residual());
+                        const scalar totalVolume = gSum(mesh().V());
+                        const scalar postSolveMax = gMax(mag(residual));
+                        const scalar postSolveRms = Foam::sqrt
+                        (
+                            gSum(mesh().V()*sqr(residual))/totalVolume
+                        );
+
+                        Info<< "Pressure equation diagnostic: preMax "
+                            << preSolveMax
+                            << ", preRms " << preSolveRms
+                            << ", postMax " << postSolveMax
+                            << ", postRms " << postSolveRms
+                            << ", linearInitial "
+                            << solverPerfp.initialResidual()
+                            << ", linearFinal "
+                            << solverPerfp.finalResidual()
+                            << ", linearIterations "
+                            << solverPerfp.nIterations()
+                            << endl;
+                    }
 
                     p_rgh().relax();
-                
+
                     fvOptions().correct(p_rgh());
-                    
+
                     phi() = pEqn.flux();
                     hydraulicGradient() = fvc::grad(p_rgh())/poroHydraulic().magGamma();
 

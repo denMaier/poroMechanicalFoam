@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+caseDir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+MPLCONFIGDIR=${MPLCONFIGDIR:-/tmp/poromechanicalfoam-matplotlib}
+export MPLCONFIGDIR
+mkdir -p "$MPLCONFIGDIR"
+
+if ! command -v blockMesh >/dev/null 2>&1 \
+ || ! command -v poroMechanicalFoam >/dev/null 2>&1 \
+ || ! command -v foamDictionary >/dev/null 2>&1
+then
+    echo "OpenFOAM and poroMechanicalFoam must be available in PATH" >&2
+    exit 1
+fi
+
+python3 "$caseDir/tau_fo_sweep.py" \
+    --clean \
+    --formulation implicit \
+    --fixed-stress-scale 2.5 \
+    --output-directory tauFoRunsImplicitScale2p5 \
+    "$@"

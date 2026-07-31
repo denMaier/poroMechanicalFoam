@@ -9,6 +9,7 @@
 
 notes.txt
 WORK_RESUME.md
+/.codex
 
 # ignore eigen and ltensor libraries
 ThirdParty/eigen3
@@ -112,6 +113,7 @@ PlyParser_FoamFileParser_parsetab.py
 
 # transient test artifacts
 /.scratch/
+/solids4FoamModelsMinimal/generated/
 
 # ignore .timeStamp in the main directory
 /.timeStamp

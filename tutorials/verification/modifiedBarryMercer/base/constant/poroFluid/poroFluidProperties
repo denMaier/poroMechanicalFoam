@@ -1,0 +1,18 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroFluidProperties;
+}
+
+poroFluidModel poroFluid;
+
+poroFluidCoeffs
+{
+    enabled true;
+    iterations 1;
+    infoFrequency 1;
+    pressureEquationDiagnostic true;
+    convergence {}
+}

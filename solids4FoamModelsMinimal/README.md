@@ -16,6 +16,9 @@ patch-field code.
 Additional minimal-target changes:
 
 - OpenFOAM-only build target with direct upstream source paths (no local source-tree symlinks).
+- The build applies the poroMechanicalFoam-owned
+  `patches/preserve-solid-solver-performance.patch` to a generated copy of
+  `solidModel.C`. The selected solids4Foam source tree remains unchanged.
 - PETSc helper sources are removed from the minimal source list.
 - PETSc and Eigen integrations are explicitly disabled with
   `-DS4F_NO_USE_PETSC -DS4F_NO_USE_EIGEN`.

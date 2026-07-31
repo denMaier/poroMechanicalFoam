@@ -116,6 +116,10 @@ Tested code:
 - Biot coefficient loading through the solid mechanical law.
 - Solid-side registration of hydraulic fields `p` and `p_rgh`.
 - Object identity for shared `p` and `p_rgh` fields.
+- `poroTraction` effective-to-total conversion uses the mechanical law's
+  face pressure and Biot coefficient for both `p` and `p_rgh` configurations.
+- `poroTraction` rejects a legacy `buoyancyIncluded` selection that conflicts
+  with `poroMechanicalLaw2::pressureFieldName`.
 - Saturated coupling-term assembly:
   - explicit DTO dimensions and zero value for uniform displacement.
   - implicit DTO dimensions and `b^2 / impK` value.
@@ -186,8 +190,10 @@ Tested code:
     fields.
   - `relativeAccelerationFlux` projects acceleration to flux dimensions.
   - `explicitCouplingSource` subtracts relative acceleration divergence.
-  - `implicitCouplingRate`, `explicitCouplingRate`, and `addCouplingSource`
-    apply the expected scaling/signs to matrix terms.
+  - `implicitCouplingMatrix`, `explicitCouplingRate`, and
+    `addCouplingSource` apply the expected scaling/signs to matrix terms.
+  - the fixed-stress diagonal follows the selected kinematic ddt scheme and
+    remains independent of deliberately mismatched auxiliary-field histories.
 - `residualOperation`: `max`, `sum`, `L2`, `RMS`, including empty RMS.
 - `deltaVf`: field discovery, missing-field rejection, absolute and relative
   residuals, vector and surface-field residuals.
@@ -212,7 +218,7 @@ Low-value or tautological candidates:
 
 - `nDot field name` only verifies the literal `IOobject` name set in
   `poroCouplingTerms::nDot`.
-- `fixedStressStabil b^2/K golden`, `implicitCouplingRate`,
+- `fixedStressStabil b^2/K golden`, `implicitCouplingMatrix`,
   `explicitCouplingRate`, and `addCouplingSource` are close to the production
   one-line implementations. They are still useful sign/dimension regression
   checks, but each independently has limited fault-finding power.
@@ -236,6 +242,9 @@ Tested behavior:
 - Creates a minimal one-cell OpenFOAM mesh.
 - Seeds disk scalar fields at times `0` and `1`.
 - Runs the normal unit executable path.
+- Checks post-startup current-time factors for `ddt(D) backward`
+  (`1.5/deltaT`) and full `CrankNicolson` (`2/deltaT`) while the default
+  pressure scheme remains Euler.
 - Verifies expected fatal diagnostics for:
   - missing scalar disk reader start field.
   - invalid scalar disk reader `mapMethod`.

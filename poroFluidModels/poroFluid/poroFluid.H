@@ -89,7 +89,7 @@ namespace Foam
             class poroFluid
                 : public poroFluidModel
             {
-                
+
                 //- Constitutive model for saturated conductivity, storage and
                 //  hydrostatic pressure reconstruction.
                 mutable autoPtr<poroHydraulicModel> poroHydPtr_;
@@ -100,6 +100,9 @@ namespace Foam
                 //- Face-interpolated hydraulic conductivity divided by the
                 //  specific weight of the pore fluid, used in the Darcy term.
                 surfaceScalarField kbyGammaf_;
+
+                //- Print pressure-equation defects and linear-solver residuals.
+                const Switch pressureEquationDiagnostic_;
 
                 // Private Member Functions
                 //- Return the initialized hydraulic model instance.
@@ -135,14 +138,14 @@ namespace Foam
                 // Member Functions
 
                 // Access
-                
+
                 //- Alias the generic primary field handle to the excess
                 //  pressure solved by this class.
                 virtual volScalarField& pField()
                 {
                     return p_rgh();
                 }
-                
+
                 //- Const overload of the `p_rgh` primary-field alias.
                 virtual const volScalarField& pField() const
                 {

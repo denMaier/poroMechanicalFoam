@@ -1,0 +1,22 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object solidProperties;
+}
+
+solidModel linearGeometryTotalDisplacement;
+
+linearGeometryTotalDisplacementCoeffs
+{
+    nCorrectors 400;
+    rTol 1e-6;
+    aTol 1e-10;
+    sTol 1e-7;
+    // The normalized residual can jump when a new outer-coupling pressure
+    // load is applied to an already converged displacement field.
+    divTol 1e12;
+    materialTolerance 1e-10;
+    infoFrequency 20;
+}

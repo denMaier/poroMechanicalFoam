@@ -52,10 +52,112 @@ namespace
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+Foam::tmp<Foam::fvMatrix<Foam::scalar>>
+Foam::poroSolidInterface::fixedStressTimeMatrix
+(
+    const volScalarField& implicitCoupling,
+    const volScalarField& p
+) const
+{
+    // solid().U() is currently updated from fvc::ddt(solid().D()). Select
+    // that exact scheme from the solid mesh, then instantiate its scalar
+    // counterpart on the pressure mesh. This also works for separate meshes.
+    ITstream& kinematicDdtScheme = solidMesh().ddtScheme
+    (
+        "ddt(" + solid().D().name() + ')'
+    );
+
+    return poroCouplingTerms::implicitCouplingMatrix
+    (
+        implicitCoupling,
+        p,
+        kinematicDdtScheme
+    );
+}
+
 void Foam::poroSolidInterface::makeIterCtrl()
     {
         iterCtrl_.reset(new iterationControl(runTime_,interactionProperties_,"Pressure-Displacement"));
     }
+
+void Foam::poroSolidInterface::resetSolidLinearSolverResiduals()
+{
+    firstSolidLinearInitialResidual_ = GREAT;
+    lastSolidLinearInitialResidual_ = GREAT;
+    solidLinearSolveCount_ = 0;
+    solidLinearResidualCapability_ = false;
+
+    dictionary& solverDict = const_cast<dictionary&>
+    (
+        solidMesh().data().solverPerformanceDict()
+    );
+    solverDict.remove("D");
+    solverDict.remove("poroMechanicalFoamPreservesSolverPerformance");
+}
+
+void Foam::poroSolidInterface::captureSolidLinearSolverResiduals()
+{
+    const dictionary& solverDict =
+        solidMesh().data().solverPerformanceDict();
+
+    solidLinearResidualCapability_ =
+        solverDict.lookupOrDefault<bool>
+        (
+            "poroMechanicalFoamPreservesSolverPerformance",
+            false
+        );
+
+    if
+    (
+        !solidLinearResidualCapability_
+     || !solverDict.found("D")
+    )
+    {
+        return;
+    }
+
+    const List<SolverPerformance<vector>> history
+    (
+        solverDict.lookup("D")
+    );
+
+    if (history.empty())
+    {
+        return;
+    }
+
+    firstSolidLinearInitialResidual_ =
+        cmptMax(mag(history.first().initialResidual()));
+    lastSolidLinearInitialResidual_ =
+        cmptMax(mag(history.last().initialResidual()));
+    solidLinearSolveCount_ = history.size();
+}
+
+Foam::scalar Foam::poroSolidInterface::solidLinearSolverInitialResidual
+(
+    const bool first
+) const
+{
+    if (!solidLinearResidualCapability_)
+    {
+        FatalErrorInFunction
+            << "Solid linear-solver residual history is unavailable. "
+            << "This solids4foam build does not advertise the "
+            << "poroMechanicalFoam residual-preservation capability."
+            << exit(FatalError);
+    }
+
+    if (!solidLinearSolveCount_)
+    {
+        FatalErrorInFunction
+            << "The solid model recorded no D solve in its current evolve() call."
+            << exit(FatalError);
+    }
+
+    return first
+      ? firstSolidLinearInitialResidual_
+      : lastSolidLinearInitialResidual_;
+}
 
 void Foam::poroSolidInterface::makePoroFluidCouplingSource()
     {
@@ -133,15 +235,18 @@ void Foam::poroSolidInterface::printFixedStressDiagnostic
     );
 
     fvScalarMatrix fixedStressOption(p, matrixDimensions);
+    const tmp<fvScalarMatrix> tFixedStressTime
+    (
+        fixedStressTimeMatrix(tImplicitCoupling(), p)
+    );
 
     poroCouplingTerms::addCouplingSource
     (
         fixedStressOption,
         p,
         pCouplingRef(),
-        tImplicitCoupling(),
-        zeroExplicitCoupling,
-        runTime().deltaT()
+        tFixedStressTime(),
+        zeroExplicitCoupling
     );
 
     const scalarField& V = p.mesh().V();
@@ -220,15 +325,18 @@ void Foam::poroSolidInterface::printExplicitCouplingDiagnostic
     );
 
     fvScalarMatrix explicitOption(p, matrixDimensions);
+    const tmp<fvScalarMatrix> tFixedStressTime
+    (
+        fixedStressTimeMatrix(zeroImplicitCoupling, p)
+    );
 
     poroCouplingTerms::addCouplingSource
     (
         explicitOption,
         p,
         pCouplingRef(),
-        zeroImplicitCoupling,
-        tExplicitCoupling(),
-        runTime().deltaT()
+        tFixedStressTime(),
+        tExplicitCoupling()
     );
 
     const scalarField& V = p.mesh().V();
@@ -371,14 +479,18 @@ void Foam::poroSolidInterface::addPressureEquationTerms
         printExplicitCouplingDiagnostic("before pressure solve", eqn.dimensions());
     }
 
+    const tmp<fvScalarMatrix> tFixedStressTime
+    (
+        fixedStressTimeMatrix(tImplicitCoupling(), pField())
+    );
+
     poroCouplingTerms::addCouplingSource
     (
         eqn,
         pField(),
         pCouplingRef(),
-        tImplicitCoupling(),
-        tExplicitCoupling(),
-        runTime().deltaT()
+        tFixedStressTime(),
+        tExplicitCoupling()
     );
 }
 
@@ -619,12 +731,31 @@ Foam::poroSolidInterface::poroSolidInterface(
       fixedStressDiagnostic_(
           lookupOrAddDefault<Switch>(
               "fixedStressDiagnostic", false)),
+      pressureModeDiagnosticFields_(
+          lookupOrAddDefault<wordList>
+          (
+              "pressureModeDiagnosticFields",
+              wordList()
+          )),
       solid_(),
       poroFluid_(),
+      pressureModeDiagnostics_(),
+      previousPressureModeAmplitudes_
+      (
+          pressureModeDiagnosticFields_.size(),
+          0.0
+      ),
+      previousPressureDiagnostic_(),
+      havePreviousPressureModeAmplitude_(false),
+      pressureModeDiagnosticIteration_(0),
       b_(),
       solidToPoroFluid_(),
       iterCtrl_(),
       intWork_(),
+      firstSolidLinearInitialResidual_(GREAT),
+      lastSolidLinearInitialResidual_(GREAT),
+      solidLinearSolveCount_(0),
+      solidLinearResidualCapability_(false),
       pCouplingRef_()
 
 {
@@ -820,6 +951,138 @@ void Foam::poroSolidInterface::afterFluidSolve()
         printFixedStressDiagnostic("after pressure solve", dimVolume/dimTime);
         printExplicitCouplingDiagnostic("after pressure solve", dimVolume/dimTime);
     }
+
+    printPressureModeDiagnostic();
+}
+
+void Foam::poroSolidInterface::printPressureModeDiagnostic()
+{
+    if (pressureModeDiagnosticFields_.empty())
+    {
+        return;
+    }
+
+    if (pressureModeDiagnostics_.empty())
+    {
+        pressureModeDiagnostics_.setSize(pressureModeDiagnosticFields_.size());
+        forAll(pressureModeDiagnosticFields_, modeI)
+        {
+            pressureModeDiagnostics_.set
+            (
+                modeI,
+                new volScalarField
+                (
+                    IOobject
+                    (
+                        pressureModeDiagnosticFields_[modeI],
+                        runTime_.constant(),
+                        "poroFluid",
+                        runTime_,
+                        IOobject::MUST_READ,
+                        IOobject::NO_WRITE,
+                        false
+                    ),
+                    poroFluidMesh()
+                )
+            );
+        }
+    }
+
+    const fvMesh& mesh = poroFluidMesh();
+    const scalarField& volumes = mesh.V();
+    const scalarField& pressure = pField().primitiveField();
+    const scalar totalVolume = gSum(volumes);
+    const scalar meanPressure = gSum(volumes*pressure)/totalVolume;
+    scalarField amplitudes(pressureModeDiagnosticFields_.size(), 0.0);
+
+    forAll(pressureModeDiagnosticFields_, modeI)
+    {
+        const scalarField& mode =
+            pressureModeDiagnostics_[modeI].primitiveField();
+        const scalar denominator = gSum(volumes*sqr(mode));
+
+        if (denominator <= VSMALL)
+        {
+            FatalErrorInFunction
+                << "Pressure mode diagnostic field '"
+                << pressureModeDiagnosticFields_[modeI] << "' has zero norm"
+                << exit(FatalError);
+        }
+
+        amplitudes[modeI] =
+            gSum(volumes*mode*(pressure - meanPressure))/denominator;
+    }
+
+    ++pressureModeDiagnosticIteration_;
+    if (havePreviousPressureModeAmplitude_)
+    {
+        const scalarField pressureIncrement =
+            pressure - previousPressureDiagnostic_;
+        scalarField checkerboardIncrement(pressure.size(), 0.0);
+        forAll(pressureModeDiagnosticFields_, modeI)
+        {
+            checkerboardIncrement +=
+                (amplitudes[modeI] - previousPressureModeAmplitudes_[modeI])
+               *pressureModeDiagnostics_[modeI].primitiveField();
+        }
+        const scalarField complementIncrement =
+            pressureIncrement - checkerboardIncrement;
+        const scalar totalIncrementRms = Foam::sqrt
+        (
+            gSum(volumes*sqr(pressureIncrement))/totalVolume
+        );
+        const scalar checkerboardIncrementRms = Foam::sqrt
+        (
+            gSum(volumes*sqr(checkerboardIncrement))/totalVolume
+        );
+        const scalar complementIncrementRms = Foam::sqrt
+        (
+            gSum(volumes*sqr(complementIncrement))/totalVolume
+        );
+
+        const scalar incrementNorm =
+            Foam::sqrt(sum(sqr(amplitudes - previousPressureModeAmplitudes_)));
+        Info<< "Pressure mode subspace diagnostic: iteration "
+            << pressureModeDiagnosticIteration_
+            << ", incrementNorm " << incrementNorm << endl;
+        Info<< "Pressure increment decomposition: iteration "
+            << pressureModeDiagnosticIteration_
+            << ", totalRms " << totalIncrementRms
+            << ", checkerboardRms " << checkerboardIncrementRms
+            << ", complementRms " << complementIncrementRms
+            << ", checkerboardFraction "
+            << checkerboardIncrementRms/max(totalIncrementRms, VSMALL)
+            << endl;
+    }
+    else
+    {
+        Info<< "Pressure mode subspace diagnostic: iteration "
+            << pressureModeDiagnosticIteration_
+            << ", incrementNorm nan" << endl;
+    }
+
+    forAll(pressureModeDiagnosticFields_, modeI)
+    {
+        Info<< "Pressure mode diagnostic "
+            << pressureModeDiagnosticFields_[modeI]
+            << ": iteration " << pressureModeDiagnosticIteration_
+            << ", amplitude " << amplitudes[modeI];
+        if (havePreviousPressureModeAmplitude_)
+        {
+            Info<< ", increment "
+                << amplitudes[modeI]
+                 - previousPressureModeAmplitudes_[modeI];
+        }
+        else
+        {
+            Info<< ", increment nan";
+        }
+        Info<< endl;
+    }
+
+    previousPressureModeAmplitudes_ = amplitudes;
+    previousPressureDiagnostic_ = pressure;
+    havePreviousPressureModeAmplitude_ = true;
 }
 
 void Foam::poroSolidInterface::beforeSolidSolve()
@@ -840,6 +1103,11 @@ bool Foam::poroSolidInterface::evolveCouplingLoop()
 {
     prepareCouplingLoop();
     initializeSolidHydraulicFields();
+
+    previousPressureModeAmplitudes_ = 0.0;
+    previousPressureDiagnostic_.clear();
+    havePreviousPressureModeAmplitude_ = false;
+    pressureModeDiagnosticIteration_ = 0;
 
     SolverPerformance<vector>::debug = 0;
 
@@ -867,7 +1135,9 @@ bool Foam::poroSolidInterface::evolveCouplingLoop()
         }
 
         beforeSolidSolve();
+        resetSolidLinearSolverResiduals();
         solidRef().evolve();
+        captureSolidLinearSolverResiduals();
 
         // The fluid sub-loop uses the pressure field's single prevIter slot
         // for relaxation/nonlinear sources. Restore it to the same reference
@@ -919,7 +1189,7 @@ void Foam::poroSolidInterface::writeFields(const Time &runTime)
     intWork_.ref() =
         (solid().sigma()-solid().sigma().oldTime())
         && DEpsilon();
-    intWork_().write();    
+    intWork_().write();
 
     poroFluidRef().writeFields(runTime);
     solidRef().writeFields(runTime);

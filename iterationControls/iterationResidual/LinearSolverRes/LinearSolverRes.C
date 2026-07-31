@@ -26,6 +26,8 @@ License
 #include "LinearSolverRes.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
+#include "poroFluidModel.H"
+#include "poroSolidInterface.H"
 
 namespace
 {
@@ -71,12 +73,20 @@ namespace
             return -1.0;
         }
 
-        if (stream.size() != 2 && stream.size() != 3)
+        if
+        (
+            stream.size() != 2
+         && stream.size() != 3
+         && stream.size() != 4
+         && stream.size() != 5
+        )
         {
             FatalErrorInFunction
                 << "linearSolver convergence entry for field '" << fieldName
                 << "' must be "
-                << "'linearSolver [region] <tolerance|show>'."
+                << "'linearSolver [region] <tolerance|show>', or the named "
+                << "form 'linearSolver <model> <field> "
+                << "[first|last] <tolerance|show>'."
                 << Foam::exit(Foam::FatalError);
         }
 
@@ -104,7 +114,7 @@ namespace
         const Foam::ITstream& stream
     )
     {
-        if (stream.size() != 3)
+        if (stream.size() < 3)
         {
             return Foam::word::null;
         }
@@ -119,6 +129,66 @@ namespace
         }
 
         return stream[1].wordToken();
+    }
+
+    Foam::word parseLinearSolverField
+    (
+        const Foam::word& criterionName,
+        const Foam::ITstream& stream
+    )
+    {
+        if (stream.size() < 4)
+        {
+            return criterionName;
+        }
+
+        if (!stream[2].isWord())
+        {
+            FatalErrorInFunction
+                << "Named linearSolver convergence entry '" << criterionName
+                << "' requires a field name after the region name."
+                << Foam::exit(Foam::FatalError);
+        }
+
+        return stream[2].wordToken();
+    }
+
+    bool parseFirstResidual
+    (
+        const Foam::word& criterionName,
+        const Foam::ITstream& stream
+    )
+    {
+        if (stream.size() != 5)
+        {
+            return true;
+        }
+
+        if (!stream[3].isWord())
+        {
+            FatalErrorInFunction
+                << "Named linearSolver convergence entry '" << criterionName
+                << "' requires 'first' or 'last' before its tolerance."
+                << Foam::exit(Foam::FatalError);
+        }
+
+        const Foam::word selection(stream[3].wordToken());
+        if (selection == "first")
+        {
+            return true;
+        }
+        if (selection == "last")
+        {
+            return false;
+        }
+
+        FatalErrorInFunction
+            << "Unknown linearSolver residual selection '" << selection
+            << "' for criterion '" << criterionName
+            << "'. Expected 'first' or 'last'."
+            << Foam::exit(Foam::FatalError);
+
+        return true;
     }
 
     template<class GeoField, class ValueType>
@@ -159,6 +229,9 @@ namespace
                 << Foam::exit(Foam::FatalError);
         }
 
+        // The outer coupling loop must measure the equation defect presented
+        // to the model subsolve.  Later entries belong to inner corrections
+        // and are used by the model's own convergence decision.
         return Foam::cmptMax(sp.first().initialResidual());
     }
 }
@@ -247,8 +320,10 @@ Foam::LinearSolverRes::LinearSolverRes
         "linearSolver",
         false
     ),
-    fieldName_(name),
+    fieldName_(parseLinearSolverField(name, stream)),
     regionName_(parseLinearSolverRegion(name, stream)),
+    modelState_(stream.size() >= 4),
+    firstResidual_(parseFirstResidual(name, stream)),
     meshPtr_(nullptr)
 {
 }
@@ -262,6 +337,12 @@ Foam::LinearSolverRes::~LinearSolverRes()
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 Foam::scalar Foam::LinearSolverRes::calcResidual()
 {
+    if (modelState_)
+    {
+        residual_ = modelInitialResidual();
+        return residual_;
+    }
+
     if (!meshPtr_)
     {
         findMesh();
@@ -309,6 +390,55 @@ Foam::scalar Foam::LinearSolverRes::calcResidual()
     }
 
     return residual_;
+}
+
+Foam::scalar Foam::LinearSolverRes::modelInitialResidual()
+{
+    if (regionName_ == "poroFluid")
+    {
+        const HashTable<const poroFluidModel*> models =
+            runTime().lookupClass<const poroFluidModel>();
+
+        forAllConstIters(models, modelIter)
+        {
+            const poroFluidModel& model = *modelIter.val();
+            if (model.pField().name() == fieldName_)
+            {
+                return model.linearSolverInitialResidual(firstResidual_);
+            }
+        }
+
+        FatalErrorInFunction
+            << "No poroFluid model with primary field '" << fieldName_
+            << "' is available for linear-solver convergence."
+            << exit(FatalError);
+    }
+
+    if (regionName_ == "solid")
+    {
+        const HashTable<const poroSolidInterface*> models =
+            runTime().lookupClass<const poroSolidInterface>();
+
+        forAllConstIters(models, modelIter)
+        {
+            return modelIter.val()->solidLinearSolverInitialResidual
+            (
+                firstResidual_
+            );
+        }
+
+        FatalErrorInFunction
+            << "No poroSolidInterface is available for solid linear-solver "
+            << "convergence."
+            << exit(FatalError);
+    }
+
+    FatalErrorInFunction
+        << "Unknown model provider '" << regionName_
+        << "' for linear-solver convergence. Expected 'poroFluid' or 'solid'."
+        << exit(FatalError);
+
+    return GREAT;
 }
 
 

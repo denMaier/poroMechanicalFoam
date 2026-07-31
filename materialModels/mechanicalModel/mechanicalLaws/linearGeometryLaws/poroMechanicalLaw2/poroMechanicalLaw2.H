@@ -162,6 +162,18 @@ public:
             return tb;
         }
 
+        //- Constant Biot coefficient used by this material law
+        const dimensionedScalar& biotCoeffValue() const
+        {
+            return b_;
+        }
+
+        //- Pressure field used in the effective-stress definition
+        const word& pressureFieldName() const
+        {
+            return pName_;
+        }
+
         //- Calculate the stress
         virtual void correct(volSymmTensorField& sigma);
 

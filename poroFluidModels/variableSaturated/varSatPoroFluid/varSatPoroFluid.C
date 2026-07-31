@@ -60,7 +60,7 @@ namespace Foam
                   dimensionedScalar("", dimensionSet(-1, 3, 1, 0, 0, 0, 0), 0.0)
             ));
         }
-    
+
         void varSatPoroFluid::makePoroHydraulic()
         {
             poroHydPtr_.reset(new varSatPoroHydraulicModel(p_rgh(), g()));
@@ -90,7 +90,7 @@ namespace Foam
                 (
                     IOobject
                     (
-                        "Ss", 
+                        "Ss",
                         runTime.timeName(),
                         p_rgh().db(),
                         IOobject::NO_READ,
@@ -128,7 +128,7 @@ namespace Foam
             {
                 Info << p_rgh().db().sortedNames()
                      << endl;
-                    
+
                 n().write();
                 const tmp<volScalarField> tk(poroHydraulic().k());
                 volScalarField kDiagnostic(tk());
@@ -146,6 +146,7 @@ namespace Foam
 
         bool varSatPoroFluid::evolve()
         {
+            resetLinearSolverResiduals();
 
             // Initialize performance tracking
             // and silence automatic solver output
@@ -194,7 +195,7 @@ namespace Foam
                 // In case Casulli's Scheme is used, p() is capped initially,
                 // this needs to be transfered to p_rgh
                 // p_rgh().correctBoundaryConditions();
-                p_rgh() = p() - poroHydraulic().p_Hyd(); 
+                p_rgh() = p() - poroHydraulic().p_Hyd();
 
                 //////////////////- Nonlinear Iterations (Saturation)  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 do
@@ -226,9 +227,9 @@ namespace Foam
 
 
                     if (MassBalancePtr_.valid())
-                    {   
-                        // We are taking the mass balance BEFORE solving, so we get the mass balance 
-                        // from the inital pressure field. This means we are lagging behind 
+                    {
+                        // We are taking the mass balance BEFORE solving, so we get the mass balance
+                        // from the inital pressure field. This means we are lagging behind
                         // one iteration, but we include the nonlinearities form the coefficients
                         // that we otherwise wouldnt get.
                         MassBalancePtr_.ref().primitiveFieldRef() = pEqn.residual();
@@ -236,6 +237,7 @@ namespace Foam
 
                     // Solve System
                     solverPerfp = pEqn.solve();
+                    recordLinearSolverResidual(solverPerfp);
 
                     fvOptions().correct(p_rgh());
                     p() = p_rgh() + poroHydraulic().p_Hyd();// Update the total pressure with new excess pressure
@@ -286,7 +288,7 @@ namespace Foam
                 }
 
                 ///////////////////- Update the Coeffs and secondary fields ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                
+
                 // Update Saturation
             updateS(p());
 

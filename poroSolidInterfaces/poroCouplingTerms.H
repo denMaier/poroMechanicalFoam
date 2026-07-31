@@ -16,6 +16,8 @@
 
 namespace Foam
 {
+class Istream;
+
 template<class Type>
 class fvMatrix;
 
@@ -56,10 +58,11 @@ namespace poroCouplingTerms
         const surfaceVectorField& qRelAcc
     );
 
-    tmp<volScalarField> implicitCouplingRate
+    tmp<fvMatrix<scalar>> implicitCouplingMatrix
     (
         const volScalarField& implicitCoeff,
-        const dimensionedScalar& deltaT
+        const volScalarField& pField,
+        Istream& ddtSchemeData
     );
 
     tmp<volScalarField> explicitCouplingRate
@@ -68,21 +71,20 @@ namespace poroCouplingTerms
     );
 
     //- Add the fixed-stress and explicit deformation coupling contributions
-    //  to the pressure equation. pRef is the pressure reference the
-    //  fixed-stress term relaxes against: it must be the pressure at which
-    //  the coupling terms (implicitCoupling/explicitCoupling) were
-    //  assembled, i.e. a snapshot taken once per coupling iteration. Do NOT
-    //  pass pField.prevIter() here: that slot is re-stored every fluid
-    //  iteration for relaxation, which would make the fixed-stress term
-    //  vanish as the fluid sub-loop converges.
+    //  to the pressure equation. implicitDdt supplies the current-time
+    //  diagonal of the selected kinematic temporal operator. pRef is the
+    //  pressure at which the coupling terms were assembled, i.e. a snapshot
+    //  taken once per coupling iteration. Do NOT pass pField.prevIter() here:
+    //  that slot is re-stored every fluid iteration for relaxation, which
+    //  would make the fixed-stress term vanish as the fluid sub-loop
+    //  converges.
     void addCouplingSource
     (
         fvMatrix<scalar>& eqn,
         const volScalarField& pField,
         const volScalarField& pRef,
-        const volScalarField& implicitCoupling,
-        const volScalarField& explicitCoupling,
-        const dimensionedScalar& deltaT
+        const fvMatrix<scalar>& implicitDdt,
+        const volScalarField& explicitCoupling
     );
 }
 }

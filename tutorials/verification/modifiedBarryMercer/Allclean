@@ -1,0 +1,22 @@
+#!/bin/sh
+set -eu
+
+caseDir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+rm -rf "$caseDir/runs"
+rm -f "$caseDir/base/constant/solid/polyMesh/boundary"
+rm -f "$caseDir/base/constant/solid/polyMesh/cellZones"
+rm -f "$caseDir/base/constant/solid/polyMesh/faces"
+rm -f "$caseDir/base/constant/solid/polyMesh/neighbour"
+rm -f "$caseDir/base/constant/solid/polyMesh/owner"
+rm -f "$caseDir/base/constant/solid/polyMesh/pointZones"
+rm -f "$caseDir/base/constant/solid/polyMesh/points"
+rm -rf "$caseDir/base/constant/solid/polyMesh/sets"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/boundary"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/cellZones"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/faces"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/neighbour"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/owner"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/pointZones"
+rm -f "$caseDir/base/constant/poroFluid/polyMesh/points"
+rm -rf "$caseDir/base/constant/poroFluid/polyMesh/sets"
+rm -f "$caseDir/log.topoSet"

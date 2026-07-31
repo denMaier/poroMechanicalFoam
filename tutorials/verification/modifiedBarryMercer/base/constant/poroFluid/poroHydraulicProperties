@@ -1,0 +1,22 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroHydraulicProperties;
+}
+
+rho rho [1 -3 0 0 0 0 0] 1;
+href href [0 1 0 0 0 0 0] 0;
+n n [0 0 0 0 0 0 0] 0.3;
+storageLaw storageCoeff;
+conductivityLaw constant;
+
+storageCoeffCoeffs
+{
+    Ss Ss [-1 1 2 0 0 0 0] 0;
+}
+
+// With |rho*g| = 1 and unit viscosity, k/|rho*g| equals the paper's
+// intrinsic permeability divided by viscosity.
+k k [0 1 -1 0 0 0 0] 1e-12;

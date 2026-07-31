@@ -121,7 +121,17 @@ namespace Foam
                 const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
                 const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
 
-                updateCouplingTerms(b(), impK, solid().U(), nDot_, fixedStressStabil_);
+                // The solid model updates U as fvc::ddt(D) after each solid
+                // solve, so the latest solid iterate follows the selectable
+                // ddt(D) scheme used by pressure-displacement coupling.
+                updateCouplingTerms
+                (
+                    b(),
+                    impK,
+                    solid().U(),
+                    nDot_,
+                    fixedStressStabil_
+                );
                 if (lookupOrDefault<Switch>("includeRelativeAcceleration", true))
                 {
                     q_relAcc_.reset(q_relAcc(tkf(), tSolidA()).ptr());
@@ -136,7 +146,8 @@ namespace Foam
                 Info << "Mapping fields to poroFluid mesh";
                 const volScalarField impK(solid().mechanical().impK());
                 const tmp<surfaceScalarField> tkf(poroFluid().relativeAccelerationConductivity());
-                tmp<volVectorField> UFluidMesh = solidToPoroFluid().mapTgtToSrc(solid().U());
+                tmp<volVectorField> UFluidMesh =
+                    solidToPoroFluid().mapTgtToSrc(solid().U());
                 const tmp<volVectorField> tSolidA(fvc::d2dt2(solid().D()));
                 tmp<volVectorField> aFluidMesh = solidToPoroFluid().mapTgtToSrc(tSolidA());
                 tmp<volScalarField> tmpImpK(solidToPoroFluid().mapTgtToSrc(impK));

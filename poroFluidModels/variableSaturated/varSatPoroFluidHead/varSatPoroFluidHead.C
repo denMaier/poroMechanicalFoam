@@ -60,7 +60,7 @@ namespace Foam
                   dimensionedScalar("", dimensionSet(0, 1, -1, 0, 0, 0, 0), 0.0)
             ));
         }
-    
+
         void varSatPoroFluidHead::makePoroHydraulic()
         {
             poroHydPtr_.reset(new varSatPoroHydraulicModel(pHead_, g()));
@@ -91,7 +91,7 @@ namespace Foam
                 IOobject(
                         "pHead",
                         runTime.timeName(),
-                        // if mesh is shared between solid and addPhysics register 
+                        // if mesh is shared between solid and addPhysics register
                         // fields in this objectRegistery instead of (solid-) mesh
                         *this,
                         IOobject::MUST_READ,
@@ -102,7 +102,7 @@ namespace Foam
                 (
                     IOobject
                     (
-                        "Ss", 
+                        "Ss",
                         runTime.timeName(),
                         pHead_.db(),
                         IOobject::NO_READ,
@@ -114,9 +114,9 @@ namespace Foam
               kEfffPtr_(),
               steadyState_(word(mesh().ddtScheme("ddt(C,pHead)"))=="steadyState")
         {
-            if 
+            if
             (
-                !steadyState_ 
+                !steadyState_
                 && mesh().relaxField("kEfff")
                 && mesh().fieldRelaxationFactor("kEfff")!=1.0
             )
@@ -151,6 +151,7 @@ namespace Foam
 
         bool varSatPoroFluidHead::evolve()
         {
+            resetLinearSolverResiduals();
 
             // Initialize performance tracking
             // and silence automatic solver output
@@ -162,7 +163,7 @@ namespace Foam
 	        iterCtrl().reset();
 
             Info << "Evolving fluid model: " << this->type() << endl;
- 
+
 ///////////- Save Fields from previous timeStep ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Update saturation
             updateS(pHead_);
@@ -178,7 +179,7 @@ namespace Foam
 
             ///////////////////- Update Flux ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
             // Update hydraulic gradient for use in boundary conditions and models
-            hydraulicGradient() = fvc::grad(pHead_) + fvc::grad(poroHydraulic().z());      
+            hydraulicGradient() = fvc::grad(pHead_) + fvc::grad(poroHydraulic().z());
             // Update volumetric flux for use in boundary conditions
             phi() = -kEfff() * (mesh().magSf() * (fvc::snGrad(pHead_) + fvc::snGrad(poroHydraulic().z())));// Initialize flux phi() for BC that need the flux
 
@@ -194,7 +195,7 @@ namespace Foam
 
                 // Initialize the iteration scheme
                 linearization().initalize(pHead_,pHead_);
-                //pHead_.correctBoundaryConditions(); 
+                //pHead_.correctBoundaryConditions();
 
 //////////////////- Nonlinear Iterations (Saturation)  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
                 do
@@ -204,29 +205,29 @@ namespace Foam
 		            {
 		                Info << "Assembling pEqn"
 		                    << endl;
-		            
+
 		                for (fv::option& source : static_cast<fv::optionList&>(fvOptions())){
-		                    Info << "Source Terms " << source.name() << " is active? " << source.active() << endl; 
+		                    Info << "Source Terms " << source.name() << " is active? " << source.active() << endl;
 		                }
 		                SolverPerformance<scalar>::debug=debug;
 		            }
 
                 // Assemble pressure equation
-                fvScalarMatrix pEqn(                    
+                fvScalarMatrix pEqn(
                     n() * linearization().ddtS(S(),pHead_)  //- Change in Saturation
                     + S() * fvm::ddt(Ss_, pHead_) //- Storage (e.g. compressibility of fluid)
-                    - fvm::laplacian(kEfff(), pHead_)                       // pressure flux                                 
+                    - fvm::laplacian(kEfff(), pHead_)                       // pressure flux
                     ==
                     fvc::laplacian(kEfff(), poroHydraulic().z())              // gravity flux
                     + fvOptions()(Ss_,pHead_)// optional: coupling and sources)
                 );
 
-                fvOptions().constrain(pEqn);   
+                fvOptions().constrain(pEqn);
 
                 if (MassBalancePtr_.valid())
-                {   
-                    // We are taking the mass balance BEFORE solving, so we get the mass balance 
-                    // from the inital pressure field. This means we are lagging behind 
+                {
+                    // We are taking the mass balance BEFORE solving, so we get the mass balance
+                    // from the inital pressure field. This means we are lagging behind
                     // one iteration, but we include the nonlinearities form the coefficients
                     // that we otherwise wouldnt get.
                     MassBalancePtr_.ref().primitiveFieldRef() = pEqn.residual();
@@ -234,16 +235,17 @@ namespace Foam
 
                 //Solve System
 		        solverPerfp = Foam::solve(pEqn);
-                
-                fvOptions().correct(pHead_); 
+                recordLinearSolverResidual(solverPerfp);
+
+                fvOptions().correct(pHead_);
 
                 phi() = pEqn.flux();
 
                 }while(!linearization().checkConvergedAndUpdate(pHead_,pHead_));
 
                 // Relax pHead and kr (if steady state)
-                pHead_.relax();                
-                hydraulicGradient() = fvc::grad(pHead_) + fvc::grad(poroHydraulic().z());   
+                pHead_.relax();
+                hydraulicGradient() = fvc::grad(pHead_) + fvc::grad(poroHydraulic().z());
 
 //////////////////- Output first and latest linear solver performance  ////////////////////////////////////////////////////////////////////////////////////////////////
                 if (mesh().data().solverPerformanceDict().found("pHead"))
@@ -261,7 +263,7 @@ namespace Foam
                         sp().last().print(Info.masterStream(mesh().comm()));
                     }
                     else
-                    {    
+                    {
                         Info << "Initial solve:" << endl;
                         sp().first().print(Info.masterStream(mesh().comm()));
                         Info << "Final solve:" << endl;
@@ -280,7 +282,7 @@ namespace Foam
                 // Update saturation
                 updateS(pHead_);
                 // Update the effective hydraulic conductivity
-                
+
                 // Check if poroHydraulicModel changes storage
                 // If yes, update storage
                 if(poroHydraulic().updatesSs())
@@ -298,20 +300,20 @@ namespace Foam
                 {
                     kEfff() = poroHydraulic().kEfff(pHead_);
 
-                }      
+                }
 
                 pHead_.correctBoundaryConditions();
 
                 }while (iterCtrl().loop());
 
                 iterCtrl().write();
-            
+
  ///////////////////- Update the coefficients after convergence //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
             Info << "varSatPoroFluidHead evolved" << endl;
             p() = pHead_ * poroHydraulic().magGamma();
-            p_rgh() = p() - poroHydraulic().p_Hyd();    
-            //prgh_.correctBoundaryConditions();  
+            p_rgh() = p() - poroHydraulic().p_Hyd();
+            //prgh_.correctBoundaryConditions();
             pDot() = fvc::ddt(p());
             return 0;
         }

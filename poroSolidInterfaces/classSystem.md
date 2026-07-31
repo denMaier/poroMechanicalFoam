@@ -14,6 +14,9 @@ Current derived classes in this folder:
 
 - `poroSolid`
   - fully saturated formulation
+- `poroSolidStab`
+  - fully saturated formulation with implicit or explicit checkerboard
+    pressure stabilization based on the solid tangent stiffness
 - `varSatPoroSolid`
   - variably saturated formulation with additional saturation and porosity state mirrored onto the solid side
 
@@ -114,6 +117,19 @@ The saturated implementation uses:
 - solid displacement for porosity updates
 
 It mirrors only pressure-related fields onto the solid side.
+
+### `poroSolidStab`
+
+The stabilized saturated implementation extends `poroSolid` with a
+compact-minus-wide pressure-rate operator. It evaluates
+`stabFactor*h^2/impK_f` using linearly interpolated compliance (harmonic
+stiffness), mapping compliance from the solid mesh when necessary. Its
+`implicit` mode assembles the compact stencil of
+`p - p.oldTime()` into the pressure matrix; its `explicit` mode evaluates the
+compact stencil from `pCouplingRef - p.oldTime()`. In both modes the removed
+wide stencil uses `pCouplingRef - p.oldTime()`, the pressure increment that
+produced the incoming solid predictor. These finite increments deliberately
+do not use a selectable `ddt` scheme. Physical boundary coefficients are zero.
 
 ### `varSatPoroSolid`
 

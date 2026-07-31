@@ -30,7 +30,7 @@ $(S4F_BLOCK_TOOLS)/newLeastSquaresVolPointInterpolation/newLeastSquaresVolPointI
 
 $(S4F_PHYSICS)/physicsModel.C
 
-$(S4F_SOLID_MODELS)/solidModel/solidModel.C
+generated/solidModel.C
 $(S4F_SOLID_MODELS)/solidModel/lookupSolidModel.C
 $(S4F_SOLID_MODELS)/solidModel/checkConvergence.C
 $(S4F_SOLID_MODELS)/solidModel/momentumStabilisation/momentumStabilisation.C

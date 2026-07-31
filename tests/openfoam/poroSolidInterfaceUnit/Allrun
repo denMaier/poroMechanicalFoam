@@ -73,6 +73,7 @@ divSchemes
     default none;
     div(sigma) Gauss linear;
     div(U) Gauss linear;
+    div(((D-D_0)|deltaT)) Gauss linear;
 }
 
 laplacianSchemes
@@ -168,7 +169,7 @@ edges ();
 
 boundary
 (
-    walls
+    fixedWalls
     {
         type wall;
         faces
@@ -178,6 +179,14 @@ boundary
             (0 1 5 4)
             (3 7 6 2)
             (0 3 2 1)
+        );
+    }
+
+    top
+    {
+        type patch;
+        faces
+        (
             (4 5 6 7)
         );
     }
@@ -355,9 +364,19 @@ internalField uniform (0 0 0);
 
 boundaryField
 {
-    walls
+    fixedWalls
     {
         type fixedValue;
+        value uniform (0 0 0);
+    }
+
+    top
+    {
+        type poroTraction;
+        total false;
+        pressureFieldName auto;
+        traction uniform (0 0 0);
+        pressure uniform 0;
         value uniform (0 0 0);
     }
 }
@@ -377,7 +396,12 @@ internalField uniform 1000;
 
 boundaryField
 {
-    walls
+    fixedWalls
+    {
+        type zeroGradient;
+    }
+
+    top
     {
         type zeroGradient;
     }
@@ -387,4 +411,51 @@ EOF
 cp "$testCase/0/poroFluid/p_rgh" "$testCase/0/solid/p_rgh"
 
 export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
+
+echo "Testing poroTraction with pressureFieldName p"
 poroSolidInterfaceUnit -case "$testCase"
+
+mechanicalProperties="$testCase/constant/solid/mechanicalProperties"
+awk '
+{
+    gsub("pressureFieldName p;", "pressureFieldName p_rgh;");
+    print;
+}
+' "$mechanicalProperties" > "$mechanicalProperties.tmp"
+mv "$mechanicalProperties.tmp" "$mechanicalProperties"
+
+echo "Testing poroTraction with pressureFieldName p_rgh"
+poroSolidInterfaceUnit -case "$testCase"
+
+awk '
+{
+    gsub("pressureFieldName p_rgh;", "pressureFieldName p;");
+    print;
+}
+' "$mechanicalProperties" > "$mechanicalProperties.tmp"
+mv "$mechanicalProperties.tmp" "$mechanicalProperties"
+
+displacementField="$testCase/0/solid/D"
+awk '
+{
+    gsub("pressureFieldName auto;", "buoyancyIncluded true;");
+    print;
+}
+' "$displacementField" > "$displacementField.tmp"
+mv "$displacementField.tmp" "$displacementField"
+
+echo "Testing rejection of a legacy buoyancy flag that conflicts with the law"
+if poroSolidInterfaceUnit -case "$testCase" > "$testCase/log.mismatch" 2>&1
+then
+    echo "FAIL mismatched buoyancyIncluded setting was accepted"
+    exit 1
+fi
+
+if ! grep -q "Pressure-field mismatch on poroTraction patch" "$testCase/log.mismatch"
+then
+    echo "FAIL mismatch run did not report the expected pressure-field error"
+    cat "$testCase/log.mismatch"
+    exit 1
+fi
+
+echo "PASS mismatched buoyancyIncluded setting was rejected"

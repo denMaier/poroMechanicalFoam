@@ -1,0 +1,44 @@
+FoamFile
+{
+    version 2.0;
+    format ascii;
+    class dictionary;
+    object poroCouplingProperties;
+}
+
+poroSolidInterface poroSolid;
+sharedMesh true;
+porosityConstant true;
+includeRelativeAcceleration false;
+// A value of 2 matches the volumetric stiffness for the unmodified fixed-
+// stress split. Allrun overrides this baseline with the formulation-specific
+// values obtained from the benchmark sweep. No field under-relaxation is used.
+fixedStressStabilScale 4.0;
+pressureModeDiagnosticFields (checkerboardX checkerboardY checkerboardMode);
+
+poroSolidCoeffs
+{
+    enabled true;
+    iterations 1000;
+    infoFrequency 20;
+    convergence
+    {
+        p_rgh max 1e-6;
+        D max 1e-10;
+    }
+}
+
+poroSolidStabCoeffs
+{
+    enabled true;
+    iterations 1000;
+    infoFrequency 20;
+    stabilizationType implicit;
+    stabFactor 1.0;
+    excludedCellZones ();
+    convergence
+    {
+        p_rgh max 1e-6;
+        D max 1e-10;
+    }
+}

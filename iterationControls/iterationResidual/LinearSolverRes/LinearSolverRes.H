@@ -62,9 +62,12 @@ class LinearSolverRes
     // Private Member Functions
         word fieldName_;
         word regionName_;
+        bool modelState_;
+        bool firstResidual_;
         const fvMesh* meshPtr_;
 
         void findMesh();
+        scalar modelInitialResidual();
 
         //- No copy construct
         LinearSolverRes(const LinearSolverRes&) = delete;

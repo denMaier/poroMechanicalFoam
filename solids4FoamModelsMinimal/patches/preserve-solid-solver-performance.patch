@@ -1,0 +1,23 @@
+--- a/src/solids4FoamModels/solidModels/solidModel/solidModel.C
++++ b/src/solids4FoamModels/solidModels/solidModel/solidModel.C
+@@ -446,6 +446,12 @@ void Foam::solidModel::setCellDisps(fvVectorMatrix& DEqn)
+ void Foam::solidModel::relaxField(volVectorField& D, int iCorr)
+ {
+     // Hack to avoid expensive copy of residuals
++#ifdef POROMECHANICALFOAM_PRESERVE_SOLVER_PERFORMANCE
++        const_cast<dictionary&>
++        (
++            D.mesh().data().solverPerformanceDict()
++        ).set("poroMechanicalFoamPreservesSolverPerformance", true);
++#else
+ #ifdef OPENFOAM_COM
+     #if (OPENFOAM >= 2312)
+         const_cast<dictionary&>
+@@ -456,6 +462,7 @@ void Foam::solidModel::relaxField(volVectorField& D, int iCorr)
+         const_cast<dictionary&>(D.mesh().solverPerformanceDict()).clear();
+     #endif
+ #endif
++#endif
+
+     if (relaxationMethod_ == "fixed")
+     {

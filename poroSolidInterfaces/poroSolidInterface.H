@@ -32,19 +32,19 @@ Description
     the poroHydraulicModel from the poroFluid object.
 
     We start the timeloop in which we update the coupling terms
-    and first evolve the poroFluid solver, then evolve the 
+    and first evolve the poroFluid solver, then evolve the
     solid solver.
 
-    The coupling from solid to fluid works by adding a 
+    The coupling from solid to fluid works by adding a
     fvOption (poroSolidToFluidCouplingSource Class)
-    to the fvOption list of the poroFluid object and 
+    to the fvOption list of the poroFluid object and
     provide functions (explicit/implicitCouplingDtoP)
-    that the fvOption accesses and adds it to the fluid 
+    that the fvOption accesses and adds it to the fluid
     function.
 
     The coulpling from fluid to solid is handled by the
     wrapping class (poroMechanicalLaw/varSatPoroMechanicalLaw)
-    around the solid mechanicalLaws. All it needs is to be able 
+    around the solid mechanicalLaws. All it needs is to be able
     to find a scalar field named p or p_rgh on the solid mesh/registry
 
 Author
@@ -103,11 +103,22 @@ namespace Foam
         //- Print fixed-stress matrix diagnostics when assembling pEqn terms.
         const Switch fixedStressDiagnostic_;
 
+        //- Optional pressure-mode basis used for outer-iteration diagnostics.
+        const wordList pressureModeDiagnosticFields_;
+
         //- Solid solver
         autoPtr<solidModel> solid_;
 
         //- poroFluid solver
         autoPtr<poroFluidModel> poroFluid_;
+
+        //- Lazily read, time-independent pressure modes on the fluid mesh.
+        PtrList<volScalarField> pressureModeDiagnostics_;
+
+        scalarField previousPressureModeAmplitudes_;
+        scalarField previousPressureDiagnostic_;
+        bool havePreviousPressureModeAmplitude_;
+        label pressureModeDiagnosticIteration_;
 
         //- Biot-Willis Coefficitent on the fluid mesh
         // It will be automatically grapped from the solid mesh
@@ -123,9 +134,15 @@ namespace Foam
         //- Internal work done by solid
         autoPtr<volScalarField> intWork_;
 
+        scalar firstSolidLinearInitialResidual_;
+        scalar lastSolidLinearInitialResidual_;
+        label solidLinearSolveCount_;
+        bool solidLinearResidualCapability_;
+
         //- Snapshot of the fluid pressure taken once per coupling iteration,
         //  when the coupling terms are assembled. The fixed-stress term
-        //  (L/dt)*(p - pCouplingRef) relaxes against this reference. It is
+        //  A_t*(p - pCouplingRef) relaxes against this reference, where A_t
+        //  is the selected ddt scheme's current-time coefficient for L*p. It is
         //  deliberately independent of pField().prevIter(), which the fluid
         //  models re-store every fluid iteration for relaxation.
         autoPtr<volScalarField> pCouplingRef_;
@@ -138,6 +155,13 @@ namespace Foam
         void makeIterCtrl();
 
         void makePoroFluidCouplingSource();
+
+        void resetSolidLinearSolverResiduals();
+
+        void captureSolidLinearSolverResiduals();
+
+        //- Print amplitudes and increment norm of the configured mode basis.
+        void printPressureModeDiagnostic();
 
         // Function to grap Biot-Willis Coefficitent from solid mesh
         bool checkMechanicalLawUpdateBiotCoeff
@@ -171,6 +195,19 @@ namespace Foam
             const volVectorField& U,
             autoPtr<volScalarField>& nDot,
             autoPtr<volScalarField>& fixedStressStabil
+        ) const;
+
+        //- Construct the fixed-stress temporal matrix using the kinematic
+        //  operator that produces the solid coupling rate. The default
+        //  displacement-based implementation uses the solid's ddt(D) scheme.
+        //  A coupling implementation paired with a velocity-primary solid
+        //  model must override this with the displacement-update/integration
+        //  operator; ddt(U) would represent acceleration and is not the
+        //  correct substitute.
+        virtual tmp<fvMatrix<scalar>> fixedStressTimeMatrix
+        (
+            const volScalarField& implicitCoupling,
+            const volScalarField& pField
         ) const;
 
         //- Snapshot the current fluid pressure as the fixed-stress reference.
@@ -433,6 +470,20 @@ namespace Foam
 
         //- Write fields
         virtual void writeFields(const Time &runTime);
+
+        bool hasSolidLinearSolverResidualCapability() const
+        {
+            return solidLinearResidualCapability_;
+        }
+
+        bool hasSolidLinearSolverResiduals() const
+        {
+            return
+                solidLinearResidualCapability_
+             && solidLinearSolveCount_ > 0;
+        }
+
+        scalar solidLinearSolverInitialResidual(const bool first) const;
     };
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -60,12 +60,14 @@ void poroFluidModel::makeIterCtrl()
 
 void poroFluidModel::addDefaultCellZone()
 {
-        if (mesh().cellZones().size() > 0)
+        if (mesh().cellZones().findZoneID("defaultZone") >= 0)
         {
             return;
         }
 
-        Info<< "No cellZones found. Creating new cellZone containing all cells." << endl;
+        Info<< "No 'defaultZone' cellZone found. Creating one containing all "
+            << "cells while preserving " << mesh().cellZones().size()
+            << " existing cell zone(s)." << endl;
 
         // Copy existing point zones
         List<pointZone*> pointZonesCopy(mesh().pointZones().size());
@@ -264,6 +266,9 @@ poroFluidModel::poroFluidModel
       fvOptions_((fv::options::New(mesh()))),
       coeffsDictName_(type_ + "Coeffs"),
       iterCtrl_(),
+      firstLinearInitialResidual_(GREAT),
+      lastLinearInitialResidual_(GREAT),
+      linearSolveCount_(0),
       maxDeltaT_
       (
         runTime.controlDict().lookupOrDefault<scalar>
@@ -319,10 +324,7 @@ poroFluidModel::poroFluidModel
         }
     }
 
-    if (mesh().cellZones().size() == 0)
-    {
-        addDefaultCellZone();
-    }
+    addDefaultCellZone();
 
     Info << "poroFluidModel: " << type << nl
          << "with solution field: " << fieldName_ << nl
@@ -436,7 +438,7 @@ void Foam::poroFluidModel::update_porosity(const volScalarField& Dn, const bool 
                 "n0",
                 n()
             )
-        );   
+        );
     }
 
     if(incremental)

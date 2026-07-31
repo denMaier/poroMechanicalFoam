@@ -282,6 +282,7 @@ FoamFile
 // ----------------------------- //
 
 // Use 'poroSolid' for saturated coupling,
+// 'poroSolidStab' for checkerboard-stabilized saturated coupling, or
 // 'varSatPoroSolid' for variably saturated coupling
 poroSolidInterface  poroSolid;
 
@@ -317,6 +318,87 @@ For non-conforming meshes, use `mapMethod mapNearest`, set `consistent no`, and 
 For variably saturated coupling (`varSatPoroSolid`), also set `porosityConstant false` and `porosityConstantExplicit true` (explicit porosity update from deformation).
 
 The fixed-stress pressure reference is stored once per outer coupling iteration as `pCouplingRef`. Do not reinterpret the fluid field's `prevIter()` state as that coupling reference: the fluid solver updates `prevIter()` on every inner fluid iteration for relaxation and nonlinear source terms.
+
+The fixed-stress temporal coefficient follows the solid kinematics, not the
+physical pressure-storage scheme. For the currently supported solids4Foam
+models, `U` is reconstructed as `fvc::ddt(D)`, so the correction uses the
+scheme selected by `ddt(D)`:
+
+```foam
+ddtSchemes
+{
+    default  Euler;              // may independently govern pressure storage
+    ddt(D)   CrankNicolson 1;    // also governs fixed-stress iteration damping
+}
+```
+
+Only the current-time diagonal of that temporal operator enters the
+fixed-stress difference. The physical-time history cancels analytically, so
+`pCouplingRef` is never differentiated and does not need matching `oldTime`,
+`oldOldTime`, or Crank--Nicolson history.
+
+If a future solid model solves velocity `U` directly, `ddt(U)` is acceleration
+and must not be substituted here. Such a coupling must provide the temporal
+operator used to update/integrate displacement from `U`; this is exposed as a
+virtual fixed-stress time-matrix hook.
+
+### Linear-equation residual convergence
+
+Model-owned linear-solver residuals can be selected explicitly:
+
+```foam
+convergence
+{
+    "pEquation" linearSolver poroFluid p_rgh first 1e-6;
+    "DEquation" linearSolver solid     D     first 1e-6;
+}
+```
+
+Use `first` in an outer coupling control: it is the initial residual of the
+first linear solve performed by that model during the current outer
+iteration. Use `last` when the convergence decision should follow the final
+linear correction performed inside the model. Replacing the tolerance with
+`show` reports the value without using it as a stopping criterion.
+
+The fluid models cache both values directly. Solid residual history requires
+the locally built `solids4FoamModelsMinimal` compatibility patch. A normal
+external solids4Foam installation remains usable for cases that do not request
+a solid `linearSolver` criterion; requesting one produces a targeted
+capability error instead of reading stale or ambiguous solver history.
+
+### Checkerboard pressure stabilization
+
+Select `poroSolidStab` to add compact-minus-wide pressure-rate stabilization
+with face coefficient `stabFactor*h^2/impK_f` to a saturated coupled case:
+
+```foam
+poroSolidInterface  poroSolidStab;
+
+poroSolidStabCoeffs
+{
+    stabilizationType   implicit;  // implicit or explicit
+    stabFactor          1.0;
+
+    // Add the usual iteration-control entries here as for poroSolidCoeffs.
+    // ...
+}
+```
+
+Both treatments replace the wide pressure stencil contained in the finite
+volumetric-strain increment by a compact stencil. The increments are formed
+directly from the old-time state and do not use a selectable `ddt` scheme.
+In `implicit` mode the compact term contains
+`p_rgh - p_rgh.oldTime()` and is assembled into the matrix; the removed wide
+term contains `pCouplingRef - p_rgh.oldTime()`. In `explicit` mode both the
+compact and wide stencils use the frozen
+`pCouplingRef - p_rgh.oldTime()` increment. Factors of `1/deltaT` only convert
+these storage increments to the rate form used by the pressure equation.
+
+The reciprocal tangent stiffness is interpolated linearly, which is equivalent
+to harmonic interpolation of `impK`. For separate meshes, compliance is formed
+on the solid cells before mapping to the fluid cells. The stabilization
+coefficient is zero on non-coupled physical boundaries so it cannot introduce
+an external numerical pressure flux.
 
 If `writeResidualField` is enabled for nested iteration controls, residual fields are written with the loop name prefixed, such as `Pressure-Displacement_delta(p_rgh)Residual`, so post-processing scripts should not assume the older unscoped names.
 

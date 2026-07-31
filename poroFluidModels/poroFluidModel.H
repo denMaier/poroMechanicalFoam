@@ -50,6 +50,7 @@ SourceFiles
 #include "fvc.H"
 #include "fvOptions.H"
 #include "iterationControl.H"
+#include "SolverPerformance.H"
 #include "uniformDimensionedFields.H"
 #include "poroHydraulicModel.H"
 
@@ -117,9 +118,13 @@ namespace Foam
 
             //- name of the coeffs dictionary
             word coeffsDictName_;
-            
+
             //- Control object for poroFluid loop
             autoPtr<iterationControl> iterCtrl_;
+
+            scalar firstLinearInitialResidual_;
+            scalar lastLinearInitialResidual_;
+            label linearSolveCount_;
 
             //- maximal timestep when using adaptable timestep
             scalar maxDeltaT_;
@@ -128,13 +133,35 @@ namespace Foam
             //- Courant number when using adaptable timestep
             scalar CoNumber_;
 
+            void resetLinearSolverResiduals()
+            {
+                firstLinearInitialResidual_ = GREAT;
+                lastLinearInitialResidual_ = GREAT;
+                linearSolveCount_ = 0;
+            }
+
+            template<class Type>
+            void recordLinearSolverResidual
+            (
+                const SolverPerformance<Type>& solverPerf
+            )
+            {
+                const scalar value = cmptMax(mag(solverPerf.initialResidual()));
+                if (!linearSolveCount_)
+                {
+                    firstLinearInitialResidual_ = value;
+                }
+                lastLinearInitialResidual_ = value;
+                ++linearSolveCount_;
+            }
+
             void makeN();
 
             //- This function will check that the D field was read from disk
             virtual void pRGHisRequired();
 
             void addDefaultCellZone();
-            
+
             //- Under-relaxation method
             //  It can be 'fixed', 'Aitken' or 'QuasiNewton'
             //const word relaxationMethod_;
@@ -202,7 +229,7 @@ namespace Foam
             //- Return non-const mesh
             dynamicFvMesh &mesh()
             {
-                return                 
+                return
                     sharedMesh_
                     ?const_cast<dynamicFvMesh&>(runTime_.lookupObject<dynamicFvMesh>("solid"))
                     :static_cast<dynamicFvMesh&>(*this);
@@ -211,7 +238,7 @@ namespace Foam
             //- Return const mesh
             const dynamicFvMesh &mesh() const
             {
-                return                 
+                return
                     sharedMesh_
                     ?runTime_.lookupObject<dynamicFvMesh>("solid")
                     :static_cast<const dynamicFvMesh&>(*this);
@@ -238,7 +265,7 @@ namespace Foam
 
             //- Get the porosity field (This can either be the positity from poroHydraulicModel
             //  or a new porosity field generated to store changing porosity values)
-            virtual const volScalarField& n(); 
+            virtual const volScalarField& n();
 
             //- Update porosity
             virtual void update_porosity(const volScalarField& Dn, const bool incremental);
@@ -324,6 +351,25 @@ namespace Foam
                     makeIterCtrl();
                 }
                 return iterCtrl_();
+            }
+
+            bool hasLinearSolverResiduals() const
+            {
+                return linearSolveCount_ > 0;
+            }
+
+            scalar linearSolverInitialResidual(const bool first) const
+            {
+                if (!hasLinearSolverResiduals())
+                {
+                    FatalErrorInFunction
+                        << "No linear-solver residual has been recorded by "
+                        << name_ << " in the current evolve() call."
+                        << exit(FatalError);
+                }
+                return first
+                  ? firstLinearInitialResidual_
+                  : lastLinearInitialResidual_;
             }
 
             // Edit

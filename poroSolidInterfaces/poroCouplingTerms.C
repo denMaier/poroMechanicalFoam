@@ -7,6 +7,7 @@
 \*---------------------------------------------------------------------------*/
 
 #include "poroCouplingTerms.H"
+#include "ddtScheme.H"
 #include "fvc.H"
 #include "fvMatrices.H"
 #include "fvmSup.H"
@@ -139,20 +140,19 @@ Foam::tmp<Foam::volScalarField> Foam::poroCouplingTerms::explicitCouplingSource
     );
 }
 
-Foam::tmp<Foam::volScalarField> Foam::poroCouplingTerms::implicitCouplingRate
+Foam::tmp<Foam::fvMatrix<Foam::scalar>>
+Foam::poroCouplingTerms::implicitCouplingMatrix
 (
     const volScalarField& implicitCoeff,
-    const dimensionedScalar& deltaT
+    const volScalarField& pField,
+    Istream& ddtSchemeData
 )
 {
-    return tmp<volScalarField>
+    return fv::ddtScheme<scalar>::New
     (
-        new volScalarField
-        (
-            "implicitCouplingRate",
-            implicitCoeff/deltaT
-        )
-    );
+        pField.mesh(),
+        ddtSchemeData
+    ).ref().fvmDdt(implicitCoeff, pField);
 }
 
 Foam::tmp<Foam::volScalarField> Foam::poroCouplingTerms::explicitCouplingRate
@@ -175,23 +175,34 @@ void Foam::poroCouplingTerms::addCouplingSource
     fvMatrix<scalar>& eqn,
     const volScalarField& pField,
     const volScalarField& pRef,
-    const volScalarField& implicitCoupling,
-    const volScalarField& explicitCoupling,
-    const dimensionedScalar& deltaT
+    const fvMatrix<scalar>& implicitDdt,
+    const volScalarField& explicitCoupling
 )
 {
-    const tmp<volScalarField> tImplicitRate
-    (
-        implicitCouplingRate(implicitCoupling, deltaT)
-    );
+    if (implicitDdt.dimensions() != eqn.dimensions())
+    {
+        FatalErrorInFunction
+            << "Fixed-stress ddt matrix dimensions "
+            << implicitDdt.dimensions()
+            << " do not match pressure equation dimensions "
+            << eqn.dimensions()
+            << exit(FatalError);
+    }
+
+    // A ddt matrix is diagonal, so use its diagonal directly instead of
+    // allocating an A() field and temporary Sp/Su matrices. Its source is
+    // deliberately ignored: all physical-time history cancels from the
+    // fixed-stress difference, leaving A_t*(p - pRef).
+    const scalarField& implicitDiag = implicitDdt.diag();
 
     // This matrix is returned through fvOptions() on the RHS of the
     // pressure equation, so it is subtracted when `lhs == fvOptions(...)`
     // is assembled.  Build the opposite sign here to add
-    // (L/dt)*(p - pRef) as positive storage in the final pEqn, where pRef
-    // is the pressure at the last coupling-term assembly (see header).
-    eqn -= fvm::Sp(tImplicitRate(), pField);
-    eqn += fvm::Su(tImplicitRate()*pRef, pField);
+    // A_t*(p - pRef) as positive storage in the final pEqn, where A_t is
+    // the current-time coefficient of ddt(L,p) and pRef is the pressure at
+    // the last coupling-term assembly (see header).
+    eqn.diag() -= implicitDiag;
+    eqn.source() -= implicitDiag*pRef.primitiveField();
 
     const tmp<volScalarField> tExplicitRate
     (

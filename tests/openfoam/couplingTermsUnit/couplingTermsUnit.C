@@ -365,6 +365,14 @@ void testExplicitCouplingSourceSign(const fvMesh& mesh)
 
 void testFvOptionCouplingRates(const fvMesh& mesh)
 {
+    volScalarField p
+    (
+        IOobject("implicitRateP", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("implicitRateP", dimPressure, 10.0),
+        "zeroGradient"
+    );
+
     volScalarField implicitCoeff
     (
         IOobject("implicitCoeff", mesh.time().timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
@@ -381,21 +389,29 @@ void testFvOptionCouplingRates(const fvMesh& mesh)
         "zeroGradient"
     );
 
-    const dimensionedScalar deltaT("deltaT", dimTime, 0.25);
-    const tmp<volScalarField> tImplicitRate
+    ITstream& kinematicDdtScheme = mesh.ddtScheme("ddt(D)");
+    const tmp<fvScalarMatrix> tImplicitDdt
     (
-        poroCouplingTerms::implicitCouplingRate(implicitCoeff, deltaT)
+        poroCouplingTerms::implicitCouplingMatrix
+        (
+            implicitCoeff,
+            p,
+            kinematicDdtScheme
+        )
     );
     const tmp<volScalarField> tExplicitRate
     (
         poroCouplingTerms::explicitCouplingRate(explicitSource)
     );
 
-    checkNear("fvOption implicit coupling is scaled by 1/deltaT", tImplicitRate()[0], 3.2e-6);
+    const scalar implicitRate = tImplicitDdt().diag()[0]/mesh.V()[0];
+
+    checkNear("fvOption Euler coupling uses selected ddt diagonal", implicitRate, 3.2e-6);
     checkTrue
     (
         "fvOption implicit rate dimensions include inverse time",
-        tImplicitRate().dimensions() == dimless/(dimPressure*dimTime)
+        tImplicitDdt().dimensions()/dimVol/dimPressure
+     == dimless/(dimPressure*dimTime)
     );
     checkNear("fvOption explicit coupling enters with negative sign", tExplicitRate()[0], -1.75);
     checkTrue
@@ -445,21 +461,157 @@ void testFvOptionMatrixAssembly(const fvMesh& mesh)
     );
 
     fvScalarMatrix eqn(p, dimVol/dimTime);
-    const dimensionedScalar deltaT("matrixDeltaT", dimTime, 0.25);
-
+    ITstream& kinematicDdtScheme = mesh.ddtScheme("ddt(D)");
+    const tmp<fvScalarMatrix> tImplicitDdt
+    (
+        poroCouplingTerms::implicitCouplingMatrix
+        (
+            implicitCoeff,
+            p,
+            kinematicDdtScheme
+        )
+    );
     poroCouplingTerms::addCouplingSource
     (
         eqn,
         p,
         pRef,
-        implicitCoeff,
-        explicitSource,
-        deltaT
+        tImplicitDdt(),
+        explicitSource
     );
 
     checkNear("fvOption matrix diagonal gets negative implicit rate", eqn.diag()[0], -3.2e-6);
     checkNear("fvOption matrix source gets explicit minus fixed-stress compensation", eqn.source()[0], 1.749984);
     checkTrue("fvOption matrix dimensions are volume per time", eqn.dimensions() == dimVol/dimTime);
+}
+
+void testSelectedDdtFactor
+(
+    fvMesh& mesh,
+    const scalar expectedFactor,
+    const label advanceSteps
+)
+{
+    Time& runTime = const_cast<Time&>(mesh.time());
+
+    volScalarField p
+    (
+        IOobject("selectedDdtP", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("selectedDdtP", dimPressure, 10.0),
+        "zeroGradient"
+    );
+
+    volScalarField implicitCoeff
+    (
+        IOobject
+        (
+            "selectedDdtImplicitCoeff",
+            runTime.timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh,
+        dimensionedScalar
+        (
+            "selectedDdtImplicitCoeff",
+            dimless/dimPressure,
+            8.0e-7
+        ),
+        "zeroGradient"
+    );
+
+    // Initialize any scheme-owned history, notably Crank-Nicolson's ddt0
+    // field, at the initial time index.
+    ITstream& initialDdtScheme = mesh.ddtScheme("ddt(D)");
+    tmp<fvScalarMatrix> tImplicitDdt
+    (
+        poroCouplingTerms::implicitCouplingMatrix
+        (
+            implicitCoeff,
+            p,
+            initialDdtScheme
+        )
+    );
+    scalar actualRate = tImplicitDdt().diag()[0]/mesh.V()[0];
+
+    for (label step = 0; step < advanceSteps; ++step)
+    {
+        ++runTime;
+        p = dimensionedScalar
+        (
+            "selectedDdtP",
+            dimPressure,
+            10.0 + step + 1
+        );
+
+        ITstream& stepDdtScheme = mesh.ddtScheme("ddt(D)");
+        tImplicitDdt = poroCouplingTerms::implicitCouplingMatrix
+        (
+            implicitCoeff,
+            p,
+            stepDdtScheme
+        );
+        actualRate = tImplicitDdt().diag()[0]/mesh.V()[0];
+    }
+
+    const scalar expectedRate =
+        expectedFactor*implicitCoeff[0]/runTime.deltaTValue();
+
+    checkNear
+    (
+        "selected ddt supplies expected fixed-stress factor",
+        actualRate,
+        expectedRate
+    );
+
+    // Deliberately give the auxiliary reference incorrect physical-time
+    // history. The fixed-stress contribution must still vanish when its
+    // current value equals p because pRef is never differentiated.
+    volScalarField pRef
+    (
+        IOobject("selectedDdtPRef", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        p
+    );
+    pRef.oldTime() =
+        dimensionedScalar("badOldReference", dimPressure, -123.0);
+    pRef.oldTime().oldTime() =
+        dimensionedScalar("badOldOldReference", dimPressure, 456.0);
+
+    volScalarField zeroExplicit
+    (
+        IOobject("selectedDdtZeroExplicit", runTime.timeName(), mesh, IOobject::NO_READ, IOobject::NO_WRITE),
+        mesh,
+        dimensionedScalar("zero", dimless/dimTime, 0.0),
+        "zeroGradient"
+    );
+
+    fvScalarMatrix eqn(p, dimVol/dimTime);
+    poroCouplingTerms::addCouplingSource
+    (
+        eqn,
+        p,
+        pRef,
+        tImplicitDdt(),
+        zeroExplicit
+    );
+
+    const scalar fixedStressContribution =
+        (-eqn.diag()[0]*p[0] + eqn.source()[0])/mesh.V()[0];
+
+    checkNear
+    (
+        "selected ddt factor reaches fixed-stress matrix diagonal",
+        -eqn.diag()[0]/mesh.V()[0],
+        expectedRate
+    );
+    checkNear
+    (
+        "fixed-stress vanishes despite mismatched auxiliary history",
+        fixedStressContribution,
+        0.0
+    );
 }
 
 void testResidualOperations()
@@ -660,7 +812,7 @@ void testLinearSolverResiduals(fvMesh& mesh)
         "zeroGradient"
     );
 
-    List<SolverPerformance<scalar>> scalarPerformance(1);
+    List<SolverPerformance<scalar>> scalarPerformance(2);
     scalarPerformance[0] =
         SolverPerformance<scalar>
         (
@@ -672,13 +824,24 @@ void testLinearSolverResiduals(fvMesh& mesh)
             true,
             false
         );
+    scalarPerformance[1] =
+        SolverPerformance<scalar>
+        (
+            "unitSolver",
+            scalarSolveField.name(),
+            0.025,
+            1.0e-9,
+            2,
+            true,
+            false
+        );
     mesh.data().solverPerformanceDict().set(scalarSolveField.name(), scalarPerformance);
 
     ITstream scalarStream("linearSolver 1e-4");
     LinearSolverRes scalarResidual(mesh.time(), scalarSolveField.name(), scalarStream, false);
 
     checkNear("linearSolver scalar tolerance parse", scalarResidual.tolerance(), 1.0e-4);
-    checkNear("linearSolver scalar initial residual", scalarResidual.calcResidual(), 0.125);
+    checkNear("linearSolver scalar first initial residual", scalarResidual.calcResidual(), 0.125);
 
     ITstream scalarRegionStream
     (
@@ -693,7 +856,40 @@ void testLinearSolverResiduals(fvMesh& mesh)
     );
 
     checkNear("linearSolver region tolerance parse", scalarRegionResidual.tolerance(), 2.0e-4);
-    checkNear("linearSolver region initial residual", scalarRegionResidual.calcResidual(), 0.125);
+    checkNear("linearSolver region first initial residual", scalarRegionResidual.calcResidual(), 0.125);
+
+    ITstream namedScalarStream
+    (
+        "linearSolver poroFluid " + scalarSolveField.name() + " first 3e-4"
+    );
+    LinearSolverRes namedScalarResidual
+    (
+        mesh.time(),
+        "pressureEquation",
+        namedScalarStream,
+        false
+    );
+
+    checkNear("named linearSolver tolerance parse", namedScalarResidual.tolerance(), 3.0e-4);
+
+    ITstream namedLastScalarStream
+    (
+        "linearSolver poroFluid " + scalarSolveField.name() + " last show"
+    );
+    LinearSolverRes namedLastScalarResidual
+    (
+        mesh.time(),
+        "pressureEquationLast",
+        namedLastScalarStream,
+        false
+    );
+
+    checkNear
+    (
+        "named last linearSolver show parse",
+        namedLastScalarResidual.tolerance(),
+        -1.0
+    );
 
     volVectorField vectorSolveField
     (
@@ -1162,10 +1358,54 @@ int main(int argc, char *argv[])
         "disk-reader-invalid-map-method",
         "Run the expected scalar disk reader invalid map-method failure path"
     );
+    argList::addBoolOption
+    (
+        "ddt-rate-only",
+        "Run only the selected-ddt fixed-stress coefficient check"
+    );
+    argList::addOption
+    (
+        "expected-ddt-factor",
+        "scalar",
+        "Expected current-time ddt coefficient relative to 1/deltaT"
+    );
+    argList::addOption
+    (
+        "ddt-advance-steps",
+        "label",
+        "Number of time steps to advance after initializing ddt history"
+    );
 
     #include "setRootCase.H"
     #include "createTime.H"
     #include "createMesh.H"
+
+    if (args.found("ddt-rate-only"))
+    {
+        if (!args.found("expected-ddt-factor"))
+        {
+            FatalErrorInFunction
+                << "-ddt-rate-only requires -expected-ddt-factor"
+                << exit(FatalError);
+        }
+
+        testSelectedDdtFactor
+        (
+            mesh,
+            args.get<scalar>("expected-ddt-factor"),
+            args.getOrDefault<label>("ddt-advance-steps", 0)
+        );
+
+        if (failures)
+        {
+            FatalErrorInFunction
+                << failures << " selected-ddt unit check(s) failed"
+                << exit(FatalError);
+        }
+
+        Info<< "Selected-ddt coupling term checks passed" << nl;
+        return 0;
+    }
 
     if (args.found("disk-reader-missing-start"))
     {

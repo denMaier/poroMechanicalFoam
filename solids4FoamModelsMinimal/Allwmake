@@ -25,6 +25,10 @@ fi
 export S4F_ROOT
 S4F_MODELS_DIR="$S4F_ROOT/src/solids4FoamModels"
 S4F_BLOCK_TOOLS_DIR="$S4F_ROOT/src/blockCoupledSolids4FoamTools"
+PATCH_FILE="$REPO_ROOT/solids4FoamModelsMinimal/patches/preserve-solid-solver-performance.patch"
+GENERATED_DIR="$REPO_ROOT/solids4FoamModelsMinimal/generated"
+UPSTREAM_SOLID_MODEL="$S4F_MODELS_DIR/solidModels/solidModel/solidModel.C"
+PATCHED_SOLID_MODEL="$GENERATED_DIR/solidModel.C"
 
 if [ ! -d "$S4F_MODELS_DIR" ]
 then
@@ -39,6 +43,17 @@ then
     echo "Set S4F_ROOT to an existing solids4Foam source or initialize the submodule."
     exit 1
 fi
+
+# Generate the poroMechanicalFoam-specific translation unit without modifying
+# the selected solids4Foam source tree. The patch is intentionally applied at
+# build time so an incompatible external source version fails immediately.
+mkdir -p "$GENERATED_DIR"
+patch \
+    --batch \
+    --fuzz=0 \
+    --output="$PATCHED_SOLID_MODEL" \
+    "$UPSTREAM_SOLID_MODEL" \
+    "$PATCH_FILE"
 
 # Directly compile the selected upstream sources; only header lnIncludes are prepared here.
 wmakeLnInclude "$S4F_MODELS_DIR"

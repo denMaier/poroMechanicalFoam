@@ -64,6 +64,14 @@ sources directly from:
 - `external/solids4foam/src/solids4FoamModels/functionObjects/sphericalCavityAnalyticalSolution`
 - `external/solids4foam/src/blockCoupledSolids4FoamTools`
 
+Before compilation, the build applies
+`solids4FoamModelsMinimal/patches/preserve-solid-solver-performance.patch` to
+an untracked generated copy of `solidModel.C`. This retains the latest solid
+linear-solver performance for poroMechanicalFoam's outer convergence control
+without modifying the bundled or externally selected solids4Foam source tree.
+Patch application uses zero fuzz and stops the build when the selected
+solids4Foam source is incompatible.
+
 ## Include/link requirements
 
 `solids4FoamModelsMinimal/Make/options` uses:

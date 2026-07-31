@@ -22,7 +22,7 @@ startFrom startTime;
 startTime 0;
 stopAt endTime;
 endTime 0;
-deltaT 1;
+deltaT 0.25;
 writeControl timeStep;
 writeInterval 1;
 EOF
@@ -38,7 +38,8 @@ FoamFile
 
 ddtSchemes
 {
-    default steadyState;
+    default Euler;
+    ddt(D)  Euler;
 }
 
 gradSchemes
@@ -178,6 +179,28 @@ EOF
 
 export DYLD_LIBRARY_PATH="$FOAM_LIBBIN:$FOAM_USER_LIBBIN:$WM_PROJECT_DIR/env/lib:${DYLD_LIBRARY_PATH:-}"
 couplingTermsUnit -case "$testCase"
+
+foamDictionary "$testCase/system/fvSchemes" \
+    -entry "ddtSchemes.ddt(D)" \
+    -set backward >/dev/null
+couplingTermsUnit \
+    -case "$testCase" \
+    -ddt-rate-only \
+    -expected-ddt-factor 1.5 \
+    -ddt-advance-steps 2
+
+foamDictionary "$testCase/system/fvSchemes" \
+    -entry "ddtSchemes.ddt(D)" \
+    -set "CrankNicolson 1" >/dev/null
+couplingTermsUnit \
+    -case "$testCase" \
+    -ddt-rate-only \
+    -expected-ddt-factor 2 \
+    -ddt-advance-steps 1
+
+foamDictionary "$testCase/system/fvSchemes" \
+    -entry "ddtSchemes.ddt(D)" \
+    -set Euler >/dev/null
 
 set +e
 missingDiskReaderOutput=$(couplingTermsUnit -case "$testCase" -disk-reader-missing-start 2>&1)

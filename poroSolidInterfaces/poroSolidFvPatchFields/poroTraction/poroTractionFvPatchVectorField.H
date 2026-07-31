@@ -26,8 +26,9 @@ Class
     poroTractionFvPatchVectorField
 
 Description
-    Fixed total traction boundary condition for porous solvers.
-    total traction is the sum of effective traction and (excess) pore water pressure
+    Traction boundary condition for saturated porous solvers. When total is
+    false, converts prescribed effective traction to total traction using the
+    pressure field and Biot coefficient of poroMechanicalLaw2.
 
 Author
     Denis Maier, BAW. All rights reserved.
@@ -57,6 +58,8 @@ SourceFiles
 namespace Foam
 {
 
+    class solidModel;
+
     /*---------------------------------------------------------------------------*\
                  Class poroTractionFvPatchVectorField Declaration
     \*---------------------------------------------------------------------------*/
@@ -85,8 +88,15 @@ namespace Foam
         //- Optional: under-relaxation factor
         const scalar relaxFac_;
 
-        //- Optional: buoayancy is treated implicitly
-        bool buoyancyImplicit_;
+        //- Pressure field requested by the boundary condition. "auto" means
+        //  inherit the field used by poroMechanicalLaw2.
+        word pressureFieldName_;
+
+        //- Return the pressure field used by all poro-mechanical laws
+        word mechanicalPressureFieldName(const solidModel&) const;
+
+        //- Assemble the Biot coefficient on this patch
+        scalarField patchBiotCoeff(const solidModel&) const;
 
     public:
         //- Runtime type information

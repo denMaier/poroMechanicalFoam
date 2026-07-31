@@ -1,0 +1,56 @@
+#!/bin/sh
+set -eu
+
+caseDir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+base="$caseDir/base"
+runs="$caseDir/runs"
+
+if ! command -v blockMesh >/dev/null 2>&1 \
+ || ! command -v topoSet >/dev/null 2>&1 \
+ || ! command -v poroMechanicalFoam >/dev/null 2>&1
+then
+    echo "OpenFOAM and poroMechanicalFoam must be available in PATH" >&2
+    exit 1
+fi
+
+"$caseDir/Allclean"
+blockMesh -case "$base" -region solid > "$caseDir/log.blockMesh"
+topoSet -case "$base" -region solid > "$caseDir/log.topoSet"
+blockMesh -case "$base" -region poroFluid >> "$caseDir/log.blockMesh"
+mkdir -p "$runs"
+
+runVariant()
+{
+    name=$1
+    interface=$2
+    formulation=$3
+    fixedStressScale=$4
+    target="$runs/$name"
+
+    cp -R "$base" "$target"
+    touch "$target/$name.foam"
+    foamDictionary "$target/constant/poroCouplingProperties" \
+        -entry poroSolidInterface -set "$interface"
+    foamDictionary "$target/constant/poroCouplingProperties" \
+        -entry fixedStressStabilScale -set "$fixedStressScale"
+
+    if [ "$interface" = poroSolidStab ]
+    then
+        foamDictionary "$target/constant/poroCouplingProperties" \
+            -entry poroSolidStabCoeffs/stabilizationType -set "$formulation"
+    fi
+
+    poroMechanicalFoam -case "$target" > "$target/log.poroMechanicalFoam"
+}
+
+runVariant unstabilized poroSolid implicit 4.0
+runVariant explicit poroSolidStab explicit 5.0
+runVariant implicit poroSolidStab implicit 5.5
+
+python3 "$caseDir/checkerboard_metric.py" \
+    "$runs/unstabilized/100/poroFluid/p_rgh" \
+    "$runs/explicit/100/poroFluid/p_rgh" \
+    "$runs/implicit/100/poroFluid/p_rgh" \
+    > "$runs/checkerboardMetrics.csv"
+
+cat "$runs/checkerboardMetrics.csv"
